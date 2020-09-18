@@ -1,0 +1,69 @@
+	TITL  'XOP - Call a user defined XOP '
+        IDT   'XOPR'
+*
+*  XOP - Calls a User Defined XOP from C
+*
+*  Calling Sequence:
+*
+*          result = xop ( xop#, register_list )
+*
+*  where:
+*
+*          xop#              -  is the xop number to call
+*          register_list     -  is pointer to an 8 word array that
+*                               contains registers 0 to 7.
+*
+*  returns the register list 0-7; and r8 contains the return status
+*  as follows:
+*
+*         r8 = 0;           jeq return
+*         r8 = 1;           jne return
+*
+*
+	DEF  XOP
+*
+XOP     EQU  $
+	DATA -2				; 2 ARGUMENTS
+	DATA BASEAD
+*
+	MOV  @ARG2,R8			; GET 2ND ARGUMENT POINTER
+	MOV  *R8+,R0
+	MOV  *R8+,R1
+	MOV  *R8+,R2
+	MOV  *R8+,R3
+	MOV  *R8+,R4
+	MOV  *R8+,R5
+	MOV  *R8+,R6
+	MOV  *R8+,R7			; GET 8 REGISTERS
+*
+	MOV  @ARG1,R8			; GET XOP # TO EXECUTE
+	MOV  *R8,@DEFXOP		; SAVE XOP #
+*
+        XOP  @DEFXOP,0		; PERFORM XOP
+	CLR  R9			; ASSUME NORMAL RETURN
+	JEQ  DEFRET		; OK
+	LI   R9,1
+*
+*  SAVE RESULTS
+*
+DEFRET	EQU  $
+	MOV  @ARG2,R8			; GET REGISTERS
+	MOV  R0,*R8+
+	MOV  R1,*R8+
+	MOV  R2,*R8+
+	MOV  R3,*R8+
+	MOV  R4,*R8+
+	MOV  R5,*R8+
+	MOV  R6,*R8+
+	MOV  R7,*R8+
+	MOV  @BASEAD,R3
+	MOV  @RETUAD,R11
+	MOV  R9,R5
+	B    *R11
+*
+DEFXOP  DATA 0                   ; XOP NUMBER
+BASEAD  DATA 0
+RETUAD  DATA 0
+ARG1    DATA 0
+ARG2    DATA 0
+        END

@@ -1,0 +1,994 @@
+9640 and 99/4A Assembler
+                                                    Page 0001
+0001                         TITL   'FORTRAN INTERTASK COMMUNICATION SUPPORT ROUTINES'
+0002                         IDT    'INTER'
+0003                 **
+0004                 ** INTERTASK : Supports the following intertask functions:
+0005                 **
+0006                 **
+0007                 ** function loadtask ( filename, length_command, command_line )
+0008                 **   returns the page zero of the task loaded, or zero if the task
+0009                 **   could not be loaded.   The task is put to sleep by this routine.
+0010                 **
+0011                 ** call  awaken   ( pagezero )
+0012                 **   wakes the child task
+0013                 **
+0014                 ** call  sleep    ( pagezero )
+0015                 **   puts the child task to sleep
+0016                 **
+0017                 ** call forbid   ()
+0018                 **   forbid multi-tasking
+0019                 **
+0020                 ** call allow    ()
+0021                 **   allow  multi-tasking
+0022                 **
+0023                 ** integer function sendme ( pagezero, length, message )
+0024                 **   send a message in "string" to child task
+0025                 **     returns "0" if message sent
+0026                 **     returns "1" if message too large to send (<=0, >240 bytes)
+0027                 **     returns "2" if no room in user free node list
+0028                 **     returns "3" if message already queued in child task
+0029                 **     returns "4" if task does not exist
+0030                 **
+0031                 ** integer function getmes  ( message )
+0032                 **   Get a message in "string" from parent task.
+0033                 **   The task is put to sleep until a message is rec'd.
+0034                 **   Returns length of message rec'd
+0035                 **
+0036                 ** integer function identt ( dummy )
+0037                 **   Returns the page number of the parent task (from >e8 in page0)
+0038                 **
+0039                 ** call declar ( *name )
+0040                 **   Declare an up to 6 character name for this task
+0041                 **
+0042                 ** integer function findta ( *name )
+0043                 **   Find the task 0 page number for the given task name
+0044                 **
+0045                 ** A message is formatted in normal MDOS fashion, a length byte followed
+0046                 ** by a string of bytes.   The message resides in the user space until
+0047                 ** the child task recieves it, so the tasks are synchronous, not async.
+0048                 **
+0049                 ** Change History:
+0050                 **
+0051                 ** (c) Copyright 1993 by LGMA Products
+0052                 **
+0053 0000   0134             DEF  LOADTA             ; LOAD A TASK
+0054 0000   020A             DEF  AWAKEN             ; AWAKEN A TASK
+0055 0000   0240             DEF  SLEEP              ; MAKE TASK GO TO SLEEP
+0056                 *       DEF  FORBID             ; FORBID TASK FROM RUNNING
+0057                 *       DEF  ALLOW              ; ALLOW TASK TO RUN
+0058 0000   026E             DEF  SENDME             ; SEND MESSAGE TO TASK
+0059 0000   0358             DEF  GETMES             ; GET A MESSAGE FROM CALLING TASK
+0060                 *       DEF  IDENTT             ; IDENTIFY THE PARENT TASK
+0061 0000   0018             DEF  DECLAR             ; DECLARE AN UP TO 6 CHAR NAME FOR THIS TASK
+0062 0000   0046             DEF  FINDTA             ; FIND TASK BASED ON 6 CHAR NAME
+0063                 *       DEF  IDENTP             ; IDENTIFY MY PAGE ZERO TASK
+0064                 **
+0065                         UNL
+0107                 *
+0108                 *  PAGE ZERO TASK EQUATES AND OTHERS
+0109                 *
+0110 0000   0062     MOSTAT  EQU  >0062              ; MOUSE STATE
+0111 0000   00E8     COTASK  EQU  >00E8              ; PARENT TASK PAGE NUMBER
+0112 0000   0102     STATE   EQU  >0102              ; COMMAND PROCESS STATE
+0113 0000   0103     SLICE   EQU  >0103              ; SET SLICE OF LIFE
+0114 0000   0104     PNAME   EQU  >0104              ; NAME OF THIS TASK
+0115 0000   0008     PLENGTH EQU  8                  ; # CHARS IN TASK NAME
+0116 0000   00D6     MSGPTR  EQU  >00D6              ; MESSAGE POINTER (NEW PAGE 0 POINTER)
+0117 0000   0128     CMDSTR  EQU  >0128              ; COMMAND STRING
+0118 0000   0122     FREPTR  EQU  >0122              ; FREE NODE POINTER
+0119 0000   F110     MMRREG  EQU  >F110              ; MEMORY MAP REGISTERS
+0120 0000   F080     FIRSTI  EQU  >F080              ; FIRST INSTRUCTION IN PAGE 0 OF TASK
+0121 0000   000C     INTINT  EQU  >000C              ; FORCED INTERRUPT LOCATION
+0122                 *
+0123                 *  EQUATES IN OS TASK PAGE 0
+0124                 *
+0125 0000   0028     HEAD#T  EQU  >0028              ; Start of task header
+0126 0000   002A     TAIL#T  EQU  >002A              ; End of task header
+0127                 *
+0128                 ** PROCESS STATES
+0129                 *
+0130 0000   0000     ACTIVE  EQU  >0000              ; ACTIVE TASK PROCESS STATE
+0131 0000   FD00     SLEEPY  EQU  >FD00              ; TASK IS ASLEEP
+0132 0000   FE00     LOCKMU  EQU  >FE00              ; LOCKED MULTITASKING
+0133                 **
+0134 0000   0000     START   EQU  $
+0135                 **
+0136                 ** IDENTIFYPAGE - IDENTIFY MY PAGE ZERO NUMBER
+0137                 **
+0138                 IDENTP
+0139 0000   0000             DATA 0
+0140 0002   05B0'            DATA BASEAD             ; TEMPS AREA
+0141 0004   04C8             CLR  R8
+0142 0006   D220             MOVB @MMRREG,R8         ; GET MY PAGE ZERO NUMBER
+0142 0008   F110      
+0143 000A   06C8             SWPB R8
+0144 000C   C0E0             MOV  @BASEAD,R3
+0144 000E   05B0'     
+0145 0010   C2E0             MOV  @RETUAD,R11
+0145 0012   05B2'     
+0146 0014   C148             MOV  R8,R5
+0147 0016   045B             B    *R11
+9640 and 99/4A Assembler
+FORTRAN INTERTASK COMMUNICATION SUPPORT ROUTINES    Page 0003
+0148                 *
+0149                 **
+0150                 ** DECLARETASK - DECLARE A TASK NAME FOR MY TASK (STUFF MY PAGE 0)
+0151                 **
+0152                 DECLAR
+0153 0018   FFFF             DATA -1
+0154 001A   05B0'            DATA BASEAD
+0155 001C   C060             MOV  @ARG1,R1           ; GET POINTER TO TASK NAME
+0155 001E   05B4'     
+0156 0020   0202             LI   R2,PNAME           ; TASK NAME POINTER
+0156 0022   0104      
+0157 0024   0203             LI   R3,PLENGTH         ; EIGHT BYTES TO MOVE
+0157 0026   0008      
+0158                 *
+0159 0000   0028     MOVBYT  EQU  $
+0160 0028   D131             MOVB *R1+,R4            ; GET A BYTE
+0161 002A   1304             JEQ  DONBYT             ; BRIF DONE
+0162 002C   DC84             MOVB R4,*R2+            ; ELSE, SAVE IN TASK NAME
+0163 002E   0603             DEC  R3
+0164 0030   16FB             JNE  MOVBYT             ; TRY AGAIN
+0165 0032   1004             JMP  RETDET
+0166 0000   0034     DONBYT  EQU  $
+0167 0034   DCA0             MOVB @KBLANK,*R2+       ; FILL WITH BLANKS
+0167 0036   04AC'     
+0168 0038   0603             DEC  R3
+0169 003A   16FC             JNE  DONBYT
+0170 0000   003C     RETDET  EQU  $
+0171 003C   C0E0             MOV  @BASEAD,R3
+0171 003E   05B0'     
+0172 0040   C2E0             MOV  @RETUAD,R11
+0172 0042   05B2'     
+0173 0044   045B             B    *R11
+0174                 **
+0175                 ** FINDTASK - Find a task name that matches my passed task name
+0176                 **
+0177                 FINDTA
+0178 0046   FFFF             DATA -1
+0179 0048   05B0'            DATA BASEAD
+0180 004A   C060             MOV  @ARG1,R1           ; GET THE TASK NAME STRING
+0180 004C   05B4'     
+0181 004E   0202             LI   R2,TEMPBU
+0181 0050   04B0'     
+0182 0052   0203             LI   R3,PLENGTH
+0182 0054   0008      
+0183                 *
+0184 0000   0056     FINDBYT EQU  $
+0185 0056   D131             MOVB *R1+,R4            ; GET A BYTE
+0186 0058   1304             JEQ  DONEFIN            ; BRIF ZERO TERM
+0187 005A   DC84             MOVB R4,*R2+            ; ELSE, SAVE ON STACK
+0188 005C   0603             DEC  R3
+0189 005E   16FB             JNE  FINDBYT            ; GO DO ANOTHER
+0190 0060   1004             JMP  FINDEXI            ; ELSE, EXHAUSTED COUNT, EXIT
+0191                 *
+0192 0000   0062     DONEFIN EQU  $
+0193 0062   DCA0             MOVB @KBLANK,*R2+       ; MOVE IN A BLANK
+0193 0064   04AC'     
+0194 0066   0603             DEC  R3
+0195 0068   16FC             JNE  DONEFIN
+0196                 *
+0197 0000   006A     FINDEXI EQU  $
+0198 006A   04C3             CLR  R3
+0199 006C   DC83             MOVB R3,*R2+            ; NULL TERMINATE (JUST IN CASE)
+0200 006E   05C2             INCT R2
+0201 0070   0242             ANDI R2,>FFFE
+0201 0072   FFFE      
+0202 0074   C802             MOV  R2,@TASKPT         ; SAVE MAP OF TASK POINTERS
+0202 0076   04AE'     
+0203 0078   04D2             CLR  *R2                ; IN CASE NOTHING FOUND (IMPOSSIBLE)
+0204                 *
+0205 007A   D803             MOVB R3,@PAGZER         ; MAP IN OS TASK 0 PAGE
+0205 007C   04AB'     
+0206 007E   06A0             BL   @DETERM            ; DETERINE WHERE I CAN MAP IT
+0206 0080   0402'     
+0207                 *
+0208 0082   C069             MOV  @HEAD#T(R9),R1     ; GET TASK HEADER
+9640 and 99/4A Assembler
+FORTRAN INTERTASK COMMUNICATION SUPPORT ROUTINES    Page 0004
+0208 0084   0028      
+0209 0086   C0A9             MOV  @HEAD#T(R9),R2     ; GET TASK TAIL
+0209 0088   0028      
+0210 008A   C0E0             MOV  @TASKPT,R3         ; MY LIST OF TASK POINTERS
+0210 008C   04AE'     
+0211                 *
+0212 0000   008E     FINDNEX EQU  $
+0213 008E   C109             MOV  R9,R4              ; COMPUTE OFFSET TO TASK POINTER
+0214 0090   A101             A    R1,R4
+0215 0092   C074             MOV  *R4+,R1            ; SET POINTER TO NEXT
+0216 0094   C154             MOV  *R4,R5             ; GET NEXT TASK POINTER
+0217 0096   0245             ANDI R5,>00FF           ; MASK OFF TASK ZERO POINTER
+0217 0098   00FF      
+0218 009A   06C5             SWPB R5
+0219 009C   DCC5             MOVB R5,*R3+            ; SAVE IT ON STACK
+0220 009E   8081             C    R1,R2              ; AM I AT TASK TAIL?
+0221 00A0   16F6             JNE  FINDNEX            ; BRIF YES, EXIT
+0222 00A2   04C5             CLR  R5
+0223 00A4   DCC5             MOVB R5,*R3+            ; ZAP LAST ENTRY TO TERMINATE LIST
+0224                 *
+0225                 *  THE STACK NOW CONTAINS A LIST OF TASK 0 ENTRIES (AT TASKPT)
+0226                 *
+0227 0000   00A6     LOOPTAS EQU  $
+0228 00A6   06A0             BL   @RESTOR            ; RESTORE MY NORMAL MAP
+0228 00A8   0442'     
+0229 00AA   C0E0             MOV  @TASKPT,R3         ; GET POINTER TO NEXT ENTRY
+0229 00AC   04AE'     
+0230 00AE   05A0             INC  @TASKPT
+0230 00B0   04AE'     
+0231 00B2   D813             MOVB *R3,@PAGZER        ; FOR DETERMINATION LOOP
+0231 00B4   04AB'     
+0232 00B6   1311             JEQ  NOTFNT             ; NOT FOUND, END OF PAGES
+0233 00B8   06A0             BL   @DETERM            ; FIND A PLACE TO MAP IT
+0233 00BA   0402'     
+0234                 *
+0235 0000   00BC     CHKNAM  EQU  $
+0236 00BC   0201             LI   R1,TEMPBU          ; TASK IN POINTER
+0236 00BE   04B0'     
+0237 00C0   C089             MOV  R9,R2              ; TASK OUT POINTER
+0238 00C2   0222             AI   R2,PNAME           ; + START OF TASK NAME
+0238 00C4   0104      
+0239 00C6   0203             LI   R3,PLENGTH         ; # OF CHARS TO EXAMINE
+0239 00C8   0008      
+0240                 *
+0241 0000   00CA     CHKNBY  EQU  $
+0242 00CA   8CB1             C    *R1+,*R2+          ; IS IT THE SAME?
+0243 00CC   16EC             JNE  LOOPTAS
+0244 00CE   0643             DECT R3
+0245 00D0   16FC             JNE  CHKNBY             ; YES, CHECK NEXT
+0246                 *
+0247                 *  THE TASK HAS BEEN FOUND, SAVE THE TASK 0 PAGE NUMBER
+0248                 *
+0249 00D2   D820             MOVB @PAGZER,@TASKPT    ; SAVE IT
+0249 00D4   04AB'     
+0249 00D6   04AE'     
+0250 00D8   1002             JMP  CLEANUP
+0251                 *
+0252                 *  THE TASK HAS NOT BEEN FOUND, RETURN >00 FOR THE TASK PAGE #
+0253                 *
+0254 0000   00DA     NOTFNT  EQU  $
+0255 00DA   04C8             CLR  R8
+0256 00DC   1006             JMP  CLNDONE
+0257                 *
+0258 0000   00DE     CLEANUP EQU  $                  ; DESIRED TASK FOUND, RETURN PAGE ZERO #
+0259 00DE   06A0             BL   @RESTOR            ; OF TARGET TASK
+0259 00E0   0442'     
+0260 00E2   04C8             CLR  R8
+0261 00E4   D220             MOVB @TASKPT,R8
+0261 00E6   04AE'     
+0262 00E8   06C8             SWPB R8
+0263                 *
+0264 0000   00EA     CLNDONE EQU  $
+0265 00EA   C0E0             MOV  @BASEAD,R3         ; RESTORE R3
+0265 00EC   05B0'     
+0266 00EE   C2E0             MOV  @RETUAD,R11        ; RESTORE R11
+9640 and 99/4A Assembler
+FORTRAN INTERTASK COMMUNICATION SUPPORT ROUTINES    Page 0005
+0266 00F0   05B2'     
+0267 00F2   C148             MOV  R8,R5
+0268 00F4   045B             B    *R11
+0269                 **
+0270                 ** IDENTIFYPARENT - IDENTIFY THE PARENT TASK PAGE 0 ADDRESS
+0271                 **
+0272                 IDENTT
+0273 00F6   FFFF             DATA -1                 ; ONE DUMMY ARGUMENT
+0274 00F8   05B0'            DATA BASEAD
+0275 00FA   C0E0             MOV  @BASEAD,R3
+0275 00FC   05B0'     
+0276 00FE   C2E0             MOV  @RETUAD,R11
+0276 0100   05B2'     
+0277 0102   C160             MOV  @COTASK,R5         ; GET COTASK ID
+0277 0104   00E8      
+0278 0106   045B             B    *R11
+0279                 **
+0280                 ** FORBID - FORBID MULTI-TASKING
+0281                 **
+0282                 FORBID
+0283 0108   0000             DATA 0
+0284 010A   05B0'            DATA BASEAD
+0285 010C   0200             LI   R0,LOCKMU          ; LOCK MULTI-TASKING
+0285 010E   FE00      
+0286 0110   D800             MOVB R0,@STATE
+0286 0112   0102      
+0287 0114   C0E0             MOV  @BASEAD,R3
+0287 0116   05B0'     
+0288 0118   C2E0             MOV  @RETUAD,R11
+0288 011A   05B2'     
+0289 011C   045B             B    *R11
+0290                 **
+0291                 ** ALLOW  - ALLOW MULTI-TASKING
+0292                 **
+0293                 ALLOW
+0294 011E   0000             DATA 0
+0295 0120   05B0'            DATA BASEAD
+0296 0122   0200             LI   R0,ACTIVE
+0296 0124   0000      
+0297 0126   D800             MOVB R0,@STATE          ; ALLOW MULTI-TASKING
+0297 0128   0102      
+0298 012A   C0E0             MOV  @BASEAD,R3
+0298 012C   05B0'     
+0299 012E   C2E0             MOV  @RETUAD,R11
+0299 0130   05B2'     
+0300 0132   045B             B    *R11
+0301                 **
+0302                 ** LOADTASK - LOAD A GIVEN TASK, PUT TASK TO SLEEP & PASS COMMAND
+0303                 **            LINE.
+0304                 **
+0305                 LOADTA
+0306 0134   FFFD             DATA -3                 ; INCLUDES FILE NAME & COMMAND LINE
+0307 0136   05B0'            DATA BASEAD
+0308                 *
+0309 0138   0200             LI   R0,LOCKMU          ; LOCK MULTI-TASKING
+0309 013A   FE00      
+0310 013C   D800             MOVB R0,@STATE
+0310 013E   0102      
+0311                 *
+0312 0140   0200             LI   R0,PARFIL          ; PARSE FILE NAME
+0312 0142   0008      
+0313 0144   C060             MOV  @ARG1,R1           ; MOVE FROM ADDRESS
+0313 0146   05B4'     
+0314 0148   0202             LI   R2,TEMPBU          ; MOVE TO ADDRESS
+0314 014A   04B0'     
+0315 014C   0203             LI   R3,>5000           ; 80 BYTE STRING
+0315 014E   5000      
+0316 0150   D483             MOVB R3,*R2
+0317 0152   04C3             CLR  R3 
+0318 0154   2C20             XOP  @DUTLXP,0          ; CONVERT THE FILE NAME
+0318 0156   04A2'     
+0319                 *
+0320 0158   0200             LI   R0,LOAPRO          ; LOAD IN THE PROGRAM
+0320 015A   0009      
+0321 015C   0201             LI   R1,TEMPBU
+9640 and 99/4A Assembler
+FORTRAN INTERTASK COMMUNICATION SUPPORT ROUTINES    Page 0006
+0321 015E   04B0'     
+0322 0160   2C20             XOP  @DUTLXP,0          ; DO IT
+0322 0162   04A2'     
+0323                 *
+0324 0164   C000             MOV  R0,R0              ; ANY ERROR ON RETURN?
+0325 0166   130B             JEQ  LODCNT             ; BRIF NO
+0326                 *
+0327 0168   0200             LI   R0,ACTIVE          ; SET MULTITASKING ENVIRONMENT
+0327 016A   0000      
+0328 016C   C800             MOV  R0,@STATE
+0328 016E   0102      
+0329 0170   04C8             CLR  R8                 ; CLEAR PAGE 0 RETURNED
+0330 0172   C0E0             MOV  @BASEAD,R3
+0330 0174   05B0'     
+0331 0176   C2E0             MOV  @RETUAD,R11
+0331 0178   05B2'     
+0332 017A   C148             MOV  R8,R5
+0333 017C   045B             B    *R11
+0334                 *
+0335 0000   017E     LODCNT  EQU  $
+0336 017E   D801             MOVB  R1,@PAGZER        ; SAVE USER TASK PAGE 0 ADDRESS
+0336 0180   04AB'     
+0337                 *
+0338                 *  CREATE AN MDOS STYLE STRING (LENGTH + STRING) OUT OF USER COMMAND
+0339                 *  LINE TO PASS
+0340                 *
+0341 0182   C020             MOV  @ARG2,R0           ; GET LENGTH OF COMMAND
+0341 0184   05B6'     
+0342 0186   C010             MOV  *R0,R0             ; (# OF BYTES TO MOVE)
+0343 0188   C0C0             MOV  R0,R3              ; SAVE LENGTH BYTE
+0344 018A   C060             MOV  @ARG3,R1           ; GET USER STRING START
+0344 018C   05B8'     
+0345 018E   0202             LI   R2,TEMPBU          ; MOVE TO ADDRESS (STACK)
+0345 0190   04B0'     
+0346 0192   0582             INC  R2                 ; SKIP LENGTH BYTE
+0347 0194   C0C3             MOV  R3,R3
+0348 0196   1303             JEQ  MOVDON
+0349                 *
+0350 0000   0198     MOVLOP  EQU  $
+0351 0198   DCB1             MOVB *R1+,*R2+          ; GET A BYTE
+0352 019A   0600             DEC  R0
+0353 019C   16FD             JNE  MOVLOP
+0354                 *
+0355 0000   019E     MOVDON  EQU  $
+0356 019E   04C5             CLR  R5
+0357 01A0   D485             MOVB R5,*R2             ; ZERO TERMINATE STRING
+0358 01A2   06C3             SWPB R3                 ; LENGTH IN HIGH BYTE
+0359 01A4   D803             MOVB R3,@TEMPBU         ; SAVE R3 IN FILE BYTE
+0359 01A6   04B0'     
+0360                 **
+0361                 ** MOVE ARGUMENT STRING INTO USER TASK SPACE
+0362                 **
+0363 01A8   06A0             BL   @DETERM            ; DETERMINE WHAT PAGE I CAN SWAP
+0363 01AA   0402'     
+0364                 *
+0365                 *  MOVE THE COMMAND STRING (IF ANY) TO THE PAGE ZERO FREE NODE LIST
+0366                 *
+0367 01AC   06A0             BL   @MOVESTRING
+0367 01AE   0450'     
+0368                 *
+0369 01B0   1608             JNE  NOCOMMX            ; BRIF ERROR MOVING STRING
+0370                 *
+0371                 *  STRING MOVED, UPDATE THE POINTERS TO CMDSTR & FREPTR
+0372                 *
+0373 01B2   CA69             MOV  @FREPTR(R9),@CMDSTR(R9)
+0373 01B4   0122      
+0373 01B6   0128      
+0374 01B8   C103             MOV  R3,R4
+0375 01BA   A109             A    R9,R4
+0376 01BC   CA54             MOV  *R4,@FREPTR(R9)    ; SET FREE POINTER TO NEXT NODE
+0376 01BE   0122      
+0377 01C0   04D4             CLR  *R4                ; ZAP POINTER ON LAST NODE
+0378                 *
+0379                 *  DONE WITH COMMAND STRING.  RESTORE MY PAGE & RETURN
+0380                 *
+9640 and 99/4A Assembler
+FORTRAN INTERTASK COMMUNICATION SUPPORT ROUTINES    Page 0007
+0381 0000   01C2     NOCOMMX EQU  $
+0382 01C2   04C8             CLR  R8                         ; NOOP HIS INHERITANCE OF MOUSE
+0383 01C4   DA48             MOVB R8,@MOSTAT(R9)             ; SET HIS MOUSE DRIVER DISABLED
+0383 01C6   0062      
+0384                 *
+0385 01C8   0200             LI   R0,SLEEPY                  ; PUT HIM TO SLEEP
+0385 01CA   FD00      
+0386 01CC   DA40             MOVB R0,@STATE(R9)
+0386 01CE   0102      
+0387                 *
+0388                 *  LOAD IN EXIT CODE, SO THAT THE CHILD TASK WILL AWAKEN ME WHEN HE EXITS
+0389                 *
+0390 01D0   0200             LI   R0,SPECCO          ; SPECIAL CODE
+0390 01D2   0496'     
+0391 01D4   C049             MOV  R9,R1              ; AT >B2, IN EXIT CODE
+0392 01D6   0221             AI   R1,>B2
+0392 01D8   00B2      
+0393 01DA   CC70             MOV  *R0+,*R1+          ; MOV @COTASK+1,@MAPPER+2
+0394 01DC   CC70             MOV  *R0+,*R1+
+0395 01DE   CC70             MOV  *R0+,*R1+
+0396 01E0   CC70             MOV  *R0+,*R1+          ; MOV R11,@>4102
+0397 01E2   CC70             MOV  *R0+,*R1+
+0398 01E4   CC70             MOV  *R0+,*R1+          ; JMP INTCAL
+0399                 *
+0400 01E6   06A0             BL   @RESTOR
+0400 01E8   0442'     
+0401                 *
+0402 01EA   0200             LI   R0,ACTIVE
+0402 01EC   0000      
+0403 01EE   D800             MOVB R0,@STATE          ; ALLOW MULTI-TASKING
+0403 01F0   0102      
+0404                 *
+0405 01F2   04C8             CLR  R8
+0406 01F4   D220             MOVB @PAGZER,R8         ; RETURN PAGE ZERO
+0406 01F6   04AB'     
+0407 01F8   06C8             SWPB R8
+0408 01FA   0300             LIMI 2                  ; RESTORE INTERRUPTS
+0408 01FC   0002      
+0409 01FE   C0E0             MOV  @BASEAD,R3
+0409 0200   05B0'     
+0410 0202   C2E0             MOV  @RETUAD,R11
+0410 0204   05B2'     
+0411 0206   C148             MOV  R8,R5              ; IN PROPER REGISTER FOR FORTRAN
+0412 0208   045B             B    *R11
+0413                 **
+0414                 ** AWAKEN - AWAKEN THE CHILD TASK - LET HIM RUN
+0415                 **
+0416 0000   020A     AWAKEN  EQU  $
+0417 020A   FFFF             DATA -1
+0418 020C   05B0'            DATA BASEAD
+0419 020E   C220             MOV  @ARG1,R8
+0419 0210   05B4'     
+0420 0212   C218             MOV  *R8,R8             ; GET ACTUAL VALUE
+0421 0214   06C8             SWPB R8
+0422 0216   D808             MOVB R8,@PAGZER
+0422 0218   04AB'     
+0423 021A   06A0             BL   @DETERM            ; DETERMINE WHERE I CAN RUN
+0423 021C   0402'     
+0424 021E   0200             LI   R0,ACTIVE          ; ZAP HIS PROCESS STATE
+0424 0220   0000      
+0425 0222   DA40             MOVB R0,@STATE(R9)
+0425 0224   0102      
+0426 0226   0200             LI   R0,>0600           ; SET SLICE TO 1 SO HE'LL RUN SOON
+0426 0228   0600      
+0427 022A   DA40             MOVB R0,@SLICE(R9)      ; SET SLICE OF LIFE
+0427 022C   0103      
+0428 022E   06A0             BL   @RESTOR
+0428 0230   0442'     
+0429 0232   0300             LIMI 2                  ; RESTORE INTERRUPTS
+0429 0234   0002      
+0430 0236   C0E0             MOV  @BASEAD,R3
+0430 0238   05B0'     
+0431 023A   C2E0             MOV  @RETUAD,R11
+0431 023C   05B2'     
+0432 023E   045B             B    *R11
+9640 and 99/4A Assembler
+FORTRAN INTERTASK COMMUNICATION SUPPORT ROUTINES    Page 0008
+0433                 **
+0434                 ** SLEEP - PUT THE CHILD TASK TO SLEEP
+0435                 **
+0436 0000   0240     SLEEP   EQU  $
+0437 0240   FFFF             DATA -1
+0438 0242   05B0'            DATA BASEAD
+0439 0244   C220             MOV  @ARG1,R8
+0439 0246   05B4'     
+0440 0248   C218             MOV  *R8,R8
+0441 024A   06C8             SWPB R8
+0442 024C   D808             MOVB R8,@PAGZER
+0442 024E   04AB'     
+0443 0250   06A0             BL   @DETERM            ; DETERMINE WHERE I CAN RUN
+0443 0252   0402'     
+0444 0254   0200             LI   R0,SLEEPY          ; ZAP HIS PROCESS STATE
+0444 0256   FD00      
+0445 0258   DA40             MOVB R0,@STATE(R9)
+0445 025A   0102      
+0446 025C   06A0             BL   @RESTOR
+0446 025E   0442'     
+0447 0260   0300             LIMI 2                  ; RESTORE INTERRUPTS
+0447 0262   0002      
+0448 0264   C0E0             MOV  @BASEAD,R3
+0448 0266   05B0'     
+0449 0268   C2E0             MOV  @RETUAD,R11
+0449 026A   05B2'     
+0450 026C   045B             B    *R11
+0451                 **
+0452                 ** SENDMESSAGE - SENDS A MESSAGE TO THE CHILD TASK.  THIS IS DONE BY
+0453                 **          CONVERTING THE MESSAGE TO AN MDOS STRING, ACCESSING THE
+0454                 **          CHILD TASK PAGE ZERO, AND MOVING THE MESSAGE INTO THE NODE
+0455                 **          LIST FOR THE CHILD TASK, AND UPDATING THE "MESSAGE" POINTER.
+0456                 **          STACKING OF MESSAGES IS ALLOWED.
+0457                 **
+0458                 **          THE CHILD TASK USES THE "GETMESSAGE" FUNCTION TO RETRIEVE
+0459                 **          THE MESSAGE.
+0460                 **
+0461                 **  ERRORS:
+0462                 **
+0463                 **              1 - MESSAGE IS TOO SHORT OR TOO LONG
+0464                 **              2 - NO ROOM FOR MESSAGE
+0465                 **              4 - CHILD TASK DOES NOT EXIST
+0466                 SENDME
+0467                 *
+0468                 *  MOVE THE MESSAGE TO MY STACK SO THAT IT WON'T GET MAPPED OUT
+0469                 *
+0470 026E   FFFD             DATA -3                 ; 3 ARGUMENTS
+0471 0270   05B0'            DATA BASEAD
+0472                 *
+0473 0272   C0A0             MOV  @ARG2,R2           ; GET LENGTH OF MESSAGE
+0473 0274   05B6'     
+0474 0276   C092             MOV  *R2,R2
+0475 0278   1304             JEQ  NOMSG              ; BRIF ZERO LENGTH MESSAGE
+0476 027A   1103             JLT  NOMSG              ; BRIF LESS THAN ZERO
+0477 027C   0282             CI   R2,240             ; GREATER THAN MAX MESSAGE?
+0477 027E   00F0      
+0478 0280   1107             JLT  PROMSG             ; NO, PROCESS MESSAGE
+0479                 *
+0480 0000   0282     NOMSG   EQU  $
+0481 0282   C0E0             MOV  @BASEAD,R3
+0481 0284   05B0'     
+0482 0286   C2E0             MOV  @RETUAD,R11
+0482 0288   05B2'     
+0483 028A   0205             LI   R5,1               ; RETURN ERROR
+0483 028C   0001      
+0484 028E   045B             B    *R11
+0485                 *
+0486                 *  MESSAGE IS OK, MOVE THE MESSAGE TO MY STACK
+0487                 *
+0488 0000   0290     PROMSG  EQU  $
+0489 0290   C0E0             MOV  @ARG3,R3           ; GET MESSAGE START
+0489 0292   05B8'     
+0490 0294   0204             LI   R4,TEMPBU          ; "MOVE TO" ADDRESS
+0490 0296   04B0'     
+0491 0298   0584             INC  R4                 ; SKIP LENGTH BYTE
+9640 and 99/4A Assembler
+FORTRAN INTERTASK COMMUNICATION SUPPORT ROUTINES    Page 0009
+0492 0000   029A     MOVMSG  EQU  $
+0493 029A   DD33             MOVB *R3+,*R4+          ; MOVE A BYTE
+0494 029C   0602             DEC  R2
+0495 029E   16FD             JNE  MOVMSG
+0496                 *
+0497 02A0   C0A0             MOV  @ARG2,R2           ; GET MESSAGE LENGTH AGAIN
+0497 02A2   05B6'     
+0498 02A4   C092             MOV  *R2,R2
+0499 02A6   06C2             SWPB R2
+0500 02A8   D802             MOVB R2,@TEMPBU         ; INTO STACK
+0500 02AA   04B0'     
+0501                 *
+0502                 *  MAP IN USER PAGE 0
+0503                 *
+0504 02AC   C060             MOV  @ARG1,R1
+0504 02AE   05B4'     
+0505 02B0   C051             MOV  *R1,R1             ; GET PAGE ZERO #
+0506 02B2   06C1             SWPB R1
+0507 02B4   D801             MOVB R1,@PAGZER
+0507 02B6   04AB'     
+0508                 *
+0509 02B8   06A0             BL   @DETERM            ; DETERMINE START ADDRESS
+0509 02BA   0402'     
+0510                 *
+0511                 *  MAKE SURE THE TASK IS STILL THERE (BY IDENTIFYING THE PAGE ZERO)
+0512                 *
+0513 02BC   C059             MOV  *R9,R1             ; DOES IT START WITH >F080
+0514 02BE   0281             CI   R1,FIRSTI
+0514 02C0   F080      
+0515 02C2   163F             JNE  ABORTTA            ; TASK DOES NOT EXIST
+0516                 *
+0517 02C4   06A0             BL   @MOVESTRING        ; MOVE STRING TO USER NODE
+0517 02C6   0450'     
+0518 02C8   1631             JNE  ABORTMS            ; NO ROOM, ABORT MESSAGE
+0519                 *
+0520                 *  THE STRING HAS BEEN MOVED TO THE FREE NODES.  LINK THE NEW MESSAGE
+0521                 *  TO THE LAST NODE OF ANY EXISTING MESSAGE
+0522                 *
+0523 02CA   C169             MOV  @MSGPTR(R9),R5     ; ANY EXISTING MESSAGE HERE?
+0523 02CC   00D6      
+0524 02CE   1609             JNE  LINKEND            ; BRIF YES, LINKAGE TO END OF MESSAGE
+0525                 *
+0526                 *  THERE IS NO CURRENT MESSAGE, JUST LINK THE MESSAGE TO THE MESSAGE
+0527                 *  POINTER
+0528                 *
+0529 02D0   CA69             MOV  @FREPTR(R9),@MSGPTR(R9)
+0529 02D2   0122      
+0529 02D4   00D6      
+0530 02D6   C103             MOV  R3,R4
+0531 02D8   A109             A    R9,R4
+0532 02DA   CA54             MOV  *R4,@FREPTR(R9)    ; SET FREE POINTER TO NEXT NODE
+0532 02DC   0122      
+0533 02DE   04D4             CLR  *R4                ; ZAP POINTER ON LAST NODE
+0534 02E0   100C             JMP  LINKCOM
+0535                 *
+0536                 *  THERE IS A CURRENT MESSAGE IN THE USER QUEUE.  LINK THIS MESSAGE TO
+0537                 *  THE END OF THE LAST NODE IN THE CURRENT QUEUE
+0538                 *
+0539 0000   02E2     LINKEND EQU  $
+0540 02E2   C185             MOV  R5,R6              ; SAVE POINTER TO THIS NODE
+0541 02E4   A149             A    R9,R5
+0542 02E6   C155             MOV  *R5,R5             ; GET POINTER TO NEXT NODE
+0543 02E8   16FC             JNE  LINKEND            ; TIL AT END OF LINK QUEUE
+0544                 *
+0545 02EA   A189             A    R9,R6              ; + OFFSET
+0546 02EC   C5A9             MOV  @FREPTR(R9),*R6    ; SET LINKAGE ON LAST NODE OF CURRENT MESSAGE
+0546 02EE   0122      
+0547 02F0   C103             MOV  R3,R4
+0548 02F2   A109             A    R9,R4
+0549 02F4   CA54             MOV  *R4,@FREPTR(R9)    ; SET FREE POINTER TO NEXT NODE
+0549 02F6   0122      
+0550 02F8   04D4             CLR  *R4                ; ZAP POINTER ON LAST NODE
+0551                 *
+0552 0000   02FA     LINKCOM EQU  $
+0553                 *
+9640 and 99/4A Assembler
+FORTRAN INTERTASK COMMUNICATION SUPPORT ROUTINES    Page 0010
+0554                 *  MAKE SURE THE CHILD TASK IS AWAKENED, AND SET HIS SLICE TO 6 SO
+0555                 *  HE'LL HAVE SOME TIME TO RUN WITHOUT BEING PRE-EMPTED.
+0556                 *
+0557 02FA   0200             LI   R0,ACTIVE          ; ZAP HIS PROCESS STATE
+0557 02FC   0000      
+0558 02FE   DA40             MOVB R0,@STATE(R9)
+0558 0300   0102      
+0559 0302   0200             LI   R0,>0600           ; SET SLICE TO 1 SO HE'LL RUN SOON
+0559 0304   0600      
+0560 0306   DA40             MOVB R0,@SLICE(R9)      ; SET SLICE OF LIFE
+0560 0308   0103      
+0561                 *
+0562                 *  DONE, NOW RESTORE MY PAGE
+0563                 *
+0564 030A   06A0             BL   @RESTOR
+0564 030C   0442'     
+0565                 *
+0566                 *  SET MY SLICE OF LIFE TO 1, SO I'LL BE PREEMPTED SOON
+0567                 *
+0568 030E   0200             LI   R0,>0100           ; SET MY SLICE SO I WILL BE PRE-EMPTED SOON
+0568 0310   0100      
+0569 0312   D800             MOVB R0,@SLICE
+0569 0314   0103      
+0570                 *
+0571 0316   0300             LIMI 2                  ; RESTORE INTERRUPTS
+0571 0318   0002      
+0572 031A   0420             BLWP @INTINT            ; FORCE A TASK PULL
+0572 031C   000C      
+0573 031E   C0E0             MOV  @BASEAD,R3
+0573 0320   05B0'     
+0574 0322   C2E0             MOV  @RETUAD,R11
+0574 0324   05B2'     
+0575 0326   0205             LI   R5,0
+0575 0328   0000      
+0576 032A   045B             B    *R11
+0577                 *
+0578                 *  ABORT DUE TO LACK OF ROOM IN USER BUFFER
+0579 0000   032C     ABORTMS EQU  $
+0580 032C   06A0             BL   @RESTOR
+0580 032E   0442'     
+0581 0330   0300             LIMI 2                  ; RESTORE INTERRUPTS
+0581 0332   0002      
+0582 0334   C0E0             MOV  @BASEAD,R3
+0582 0336   05B0'     
+0583 0338   C2E0             MOV  @RETUAD,R11
+0583 033A   05B2'     
+0584 033C   0205             LI   R5,2               ; NO ROOM FOR MESSAGE
+0584 033E   0002      
+0585 0340   045B             B    *R11
+0586                 *
+0587                 *  ABORT DUE TO TASK DOESN'T EXIST, OR I AM NOT THE OWNER
+0588                 *
+0589 0000   0342     ABORTTA EQU  $
+0590 0342   06A0             BL   @RESTOR
+0590 0344   0442'     
+0591 0346   0300             LIMI 2                  ; RESTORE INTERRUPTS
+0591 0348   0002      
+0592 034A   C0E0             MOV  @BASEAD,R3
+0592 034C   05B0'     
+0593 034E   C2E0             MOV  @RETUAD,R11
+0593 0350   05B2'     
+0594 0352   0205             LI   R5,4               ; TASK DOES NOT EXIST
+0594 0354   0004      
+0595 0356   045B             B    *R11
+0596                 **
+0597                 ** GETMES - RETRIEVE A MESSAGE FROM A CALLING TASK
+0598                 **
+0599                 **       GETMESSAGE IS CALLED WHEN A TASK DESIRES TO WAIT FOR AN
+0600                 **       INCOMING MESSAGE.  IT PUTS ITSELF TO SLEEP AND WAITS FOR
+0601                 **       THE MESSAGE.  THE MESSAGE LENGTH IS RETURNED IN R8, THE
+0602                 **       MESSAGE ITSELF IS RETURNED IN THE PASSED POINTER STRING.
+0603                 **
+0604                 GETMES
+0605 0358   FFFF             DATA -1                 ; ARGUMENT IS RETURNED MESSAGE ADDRESS
+0606 035A   05B0'            DATA BASEAD
+9640 and 99/4A Assembler
+FORTRAN INTERTASK COMMUNICATION SUPPORT ROUTINES    Page 0011
+0607                 *
+0608 035C   0300             LIMI 0                  ; SEE IF A MESSAGE IS WAITING
+0608 035E   0000      
+0609 0360   C060             MOV  @MSGPTR,R1
+0609 0362   00D6      
+0610 0364   1616             JNE  GOTMSG
+0611                 *
+0612 0366   0200             LI   R0,SLEEPY          ; ELSE, PUT ME TO SLEEP
+0612 0368   FD00      
+0613 036A   D800             MOVB R0,@STATE
+0613 036C   0102      
+0614                 *
+0615 036E   0201             LI   R1,>0100           ; PUT ME TO SLEEP SOON
+0615 0370   0100      
+0616 0372   D800             MOVB R0,@SLICE
+0616 0374   0103      
+0617                 *
+0618 0376   0300             LIMI 2                  ; RESTORE INTERRUPTS
+0618 0378   0002      
+0619                 *
+0620 037A   0420             BLWP @INTINT            ; FORCE A TASK SWITCH
+0620 037C   000C      
+0621                 *
+0622                 CHKAGAIN
+0623 037E   0300             LIMI 0
+0623 0380   0000      
+0624 0382   C0A0             MOV  @MSGPTR,R2         ; DID I GET A MESSAGE?
+0624 0384   00D6      
+0625 0386   1605             JNE  GOTMSG
+0626 0388   0300             LIMI 2
+0626 038A   0002      
+0627 038C   1000             NOP
+0628 038E   1000             NOP
+0629 0390   10F6             JMP  CHKAGAIN
+0630                 *
+0631                 *  A MESSAGE WAS REC'D.  LOCK INTERRUPTS AND RETRIEVE MESSAGE
+0632                 *
+0633 0000   0392     GOTMSG  EQU  $
+0634 0392   0300             LIMI 0                  ; RETRIEVE MESSAGE
+0634 0394   0000      
+0635 0396   1001             JMP  AROUND             ; GOOD BREAKPOINT LOCATION
+0636 0398   1000             NOP
+0637 0000   039A     AROUND  EQU  $
+0638 039A   0200             LI   R0,ACTIVE          ; MAKE SURE I'M AN ACTIVE TASK
+0638 039C   0000      
+0639 039E   D800             MOVB R0,@STATE
+0639 03A0   0102      
+0640                 *
+0641 03A2   0200             LI   R0,>0600           ; GIVE ME SOME TIME TO RUN
+0641 03A4   0600      
+0642 03A6   D800             MOVB R0,@SLICE
+0642 03A8   0103      
+0643                 *
+0644 03AA   C060             MOV  @MSGPTR,R1         ; MOVE FROM ADDRESS
+0644 03AC   00D6      
+0645 03AE   C0A0             MOV  @ARG1,R2           ; MOVE TO ADDRESS
+0645 03B0   05B4'     
+0646                 *
+0647                 *  MOVE A NODE, R1 POINTS TO NODE ADDRESS
+0648                 *
+0649 03B2   04C8             CLR  R8                 ; CLEAR LENGTH
+0650 03B4   C181             MOV  R1,R6              ; SAVE START OF THIS NODE
+0651 03B6   C0F1             MOV  *R1+,R3            ; NEXT NODE ADDRESS
+0652 03B8   04C4             CLR  R4                 ; GET LENGTH
+0653 03BA   D131             MOVB *R1+,R4
+0654 03BC   06C4             SWPB R4
+0655 03BE   C804             MOV  R4,@LENGTH         ; SAVE LENGTH FOR USER (LATER)
+0655 03C0   04A8'     
+0656 03C2   130E             JEQ  MSGDON             ; BRIF ZERO LENGTH MESSAGE
+0657 03C4   0205             LI   R5,5               ; # BYTES LEFT IN THIS NODE
+0657 03C6   0005      
+0658                 *
+0659 0000   03C8     MOVANO  EQU  $
+0660 03C8   DCB1             MOVB *R1+,*R2+          ; MOVE A BYTE
+0661 03CA   0604             DEC  R4                 ; DONE WITH MESSAGE?
+9640 and 99/4A Assembler
+FORTRAN INTERTASK COMMUNICATION SUPPORT ROUTINES    Page 0012
+0662 03CC   1309             JEQ  MSGDON             ; BRIF YES
+0663 03CE   0605             DEC  R5                 ; NODE DONE?
+0664 03D0   16FB             JNE  MOVANO             ; BRIF NO
+0665                 *
+0666 03D2   C043             MOV  R3,R1              ; POINT TO NEXT NODE
+0667 03D4   1305             JEQ  MSGDON
+0668 03D6   C183             MOV  R3,R6              ; SAVE START OF THIS NODE
+0669 03D8   C0F1             MOV  *R1+,R3            ; AFTER NODE
+0670 03DA   0205             LI   R5,6               ; 6 BYTES PER NODE
+0670 03DC   0006      
+0671 03DE   10F4             JMP  MOVANO
+0672                 *
+0673                 *  NODE MOVE TO TARGET STRING.  RESTORE MESSAGE TO FREE LIST
+0674                 *
+0675 0000   03E0     MSGDON  EQU  $
+0676 03E0   C160             MOV  @MSGPTR,R5         ; GET CURRENT MESSAGE POINTER START
+0676 03E2   00D6      
+0677 03E4   C816             MOV  *R6,@MSGPTR        ; SET NEW MESSAGE POINTER
+0677 03E6   00D6      
+0678                                                 ; (FROM LINK OF LAST NODE EMPTIED)
+0679 03E8   C5A0             MOV  @FREPTR,*R6        ; SET TO FREE LIST CHAIN
+0679 03EA   0122      
+0680 03EC   C805             MOV  R5,@FREPTR         ; FIX UP FREE LIST
+0680 03EE   0122      
+0681 03F0   0300             LIMI 2                  ; RESTORE INTERRUPTS
+0681 03F2   0002      
+0682 03F4   C0E0             MOV  @BASEAD,R3
+0682 03F6   05B0'     
+0683 03F8   C2E0             MOV  @RETUAD,R11
+0683 03FA   05B2'     
+0684 03FC   C160             MOV  @LENGTH,R5         ; RETURN WITH LENGTH IN R5
+0684 03FE   04A8'     
+0685 0400   045B             B    *R11
+0686                 **
+0687                 ** DETERM - DETERMINE WHAT PAGE & ADDRESS I CAN USE FOR MULTITASKING
+0688                 **          BASED UPON WHAT START/END PAGES THIS ROUTINE IS MAPPED IN.
+0689                 **
+0690 0000   0402     DETERM  EQU  $
+0691 0402   0205             LI   R5,1               ; POSSIBLE PAGE I CAN USE
+0691 0404   0001      
+0692 0406   0201             LI   R1,START           ; GET STARTING ADDRESS
+0692 0408   0000'     
+0693 040A   09D1             SRL  R1,13              ; GET PAGE #
+0694 040C   8141             C    R1,R5
+0695 040E   1607             JNE  DETERR             ; BRIF NOT EQUAL, MADE IT
+0696 0410   0585             INC  R5                 ; TRY PAGE 2
+0697 0412   0201             LI   R1,SEND
+0697 0414   05BA'     
+0698 0416   09D1             SRL  R1,13
+0699 0418   8141             C    R1,R5
+0700 041A   1601             JNE  DETERR             ; BRIF NOT EQUAL, MADE IT
+0701 041C   0585             INC  R5                 ; ELSE, PAGE 3
+0702 0000   041E     DETERR  EQU  $
+0703 041E   0300             LIMI 0                  ; DISABLE INTERRUPTS
+0703 0420   0000      
+0704 0422   C805             MOV  R5,@PAGMAP         ; SAVE PAGE NUMBER TO MAP
+0704 0424   04A4'     
+0705 0426   0AD5             SLA  R5,13
+0706 0428   C805             MOV  R5,@PAGADR         ; SAVE STARTING ADDRESS OF PAGE
+0706 042A   04A6'     
+0707 042C   0205             LI   R5,MMRREG          ; GET STARTING MEMORY MAP REG
+0707 042E   F110      
+0708 0430   A160             A    @PAGMAP,R5         ; + MY MAP PAGE
+0708 0432   04A4'     
+0709 0434   D815             MOVB *R5,@SAVPAG
+0709 0436   04AA'     
+0710 0438   D560             MOVB @PAGZER,*R5        ; SET THE MAPPER REG
+0710 043A   04AB'     
+0711 043C   C260             MOV  @PAGADR,R9         ; SET START OF PAGE ADDRESS IN R9
+0711 043E   04A6'     
+0712 0440   045B             B    *R11
+0713                 **
+0714                 ** RESTOR - RESTORE MY PAGE AND ENABLE INTERRUPTS
+0715                 **
+0716 0000   0442     RESTOR  EQU  $
+9640 and 99/4A Assembler
+FORTRAN INTERTASK COMMUNICATION SUPPORT ROUTINES    Page 0013
+0717 0442   0202             LI   R2,MMRREG                  ; RESTORE MEMORY PAGE
+0717 0444   F110      
+0718 0446   A0A0             A    @PAGMAP,R2
+0718 0448   04A4'     
+0719 044A   D4A0             MOVB @SAVPAG,*R2
+0719 044C   04AA'     
+0720                 *       LIMI 2                          ; ENABLE INTERRUPTS
+0721 044E   045B             B    *R11
+0722                 **
+0723                 ** MOVESTRING - MOVES AN MDOS STRING ON THE STACK TO THE FREE NODES
+0724                 **              IN THE CHILD TASK.  ON ENTRY:
+0725                 **
+0726                 **                TEMPBU - POINTS TO STACK START
+0727                 **                R9 - HAS MAPPED ADDRESS OF CHILD TASK PAGE 0
+0728                 **
+0729                 **  RETURNS <NE> IF COULDN'T MOVE
+0730                 **  RETURNS <EQ> IF MOVED OK
+0731                 **
+0732                 MOVESTRING
+0733 0450   0201             LI   R1,TEMPBU          ; START ADDRESS OF STRING
+0733 0452   04B0'     
+0734 0454   04C2             CLR  R2
+0735 0456   D091             MOVB *R1,R2             ; GET LENGTH BYTE
+0736 0458   131B             JEQ  NOCOMM             ; BRIF NO STRING
+0737 045A   06C2             SWPB R2                 ; USE AS COUNTDOWN
+0738 045C   0582             INC  R2                 ; ONE MORE FOR LENGTH BYTE
+0739                 *
+0740                 *  MOVE THE STRING INTO THE USER TASK PAGE 0; FIND ITS FREE LIST NODE
+0741                 *
+0742 045E   C0E9             MOV  @FREPTR(R9),R3     ; START OF FREE LIST CHAIN
+0742 0460   0122      
+0743 0462   1316             JEQ  NOCOMM             ; BRIF NO FREE NODES
+0744                 *
+0745                 *  MOVE A NODE, R1 POINTS TO STRING START; R2 HAS LENGTH; R3 POINTS
+0746                 *  TO ADDRESS (0 BASED) OF THIS NODE
+0747                 *
+0748 0000   0464     MOVNOD  EQU  $
+0749 0464   C103             MOV  R3,R4              ; COMPUTE ACTUAL ADDRESS OF NODE
+0750 0466   A109             A    R9,R4
+0751 0468   05C4             INCT R4                 ; START TO 6 BYTE PACKET
+0752 046A   0205             LI   R5,6               ; MOVE MAXIMUM OF 6 BYTES
+0752 046C   0006      
+0753                 *
+0754 0000   046E     MOVBYM  EQU  $
+0755 046E   DD31             MOVB *R1+,*R4+          ; MOVE A BYTE FROM STRING TO NODE
+0756 0470   0602             DEC  R2                 ; DID I MOVE WHOLE STRING ?
+0757 0472   1309             JEQ  ALLDON             ; BRIF YES, FINAL NODE
+0758 0474   0605             DEC  R5                 ; ANY MORE SPACE THIS NODE?
+0759 0476   16FB             JNE  MOVBYM             ; BRIF YES
+0760                 *
+0761                 *  DONE WITH A NODE.  SEE IF I CAN LINK TO NEXT NODE.  IF NOT, GIVE
+0762                 *  UP.  IF SO, THEN SET UP FOR ANOTHER NODE
+0763                 *
+0764 0478   C103             MOV  R3,R4              ; GET START ADDRESS OF NODE AGAIN
+0765 047A   A109             A    R9,R4              ; TRUE OFFSET
+0766 047C   C0D4             MOV  *R4,R3             ; GET OFFSET TO NEXT NODE
+0767 047E   1308             JEQ  NOCOMM             ; NOTHING HERE, FORGET IT
+0768 0480   10F1             JMP  MOVNOD
+0769                 *
+0770                 *  ZERO OUT ANY REMAINING BYTES IN THE LAST NODE
+0771                 *
+0772 0000   0482     ALLDO1  EQU  $
+0773 0482   04C8             CLR  R8
+0774 0484   DD08             MOVB R8,*R4+
+0775 0000   0486     ALLDON  EQU  $
+0776 0486   0605             DEC  R5
+0777 0488   16FC             JNE  ALLDO1
+0778 0000   048A     FILLCO  EQU  $
+0779 048A   04C8             CLR  R8
+0780 048C   C208             MOV  R8,R8
+0781 048E   045B             B    *R11
+0782                 *
+0783                 *  ERROR EXIT FROM MOVESTRING
+0784                 *
+0785 0000   0490     NOCOMM  EQU  $
+9640 and 99/4A Assembler
+FORTRAN INTERTASK COMMUNICATION SUPPORT ROUTINES    Page 0014
+0786 0490   0208             LI   R8,1
+0786 0492   0001      
+0787 0494   045B             B    *R11
+0788                 **
+0789                 ** DATA AREA
+0790                 **
+0791 0000   0496     SPECCO  EQU  $
+0792 0496   D820             DATA >D820                      ; MOVB @COTASK+1,@MAPPER+2
+0793 0498   00E9             DATA >00E9
+0794 049A   F112             DATA >F112
+0795 049C   C80B             DATA >C80B                      ; MOV R11,@>4102
+0796 049E   4102             DATA >4102
+0797 04A0   10E4             DATA >10E4                      ; JMP INTCAL
+0798                 *
+0799 04A2   0009     DUTLXP  DATA UTLXOP                     ; UTILITY XOP NUMBER
+0800 04A4   0000     PAGMAP  DATA 0                          ; PAGE # THAT I CAN MAP ON
+0801 04A6   0000     PAGADR  DATA 0                          ; PAGE ADDRESS THAT I CAN MAP ON
+0802 04A8   0000     LENGTH  DATA 0                          ; SAVE OF RETURNED MESSAGE LENGTH
+0803 04AA   0000     SAVPAG  BYTE 0                          ; SAVED PAGE # AT MY PAGE ADDRESS
+0804 04AB   0000     PAGZER  BYTE 0                          ; PAGE ZERO SAVE
+0805 04AC   0020     KBLANK  BYTE >20                        ; AN ASCII BLANK
+0806 04AD   0001     K1      BYTE >01
+0807                         EVEN
+0808 04AE   0000     TASKPT  DATA 0                          ; TASK POINTER
+0809                         EVEN
+0810 04B0   0000     TEMPBU  BSS  256                ; MUST BE LARGE ENOUGH FOR BIGGEST MESSAGE
+0811 05B0   0000     BASEAD  BSS  2
+0812 05B2   0000     RETUAD  BSS  2
+0813 05B4   0000     ARG1    BSS  2
+0814 05B6   0000     ARG2    BSS  2
+0815 05B8   0000     ARG3    BSS  2
+0816                 *
+0817 0000   05BA     SEND    EQU  $
+0818                         END

@@ -1,0 +1,6 @@
+assign ob: fast:fortran/xgrlib
+assign li: fast:fortran/listings
+assign equates: fast:fortran/equates
+date >start
+sys:a99/ronvers2/a99 -pc -oob:lmcm -lli:lmcms  lmcms
+date >send

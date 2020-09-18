@@ -1,0 +1,18 @@
+c
+c  UTILCOM : Utility Menu Common:
+c
+	integer *1 printer(26), bootdisk(16), tprinter(26), tboot(16),
+     +             infile(40), oufile(40), buffer(640), option,
+     +             ovbuf(80), irec(256), device(10), gplcha
+	character  iprot
+	integer *2 mode, i, j, k, status, temp, len, gplres, header(3),
+     +             mensiz
+	integer *4 javail, jused
+	real *4    version
+	real *8    avail, left, size, recsize, type
+	common buffer, infile, oufile, ovbuf, printer, bootdisk,
+     +         tprinter, tboot, irec, device, iptr, version, mode,
+     +         i, j, k, status, option, gplcha, gplres, avail,
+     +         left, size, recsize, type, javail, jused, iprot,
+     +         len, temp, header, mensiz
+c

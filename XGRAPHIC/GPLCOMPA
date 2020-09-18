@@ -1,0 +1,5 @@
+assign ob: sys:fortran/ggrlib
+assign li: sys:fortran/glistings
+assign equates: sys:fortran/equates
+assign FORTPAR: sys:fortran/equates/gplfortpar.eq9
+a99 -pc -oob:circle -lli:circles  circles

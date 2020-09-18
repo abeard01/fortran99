@@ -1,0 +1,961 @@
+	program utility
+	implicit integer(a-z)
+c
+c  utility :  a new utility program for 99 FORTRAN, it supports the
+c	      following features:
+c
+c	      1. User Preferences
+c	      2. File Sector Editing
+c	      3. Disk Directory
+c             4. Transform Utility
+c
+c  Update History:
+c
+c   v4.4     19-Sep-89    Initial Rewrite for FORTRAN 4.4
+c   v4.42    17-Dec-89    Fixed Disk Directory Protect.  Moved some
+c			  variables to common to shrink local data.
+c   v4.43    06-Jan-90    Display Record size of 256 properly.
+c   v4.44    12-Mar-90    Fix problem with standalone version wrong
+c
+	include 'HDS1.UTILITY.UTILCOM'
+c
+	logical endcase
+c
+	version = 4.44		! set version number
+c
+c  get current screen mode.  if not 80 column, set 40 column, since
+c  I need at least 40 columns to run.
+c
+	call getmod ( mode )
+	if ( mode .ne. 1 ) call set40
+c
+c  display main menu while not exit sequence
+c
+	endcase = .false.
+	do while ( .not. endcase )
+	  write ( 6, 9100 ) version
+c
+	  status = 0
+	  do while ( status .eq. 0 )
+	    call key ( 0, k, status )
+	  enddo
+c
+	  k = iand ( k, z'007f' )	! mask off high order bit
+	  if      ( k .eq. z'0031' ) then
+	     call prefs
+	  else if ( k .eq. z'0032' ) then
+	     call diskdir
+	  else if ( k .eq. z'0033' ) then
+	     call transform
+	  else if ( k .eq. z'0034' ) then
+             call createmen
+	  else if ( k .eq. z'0035' .or. k .eq. z'000f' ) then
+	     endcase = .true.
+	  endif
+	enddo
+	call exit
+c
+9100	format ( '1', M1.12, '99 Utilities ',f4.2,
+     1                M4.5,  'Press:',
+     2                M6.7, '1 To Modify Preferences',
+     3                M8.7, '2    Do Disk Directory',
+     5               m10.7, '3    Transform a File',
+     6               M12.7, '4    Create New Menu',
+     7               M14.7, '5    Exit')
+	end
+	subroutine prefs
+	implicit integer(a-z)
+c
+c  prefs  :  process user preferences.   The user is requested his
+c	     preferences for a number of items, including:
+c
+c	     GPLRES   201E    RELOAD CHARACTER SET ON RESET
+c	     NUMLIN   2036    NUMBER OF PRINTER LINES/PAGE
+c	     RES40F   2090    DEFAULT SCREEN SIZE (0=40, 1=80, 3=32)
+c            COUNTD   201A    COUNTDOWN FOR CURSOR (DEFAULT=200)
+c            MEMTYP   20A8    MEMORY MODEL (0=E/A, 1=MINI, 2=SUPER)
+c            DEFFIL   2096    DEFAULT # OF FILES TO OPEN (=33)
+c	     COLDEF   2092    BACKGROUND COLOR
+c	     COLDEF   2092    FOREGROUND COLOR
+c	     BLOCKC   2094    CHARACTER FOR CURSOR
+c	     PRTDOP   209C    DEFAULT LABEL FOR PRINTER
+c            ENCHAR   2098    ENDING CHARACTER(S) FOR PRINTER
+c	     EXCDEV   208E    WILD CARD LABEL BINDING
+c	     BOTSHE   20A6    BOOT DISK NAME
+c	     PRTADR   20A0    PRINTER NAME
+c
+	include 'HDS1.UTILITY.UTILCOM/NOLIST'
+c
+c local data
+c
+	real *8 colors(16), models(3)
+	integer screenl(4)
+	data colors / 'TRANSPAR', 'BLACK   ', 'MEDGREEN', 'LIGGREEN',
+     +                'DARKBLUE', 'LIG BLUE', 'DARK RED', 'CYAN    ',
+     +                'MED RED ', 'LIG RED ', 'DARK YEL', 'LIG YELL',
+     +                'DARK GRE', 'MAGENTA ', 'GRAY    ', 'WHITE   '/
+	data screenl / 40, 80, 32, 32 /
+	data models / 'E/A     ', 'MINI-MEM', 'SUPER-CA' /
+c
+c  get each of the values from the current running menu image
+c
+c					gplres - reset char set on menu
+	gplres = peek ( z'201e' )
+	if ( gplres .eq. 0 ) then
+	  gplcha = 'N'
+	else
+	  gplcha = 'Y'
+	endif
+c					numlin - number lines per printed page
+	numlin = peek ( z'2036' )
+c					res40f - display type (32/40/80)
+	res40f = iand ( peek ( z'2090' ), z'0003' ) + 1
+c					countd - countdown for cursor blink
+	countd = peek ( z'201a' )
+c					memtyp - memory model (E/A,MINI,SUPER)
+	memtyp = peek ( z'20a8' )
+	if ( memtyp .lt. 0 .or. memtyp .gt. 2 ) memtyp = 0
+	memtyp = memtyp + 1
+c					deffil - default # files to open
+	deffil = iand ( peek ( z'2096' ) / 256, z'000f' )
+c					coldef - default screen colors
+	coldef = peek ( z'2092' )
+	bgcolo = iand ( ishft ( coldef, -8 ), z'000f' )  + 1
+	fgcolo = iand ( ishft ( coldef,-12 ), z'000f' )  + 1
+c					blockc - character to use for cursor
+	blockc = iand ( peek ( z'2094' ) / 256, z'00ff' )
+c					prtdop - printer label binding
+	prtdop = peek ( z'209c' )
+c					enchar - ending printer character
+	enchar = iand ( peek ( z'2098' ) / 256, z'00ff' )
+c					excdev - wild card label binding
+	excdev = peek ( z'208e' )
+c					botshe - boot disk name
+	botshe = peek ( z'20a6' )
+	do 1010 i=1,16
+	  bootdisk(i) = peekk(botshe)
+	  botshe = botshe + 1
+1010	continue
+c					prtadr - printer name
+	prtadr = peek ( z'20a0' )
+	do 1020 i=1,26
+	  printer(i) = peekk(prtadr)
+	  prtadr = prtadr + 1
+1020	continue
+c
+c  now display the screen of information
+c
+	write ( 6, 9100 ) gplcha, deffil, numlin, screenl(res40f), 
+     +                    countd, models(memtyp), colors(bgcolo),
+     +			  colors(fgcolo), blockc, prtdop,
+     +                    enchar, excdev, bootdisk, printer
+c
+c  do for each item.  position the cursor, input the item from
+c  the user, and skip to next item.
+c
+c  Reload Character Set on Reset
+c
+1800	continue
+	write ( 6, 9101 )
+	k = 0
+	do while ( k .ne. 13 )
+	  status = 0
+	  do while ( status .eq. 0 )
+	    call key ( 0, k, status )
+	  enddo
+	  if ( k .eq. z'0031' ) then
+	    if ( gplcha .eq. 'Y' ) then
+              gplcha = 'N'
+	    else
+	      gplcha = 'Y'
+	    endif
+	    write ( 6, 9102 ) gplcha
+	  endif
+	enddo
+c
+c  Number of Files to Open
+c
+1900	continue
+	write ( 6, 9105 )
+	read  ( 6, 9120, end=2000, err=2000 ) len, temp
+	if ( len .eq. 0 ) goto 2000
+	if ( temp .lt. 1 .or. temp .gt. 9 ) goto 1900
+	deffil = temp
+c
+c  Number of Lines/Page
+c
+2000	continue
+	write ( 6, 9110 )
+	read  ( 6, 9120, end=2100, err=2100 ) len, temp
+	if ( len .eq. 0 ) goto 2100
+	if ( temp .lt. 10 .or. temp .gt. 100 ) goto 2000
+	numlin = temp
+c
+c  2. 32/40/80 columns
+c
+2100	continue
+	write ( 6, 9130 )
+	k      = 0
+	do while ( k .ne. 13 )
+	  status = 0
+	  do while ( status .eq. 0 )
+	    call key ( 0, k, status )
+	  enddo
+	  if ( k .eq. z'0031' ) then
+	    if      ( res40f .eq. 1 ) then
+	      res40f = 2
+	    else if ( res40f .eq. 2 ) then
+	      res40f = 3
+	    else
+	      res40f = 1
+	    endif
+  	    write ( 6, 9135 ) screenl(res40f)
+	  endif
+	enddo
+c
+c  count for cursor blink
+c
+2300	continue
+	write ( 6, 9140 )
+	read  ( 6, 9150, end=2400, err=2400 ) len, temp
+	if ( len .eq. 0 ) goto 2400
+	if ( temp .lt. 10 .or. temp .gt. 9999 ) goto 2300
+	countd = temp
+c
+c  Memory Model (E/A, Mini-Mem, Super-Cartridge)
+c
+2400	continue
+	write ( 6, 9160 )
+	k = z'0031'
+	do while ( k .eq. z'0031' )
+	  status = 0
+	  do while ( status .eq. 0 )
+	    call key ( 0, k, status )
+	  enddo
+	  if ( k .eq. z'0031' ) then
+	    memtyp = memtyp + 1
+	    if ( memtyp .gt. 3 ) memtyp = 1
+	    write ( 6, 9170 ) models(memtyp)
+	  endif
+	enddo
+c
+c  Background Color/Foreground Color
+c
+2500	continue
+	write ( 6, 9180 )
+	k = z'0031'
+	do while ( k .eq. z'0031' .or. k .eq. z'0032' )
+	  status = 0
+	  do while ( status .eq. 0 )
+	    call key ( 0, k, status )
+	  enddo
+	  if ( k .eq. z'0031' ) then
+	    fgcolo = fgcolo + 1
+	    if ( fgcolo .gt. 16 ) fgcolo = 1
+	    write ( 6, 9182 ) colors(fgcolo)
+	    call screen ( bgcolo, fgcolo )
+	  else if ( k .eq. z'0032' ) then
+	    bgcolo = bgcolo + 1
+	    if ( bgcolo .gt. 16 ) bgcolo = 1
+	    write ( 6, 9184 ) colors(bgcolo)
+	    call screen ( bgcolo, fgcolo )
+	  endif
+	enddo
+c
+c  Character for Cursor
+c
+2600	continue
+	write ( 6, 9190 )
+	read  ( 6, 9200, err=2700, end=2700 ) len, temp
+	if ( len .eq. 0 ) goto 2700
+	if ( temp .lt. 0 .or. temp .gt. 255 ) goto 2600
+	blockc = temp
+c
+c  Default Label for Printer
+c
+2700	continue
+	write ( 6, 9210 )
+	read  ( 6, 9120, end=2800, err=2800 ) len, temp
+	if ( len .eq. 0 ) goto 2800
+	if ( temp .eq. 0 ) goto 2700
+	prtdop = temp
+c
+c  Terminating Printer Character
+c
+2800	continue
+	write ( 6, 9220 )
+	read  ( 6, 9200, end=2900, err=2900 ) len, temp
+	if ( len .eq. 0 ) goto 2900
+	enchar = temp
+c
+c  Wild Card Label Binding
+c
+2900	continue
+	write ( 6, 9230 )
+	read  ( 6, 9150, end=3100, err=3100 ) len, temp
+	if ( len .eq. 0 ) goto 3100
+	if ( temp .eq. 0 ) goto 2900
+	excdev = temp
+c
+c  Boot Disk Name
+c
+3100	continue
+	write ( 6, 9280 )
+	read  ( 6, 9290, end=3200, err=3200 ) len, tboot
+	if ( len .eq. 0 ) goto 3200
+	do 3110 i=1,16
+	  bootdisk(i) = tboot(i)
+3110	continue
+c
+c  Printer Name
+c
+3200	continue
+	write ( 6, 9300 )
+	read  ( 6, 9310, end=3300, err=3300 ) len, tprinter
+	if ( len .eq. 0 ) goto 3300
+	do 3210 i=1,26
+	  printer(i) = tprinter(i)
+3210	continue
+c
+c  all done, display final result to the user
+c
+3300	continue
+	write ( 6, 9100 ) gplcha, deffil, numlin, screenl(res40f), 
+     +                    countd, models(memtyp), colors(bgcolo),
+     +			  colors(fgcolo), blockc, prtdop,
+     +                    enchar, excdev, bootdisk, printer
+c
+	write ( 6, 9320 )
+	status = 0
+	do while ( status .eq. 0 )
+	  call key ( 0, k, status )
+	enddo
+c
+c  if small 'y' or caps 'Y', then:
+c
+	if ( k .eq. z'0059' .or. k .eq. z'0079' ) then
+c
+	  if ( gplcha .eq. 'Y' ) then
+            gplres = 1
+	  else
+	    gplres = 0
+	  endif
+	  call loadm ( z'201e', gplres )
+c
+	  call loadm ( z'2036', numlin )
+c
+	  call loadm ( z'2090', res40f - 1 )
+c
+	  call loadm ( z'201a', countd )
+c
+	  call loadm ( z'20a8', memtyp - 1 )
+c
+	  deffil = (deffil + z'0030') * 256
+	  call loadm ( z'2096', deffil )
+c
+	  coldef = ishft ((fgcolo-1), 12 ) + ishft((bgcolo-1),8)
+	  call loadm ( z'2092', coldef )
+c
+	  call loadm ( z'2094', blockc * 256 )
+c
+	  call loadm ( z'209c', prtdop )
+c
+	  call loadm ( z'2098', enchar * 256 )
+c
+	  call loadm ( z'208e', excdev )
+c
+	  botshe = peek ( z'20a6' )
+	  do 4010 i=1,8
+	    k = ( (i-1) * 2 ) + 1
+	    call loadm ( botshe, bootdisk(k) )
+	    botshe = botshe + 2
+4010	  continue
+c
+	  prtadr = peek ( z'20a0' )
+	  do 4020 i=1,13
+	    k = ( (i-1) * 2 ) + 1
+	    call loadm ( prtadr, printer(k) )
+	    prtadr = prtadr + 2
+4020	  continue
+c
+c set screen mode to desired mode
+c
+	  if ( res40f .eq. 2 ) then
+	    call set80
+	  else
+	    call set40
+	  endif
+	endif
+	return
+9100	format ( '1', m1.12, 'Preferences'//
+     +           '  Reload CharSet on Reset.',4x,a1/
+     +           '  Default # Files to Open.',i5/
+     +		 '  Number of Lines/Page....',i5/
+     +		 '  32/40/80 Columns .......',i5/
+     +           '  Count for Cursor Blink..',i5/
+     +           '  Memory Model ...........',a8/
+     +           '  Background Color .......',a8/
+     +           '  Foreground Color .......',a8/
+     +           '  Character for Cursor ...   ',z2/
+     +           '  Default Label for Printer',i4/
+     +           '  Terminating Printer Char   ',z2/
+     +           '  Wild Card Label Binding.',i5/
+     +           '  BOOT Disk Name:    ',16a1/
+     +           '  Printer: ',26a1 )
+9101	format ( '+', m3.1, '>', m23.1, 'Press 1 to Toggle')
+9102	format ( '+', m3.26, 4x, a1 )
+9105	format ( '+', m23.1, 17x, m3.1, ' ', m4.1, '>', m4.34, 4x, m4.34 )
+9110	format ( '+', m4.1, ' ', m5.1, '>', m5.34, 4x, m5.34 )
+9120	format ( q, i2 )
+9130	format ( '+', m5.1, ' ', m6.1, '>', m23.1, 'Press 1 to Toggle')
+9135	format ( '+', m6.26, i5 )
+9140	format ( '+', m6.1, ' ', m7.1, '>', m23.1, 17x, 
+     +                m7.34, 4x, m7.34 )
+9150	format ( q, i4 )
+9160	format ( '+', m7.1, ' ', m8.1, '>', m23.1, 'Press 1 to Toggle')
+9170	format ( '+', m8.26, 8x, m8.26, a8 )
+9180	format ( '+', m8.1, ' ', m22.1, 'Press 1 to Toggle Foreground'/
+     +                      '+', m23.1, '      2 to Toggle Background'/
+     +                      '+', m9.1,'>', m10.1, '>' )
+9182	format ( '+', m10.26, 8x, m10.26, a8 )
+9184	format ( '+', m9.26,  8x, m9.26,  a8 )
+9190	format ( '+', m9.1, ' ', m10.1, ' ', m22.1, 28x, m23.1, 28x,
+     +                m11.1, '>', m11.34 )
+9210	format ( '+', m11.1, ' ', m12.1, '>', m12.34 )
+9200	format ( q, z2 )
+9220	format ( '+', m12.1, ' ', m13.1, '>', m13.34 )
+9230	format ( '+', m13.1, ' ', m14.1, '>', m14.34 )
+9240	format ( '+', m14.1, ' ', m15.1, '>' )
+9280	format ( '+', m14.1, ' ', m15.1, '>', m15.21, 16x, m15.21 )
+9290	format ( q, 16a1 )
+9300	format ( '+', m15.1, ' ', m16.1, '>', m16.11, 28x, m16.11 )
+9310	format ( q, 26a1 )
+9320	format ( '+', m20.1, 'Shall I Use Preferences (Y/N)?')
+	end
+	subroutine transform
+	implicit integer(a-z)
+c
+c  transform - this program transforms an input file in dis/fix/128 format
+c              to an output file in dis/fix/80 or dis/var/80 format.
+c
+c  from 9640 version originally published in Berry Miller's 9640 NEWS.
+c
+c  Update History:
+c
+c   v1.0      26-Jun-89       Initial Version
+c
+	INCLUDE 'HDS1.UTILITY.UTILCOM/NOLIST'
+c
+	logical fileend               ! a logical variable to declare end file
+c
+c  following statements equivalence the 640 byte buffer two ways,
+c  the first equivalences five 128 byte records to it, the second
+c  equivalences eight 80 byte records.
+c
+	integer *1 inbuf(128,5), oubuf(80,8)
+	equivalence ( inbuf(1,1), buffer(1) ), (oubuf(1,1), buffer(1))
+c
+	error = 0                     ! set no error
+	write ( 6, 9050 )             ! display banner
+c
+c  request names of input, output, and option for fixed/variable file
+c
+	write ( 6, 9051 )
+	len = 0
+	do while ( len .eq. 0 )
+	  read  ( 6, 9052, end=9999, err=9999 ) len, infile
+	enddo
+c
+	if ( len .eq. 0 ) then
+	  write ( 6, 9100 )
+	  goto 9999
+	endif
+c
+        call open ( 1, infile, 2, 0, 0, 0, 128, error )
+        if ( error .ne. 0 ) then
+          write ( 6, 9120 ) error, infile
+          goto 9999
+	endif
+c
+	write ( 6, 9053 )
+	len = 0
+	do while ( len .eq. 0 )
+	  read  ( 6, 9052, end=9999, err=9999 ) len, oufile
+	enddo
+c
+	write ( 6, 9055 )
+	len = 0
+	do while ( len .eq. 0 )
+	  read  ( 6, 9056, end=9999, err=9999 ) len, option
+	enddo
+c	
+c  make sure the two file names are specified
+c
+	if ( oufile(1) .eq. ' ' ) then
+          write ( 6, 9100 )
+          goto 9999
+	endif
+c
+	if ( option .eq. 'Y' .or. option .eq. 'y' .or.
+     +       option .eq. ' ' ) then
+	  disvar = 1
+	else
+	  disvar = 0
+	endif
+c
+c  Open the input and output files.
+c
+	if ( disvar .eq. 0 ) then
+          write ( 6, 9060 ) infile, oufile
+        else
+          write ( 6, 9070 ) infile, oufile
+        endif
+c
+	call open ( 2, oufile, 1, 0, disvar, 0, 80, error )
+        if ( error .ne. 0 ) then
+          write ( 6, 9130 ) error, oufile
+          goto 9999
+        endif
+c
+c  input and output files are now open.  Read records from input file,
+c  and write them to output file
+c
+c  to make things simple, read 5 dis/fix 128 records into a 640 byte buffer
+c  and write eight dis/fix 80 records, or a variable number of display/var/8
+c  records.
+c
+        ouptr = 0                     ! output record pointer
+        do while ( ouptr .lt. 80 )    ! blank output record
+          ouptr = ouptr + 1
+          ovbuf(ouptr) = ' '
+        enddo
+        ouptr = 0                     ! reset output pointer again
+c
+	iptr    = 0		      ! count of records pointer
+        fileend = .false.             ! set not file end
+        do while ( ( error .eq. 0 ) .and. ( .not. fileend ) )
+          inrec = 0
+          do while ( inrec .lt. 5 )
+            inrec = inrec + 1
+            read ( 1, 9140, err=9000, end=1000, status=error )
+     +            ( inbuf(i,inrec), i=1,128 )
+          enddo
+          goto 1010
+c
+c  now write eight dis/fix 80 records
+c
+1000      continue
+          fileend = .true.            ! set eof on input file
+          inrec   = inrec - 1
+1010      continue
+c
+c  if display/fixed/80 output file, then just write the needed number
+c  of records (usually 8).
+c
+          if ( disvar .eq. 0 ) then
+            ouptr = 0                 ! set output record counter
+            toprec = ( inrec * 128 ) / 80
+            do while ( ouptr .lt. toprec )
+	      iptr = iptr + 1
+	      write ( 6, 9180 ) iptr
+              ouptr = ouptr + 1
+              write ( 2, 9150, err=9010, status=error )
+     +               ( oubuf(i,ouptr), i=1,80 )
+            enddo
+c
+c  if display/variable/80 output file, things are a little more complicated.
+c  flush the input file to the output file, one record at a time.  Each
+c  record is terminated by a line feed, carriage returns are ignored.
+c
+          else
+            inptr = 0
+            topptr = inrec * 128        ! # of bytes input
+            do while ( inptr .lt. topptr )
+              inptr = inptr + 1
+c
+c  if character is a control/z, must be end of file.  force file end,
+c  and set inptr high to force loop exit.
+c
+              if ( buffer(inptr) .eq. z'1a' ) then
+                fileend = .true.
+                inptr = 641
+c
+c  if a line feed is detected, or the output pointer is at 80 characters,
+c  then write the output variable/80 record to the output file
+c
+              else if ( buffer(inptr) .eq. z'0a' .or.ouptr.eq.80)then
+	        iptr = iptr + 1
+	        write ( 6, 9180 ) iptr
+                write ( 2, 9150, err=9010, status=error ) ovbuf
+                ouptr = 0
+                do while ( ouptr .lt. 80 )
+                  ouptr = ouptr + 1
+                  ovbuf(ouptr) = ' '
+                enddo
+                ouptr = 0
+c
+c  if a carriage return is detected, then do nothing (skip character)
+c
+              else if ( buffer(inptr) .eq. z'0d' ) then
+                ouptr = ouptr           ! do nothing
+c
+c  if a tab stop, advance output pointer to next eighth character
+c
+              else if ( buffer(inptr) .eq. z'09' ) then
+                ouptr = ( ouptr / 8 ) * 8 + 8
+c
+c  otherwise, a normal everyday ascii character.  store in output record
+c
+              else
+                ouptr = ouptr + 1
+                ovbuf(ouptr) = buffer(inptr)
+              endif
+            enddo
+c
+c  if at file end, and last output record not flushed, then flush it
+c
+            if ( fileend .and. ourec .gt. 0 ) then
+	      iptr = iptr + 1
+	      write ( 6, 9180 ) iptr
+              write ( 2, 9150, err=9010, status=error ) ovbuf
+            endif
+          endif
+        enddo
+c
+c only way out of above loop is via the end= path.
+c
+        goto 9999
+c
+9000    continue
+        write ( 6, 9160 ) error, infile
+        goto 9999
+c
+9010    continue
+        write ( 6, 9170 ) error, oufile
+        goto 9999
+c
+9999    continue
+        call close ( 1 )
+        call close ( 2 )
+        call wait
+	return
+c
+9050	format ( '1',4x,'99 Transform Utility')
+9051	format ( '+', m4.2, 'Enter Input File Name:', m5.2)
+9052	format ( q, 40a1 )
+9053	format ( '+', m7.2, 'Enter Output File Name:',m8.2)
+9055	format ( '+', m10.2, 'Display/Variable/80 File?(Y/N):',m11.2)
+9056	format ( q, a1 )
+9060	format ( '+', m13.5, 'D/F 128 FILE ',40a1,
+     +                m14.2, 'TO D/F  80 FILE ',40a1)
+9070	format ( '+', m13.5, 'D/F 128 FILE ',40a1,
+     +                m14.2, 'TO D/V  80 FILE ',40a1 )
+9100  	format ( '0Error - Bad File Name(s) Specified')
+9120  	format ( '0Error ',i6,' opening input file '/1x,40a1 )
+9130  	format ( '0Error ',i6,' opening output file '/1x,40a1 )
+9140  	format ( 128a1 )
+9150  	format ( 80a1 )
+9160  	format ( '0Error ',i6,' reading from input file '/1x,40a1 )
+9170  	format ( '0Error ',i6,' writing to output file '/1x,40a1 )
+9180	format ( '+', m18.2, 'Processing Record:',i6 )
+      	end
+	subroutine createmen
+	implicit integer(a-z)
+c
+c  createmen :  this module allows the user to create a new menu
+c		image.  It will either be created as a new boot
+c		image, or as a new standalone image that includes
+c		the FORTRAN runtime package.
+c
+	include 'HDS1.UTILITY.UTILCOM/NOLIST'
+c
+	logical foundkey
+	character myname(5)
+	data myname  / 'U', 'T', 'I', 'L', '1' /
+c
+	write ( 6, 9100 )
+	mensiz = peek ( z'201c' )	! actual # of bytes in menu image
+c
+c  find out what user wants to do
+c
+	foundkey = .false.
+	do while ( .not. foundkey )
+	  status = 0
+	  do while ( status .eq. 0 )
+	    call key ( 0, k, status )
+	  enddo
+c
+c  a key has been pressed.  determine what the user wants to do
+c
+c  1. Create boot image.   The image from >2000 to >2fff is saved.
+c
+	  if      ( k .eq. z'0031' ) then
+	    foundkey = .true.
+	    do 1000 i=1,40
+1000	    oufile(i) = ' '
+c
+c  extract the boot disk path image
+c
+	    botshe = peek(z'20a6')
+	    do 1010 i=1,16
+	      oufile(i) = peekk(botshe)
+	      botshe = botshe + 1
+1010	    continue
+c
+c  get the last blank character
+c
+	    lastchar = 1
+	    do 1020 i=1,16
+	      if ( oufile(i) .eq. ' ' ) goto 1030
+	      lastchar = lastchar + 1
+1020	    continue
+c
+1030	    continue
+	    do 1040 i=1,5
+	      oufile(lastchar) = myname(i)
+	      lastchar = lastchar + 1
+1040	    continue
+c
+c  save a copy of the formed file name
+c
+	    do 1045 i=1,40
+	      infile(i) = oufile(i)
+1045	    continue
+c
+c  now that I have formed my file name, give the user a chance to
+c  enter his own (or use the default I have just created)
+c
+	    write ( 6, 9110 ) oufile
+	    read  ( 6, 9120, end=9999, err=9999 ) len, infile
+c
+	    if ( len .ne. 0 ) then
+	      do 1050 i=1,len
+	        oufile(i) = infile(i)
+1050	      continue
+	    endif
+c
+c  tell the user what I am doing, and save the file
+c
+	    write ( 6, 9130 ) oufile
+c
+c  create the 3 word header
+c
+	    header(1) = z'0000'		! stop after load
+	    header(2) = mensiz		! # of bytes to load
+	    header(3) = z'2000'		! start address to load
+	    call vmbw  ( z'1400', header, 6 )
+c
+	    call avmbw ( z'1406',  header(3), mensiz )
+	    call save  ( oufile, z'1400', mensiz+6, error )
+	    if ( error .ne. 0 ) write ( 6, 9140 ) error
+c
+c  2. Create standalone image.  Similar to the menu image, except a
+c     standalone boot image is created.
+c
+	  else if ( k .eq. z'0032' ) then
+	    foundkey = .true.
+	    write ( 6, 9150 )
+	    read  ( 6, 9120, end=9999, err=9999 ) len, oufile
+	    if ( len .eq. 0 ) goto 9999
+	    write ( 6, 9130 ) oufile
+c
+c  set the flag in MENU telling it that this is an autoboot file, and
+c  not a normal menu boot.
+c
+	    call loadm ( z'20a4', 1 )
+c
+c  clear the debugger transfer address (just in case some idiot ran
+c  the utility program using the debugger).
+c
+	    call loadm ( z'2020', 0 )
+c
+c  create the 3 word header
+c
+	    header(1) = z'ffff'		! continue w/load
+	    header(2) = z'1e40'		! # of bytes to load
+	    header(3) = z'2000'		! start address to load
+c
+	    call vmbw  ( z'1400',  header, 6 )
+	    call avmbw ( z'1406',  header(3), header(2) )
+	    call save ( oufile, z'1400', header(2)+6, error )
+c
+c  set back the pointer in my menu image
+c
+	    call loadm ( z'20a4', 0 )
+c
+	    if ( error .ne. 0 ) write ( 6, 9140 ) error
+c
+c  3. exit
+c
+	  else if ( k .eq. z'0033' .or. k .eq. z'000f' ) then
+	    foundkey = .true.
+	  endif
+	enddo
+9999	call wait
+	return
+9100	format ( '1  Create New Menu Image',
+     +           m5.7, '1 To Create Boot Image',
+     +           m7.7, '2    Create Standalone Image',
+     +           m9.7, '3    Exit')
+9110	format ( '+', m15.2, 'Enter File Name to Save:',
+     +		      m16.2, 40a1, m16.2 )
+9120	format ( q, 40a1 )
+9130	format ( '+', m18.2, 'Saving File:', m19.2, 40a1 )
+9140	format ( '+', m21.2, 'Error ',i6,' creating save file')
+9150	format ( '+', m15.2, 'Enter File Name to Save:',
+     +		      m16.2 )
+	end
+	subroutine diskdir
+	implicit integer(a-z)
+c
+c  diskdir : performs a disk directory of the selected device
+c	     (e.g. DSK1.)
+c
+	include 'HDS1.UTILITY.UTILCOM/NOLIST'
+c
+	real *8 types(6)
+	data types / 'DIS/FIX ', 'DIS/VAR ', 'INT/FIX ', 'INT/VAR ',
+     +               'PROGRAM ', 'DIRECTRY' /
+c
+	write ( 6, 9100 )
+	len = 0
+	do while ( len .eq. 0 )
+	  write ( 6, 9110 )
+	  read  ( 6, 9120, end=2000, err=2000 ) len, infile
+	enddo
+c
+c  a device name has been entered.  open the device name as a d/f/128
+c  file, and read the catalog
+c
+	lastchar = 40
+	do while ( infile(lastchar) .eq. ' ' .and. lastchar .gt. 1 )
+	  lastchar = lastchar - 1
+	enddo
+c
+c  force final period (e.g. DSK1.; not DSK1)
+c
+	if ( infile(lastchar) .ne. '.' ) then
+          infile(lastchar+1) = '.'
+	endif
+c
+	call open ( 1, infile, 2, 1, 0, 1, 256, error )
+	if ( error .ne. 0 ) then
+	  write ( 6, 9130 ) error, infile
+	  call wait
+	  return
+	endif
+c
+c  the device has been opened.  Read the first record, and get the
+c  disk name and available sectors.
+c
+	read ( 1, 9170, err=9999, end=9999, status=error ) irec
+c
+	iptr = 0
+	call getstr ( device )		! get a BASIC string
+	call getflt ( avail  )		! get a BASIC float
+	call getflt ( avail  )
+	call getflt ( left   )
+	javail = avail
+	jused  = avail - left
+c
+	do 1000 i=1,40
+	  j = i
+	  if ( infile(i) .eq. ' ' ) goto 1010
+1000	continue
+c
+1010	continue
+	write ( 6, 9140 ) j, (infile(i), i=1,j), device
+	write ( 6, 9150 ) javail, jused
+	write ( 6, 9180 )
+c
+	do 1020 i=1,127
+	  read ( 1, 9170, end=9999, err=9999, status=error ) irec
+	  if ( irec(1) .eq. z'00' ) goto 2000
+	  iptr = 0
+c
+c  get file attributes, including file name, type of file, size of
+c  file, and protected or not.
+c
+	  call getstr ( device  )	! a$
+	  call getflt ( type    )	! a
+	  call getflt ( size    )	! j
+	  call getflt ( recsize )	! k
+	  isize = size			! extract file size
+	  rsize = recsize		! extract record size
+c
+	  if ( rsize .eq. 0 ) then
+	    rsize = 256
+	  endif
+	  itype = dabs(type)		! get type of device (1-5)
+	  if ( itype .le. 0 .or. itype .gt. 5 )  itype = 6
+	  if ( type .lt. 0.0d0 ) then
+	    iprot = 'Y'
+	  else
+	    iprot = ' '
+	  endif
+	  write ( 6, 9190 ) device, isize, types(itype), rsize, iprot
+1020	continue
+	goto 9999
+c
+9999	continue
+	write ( 6, 9160 ) error
+2000	continue
+	call close ( 1 )
+	call wait
+9100	format ( '1    Disk Directory')
+9110	format ( '+', m7.2, 'Enter Device Name (e.g. DSK1.):',
+     +		      m8.2 )
+9120	format ( q, 40a1 )
+9130	format ( '0Error ',i6,' Opening Device ',40a1 )
+9140	format ( '1  ',na1, ' - Diskname = ',10a1 )
+9150	format ( '0  Available=',i7,', Used=',i7/ )
+9160	format ( ' Error reading file, error= ',i6 )
+9170	format ( 256a1 )
+9180	format ( '0 Filename   Size   Type         P'/
+     +           '  --------   ----   ----         -')
+9190	format ( 2x,10a1,1x,i4,2x,a8,i5,1x,a1 )
+	end
+	subroutine getflt ( value )
+	implicit integer(a-z)
+c
+c  getflt - gets a floating point value from an internal format string
+c
+	include 'HDS1.UTILITY.UTILCOM/NOLIST'
+	real *8 value, dvalue
+	integer *1 kvalue(8)
+	equivalence ( kvalue(1), dvalue )
+c
+c  move in the floating point value a byte at a time
+c
+	iptr = iptr + 1		! skip the byte which has length
+	do 1000 i=1,8
+	  iptr = iptr + 1
+	  kvalue(i) = irec(iptr)
+1000	continue
+c
+	value = dvalue		! transfer 8 bytes to user value
+	end
+	subroutine getstr ( string )
+	implicit integer(a-z)
+c
+c  getstr - gets the up to 255 character string in the user string
+c	    variable
+c
+	include 'HDS1.UTILITY.UTILCOM/NOLIST'
+c
+	character string(10)
+c
+	do 1000 i=1,10
+	  string(i) = ' '	! first blank string
+1000	continue
+c
+	iptr = iptr + 1
+	length = irec(iptr)
+c				if not zero length, extract string
+	if ( length .ne. 0 ) then
+	  do 1010 i=1,length
+	    iptr = iptr + 1
+	    string(i) = irec(iptr)
+1010	  continue
+	endif
+	end

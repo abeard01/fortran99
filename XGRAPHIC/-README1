@@ -1,0 +1,74 @@
+                        =========================
+                        Extended Graphics Project            April 28, 1988
+                        =========================
+                               rev. 1
+
+  This archive is the start of an "Extended Graphics Project", 9640 FORTRAN
+  callable routines which perform extensions to the low level graphics
+  routines already included in the 9640 GL Library.
+
+  The first routine was uploaded previously, and was a translation of 
+  J. Syzdek's circle routine to be callable to 9640 FORTRAN.
+
+  The next two routines are included in this module, and were requested
+  by Matt Beebe (who is working on some windowing routines for 9640 
+  FORTRAN).  The routines save and restore pixel data to the screen.
+  The routines use the 9938 Logical Move commands.
+
+  I'm still not totally happy with the speed of these routines.  Some
+  experiments I have done show that just reading the data and ignoring
+  the status of the 9938 chip runs about twice as fast as these routines,
+  it appears the 9640 is slower than the 9938 chip.   I'm concerned about
+  releasing a "fast" version that ignores the 9938 status, however, because
+  someone elses GENEVE with say 32k of 0 wait state memory might outrun the
+  9938 chip.
+
+  So now, I'll live with the slower version.   I'm open for suggestions
+  on how to speed this up, I am sure it will not be fast enough for Matt's
+  application.   One thought Paul Charlton had was to use direct VDP 
+  memory access (VMBR, VMBW) instead of the 9938 calls.  The only trick
+  in doing that is it would have to be done line by line (if the window
+  is 100 pixels deep, then 100 seperate VMBR's or VMBW's would have to
+  be used).
+
+  Meanwhile, the search for the "ultimate" graphics routines goes on.
+  Anyone interested in contributing to the project?   I am mainly being
+  driven by user wishes at the moment, these routines are collecting
+  as a matter of what code is already available, and what code is really
+  needed now by users.
+
+  If you wish to make contributions to the 9640 FORTRAN Extended Graphics
+  Project, please contact me and I'll try to keep things in an orderly
+  fashion, the routines documented and tested, and as part of a new library
+  distributed in the Public Domain.
+
+  I'm not an expert in this graphics area, I hope that users can contribute
+  as much as possible to enhancing the graphics area on the 9640 GENEVE
+  computer, the 9938 chip has many, many possibilities.
+
+  The following files are located in this archive:
+
+         -README1   :   This file
+         EXTENDED   :   The DOC file for CALL CIRCLE/CALL LMCM/CALL LMMC
+         LMCMS      :   The source for the LMCM/LMMC routines
+         LMCM       :   The object for the LMCM routines
+         TESTLMC    :   A simple test program for the routines
+         TESTEXE,F  :   The executable program
+         MAKEBA     :   A small make file to compile/link TESTLMC
+
+  To run the demo, just type TESTEXE at the MDOS prompt.
+
+  Enjoy.                  al beard     4/28/89
+                          LGMA Products
+
+             Delphi :                           ABEARD
+             Byte Information Exchange (BIX) :  abeard
+             Compuserve :                       71370,2723
+             Plink :                            ohs209
+
+   Slow Mail:
+
+                           Alan L. Beard
+                           Box 210, RD4
+                           AppleButter Hill Rd
+                           Coopersburg, PA  18036

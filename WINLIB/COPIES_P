@@ -1,0 +1,224 @@
+9640 and 99/4A Assembler
+                                                    Page 0001
+0001                         TITL   'UTLITY COPY ROUTINES'
+0002                         IDT    'COPYS'
+0003                 **
+0004                 ** COPIES    : Several utility copy routines (across task boundries)
+0005                 **
+0006                 ** void  pbytecpy ( mytaskadr, pageno, usertaskadr, #bytes )
+0007                 **
+0008                 ** (c) 1992 by LGMA Products
+0009                 **
+0010 0000   0000             DEF  PBYTEC             ; COPY SPECIFIED BYTES FROM USER TASK
+0011                 **
+0012                         UNL
+0054                 *
+0055                 *  PAGE ZERO TASK EQUATES AND OTHERS
+0056                 *
+0057 0000   0114     TSKMAP  EQU  >0114              ; TASK MAP 
+0058 0000   F110     MMRREG  EQU  >F110              ; MEMORY MAP REGISTERS
+0059                 *
+0060                 *  EQUATES IN OS TASK PAGE 0
+0061                 *
+0062 0000   0028     HEAD#T  EQU  >0028              ; Start of task header
+0063                 *
+0064                 **
+0065 0000   0000     START   EQU  $
+0066                 **
+0067                 ** PBYTECPY      - COPY #BYTES FROM ANOTHER TASK TO THIS TASK
+0068                 **
+0069 0000   0000     PBYTEC  EQU  $
+0070 0000   FFFC             DATA -4                 ; 4 ARGUMENTS
+0071 0002   0102'            DATA BASEAD
+0072 0004   C060             MOV  @ARG2,R1           ; GET THE USER TASK PAGE 0 ADDRESS
+0072 0006   0108'     
+0073 0008   C051             MOV  *R1,R1
+0074 000A   06C1             SWPB R1
+9640 and 99/4A Assembler
+UTLITY COPY ROUTINES                                Page 0002
+0075 000C   D801             MOVB R1,@PAGZER         ; PAGE ZERO ADDRESS
+0075 000E   0115'     
+0076 0010   06A0             BL   @DETERM            ; GET IT
+0076 0012   00B4'     
+0077 0014   0201             LI   R1,TSKMAP
+0077 0016   0114      
+0078 0018   A049             A    R9,R1              ; SAVE A COPY OF USER TASK MAP
+0079 001A   0202             LI   R2,UTSKMAP         ; TO MY COPY OF USER TASK MAP
+0079 001C   0116'     
+0080 001E   CCB1             MOV  *R1+,*R2+
+0081 0020   CCB1             MOV  *R1+,*R2+
+0082 0022   CCB1             MOV  *R1+,*R2+
+0083 0024   C491             MOV  *R1,*R2
+0084 0026   06A0             BL   @RESTOR            ; RESTORE MY ORIGINAL MAP
+0084 0028   00F0'     
+0085                 *
+0086                 *  STRING IS COPIED IN TWO STEPS.  FIRST, THE STRING IS COPIED TO MY STACK,
+0087                 *  WHICH ENSURES THAT IT WILL ALWAYS BE MAPPED.  SECONDLY, IT IS COPIED TO
+0088                 *  THE FINAL USER TARGET LOCATION.
+0089                 *
+0090 002A   C060             MOV  @ARG3,R1           ; MOVE FROM ADDRESS
+0090 002C   010A'     
+0091 002E   09D1             SRL  R1,13              ; GET PAGE ADDRESS
+0092 0030   D821             MOVB @UTSKMAP(R1),@PAGZER
+0092 0032   0116'     
+0092 0034   0115'     
+0093 0036   06A0             BL   @DETERM            ; DETERMINE START ADDRESS
+0093 0038   00B4'     
+0094                 *
+0095 003A   C060             MOV  @ARG3,R1
+0095 003C   010A'     
+0096 003E   C120             MOV  @ARG3,R4           ; REAL ADDRESS
+0096 0040   010A'     
+0097 0042   C1A0             MOV  @ARG4,R6           ; # OF BYTES TO MOVE
+0097 0044   010C'     
+0098 0046   C196             MOV  *R6,R6
+0099 0048   0241             ANDI R1,>1FFF           ; MASK LOW ORDER PART
+0099 004A   1FFF      
+0100 004C   A049             A    R9,R1              ; + START OFFSET
+0101 004E   0202             LI   R2,TEMPBU          ; MOVE TO ADDRESS
+0101 0050   0122'     
+0102 0052   0203             LI   R3,>2000           ; BREAKPOINT ADDRESS
+0102 0054   2000      
+0103 0056   A0C9             A    R9,R3
+0104                 *
+0105 0000   0058     PBYTMV  EQU  $
+0106 0058   0584             INC  R4
+0107 005A   DCB1             MOVB *R1+,*R2+          ; GET A BYTE
+0108 005C   0606             DEC  R6                 ; DECR # BYTES TO MOVE
+0109 005E   131D             JEQ  PBYTDN             ; BRIF DONE
+0110                 *
+0111 0060   80C1             C    R1,R3              ; DID I GO OFF PAGE?
+0112 0062   16FA             JNE  PBYTMV
+0113                 *
+0114                 *  WENT OFF A PAGE.  SAVE MY CURRENT ADDRESSES, RECOMPUTE PAGE, AND CONTINUE
+0115                 *
+0116 0064   C804             MOV  R4,@SAVER4         ; SAVE FROM ADDRESS
+0116 0066   0120'     
+0117 0068   C802             MOV  R2,@SAVER2         ; SAVE TO ADDRESS
+0117 006A   011E'     
+0118 006C   06A0             BL   @RESTOR            ; RESTORE ORIGINAL PAGE
+0118 006E   00F0'     
+0119                 *
+0120 0070   C060             MOV  @SAVER4,R1         ; GET NEW START
+0120 0072   0120'     
+0121 0074   09D1             SRL  R1,13
+0122 0076   D821             MOVB @UTSKMAP(R1),@PAGZER
+0122 0078   0116'     
+0122 007A   0115'     
+0123 007C   06A0             BL   @DETERM            ; DETERMINE START ADDRESS
+0123 007E   00B4'     
+0124 0080   C060             MOV  @SAVER4,R1
+0124 0082   0120'     
+0125 0084   C120             MOV  @SAVER4,R4
+0125 0086   0120'     
+9640 and 99/4A Assembler
+UTLITY COPY ROUTINES                                Page 0003
+0126 0088   0241             ANDI R1,>1FFF
+0126 008A   1FFF      
+0127 008C   A049             A    R9,R1
+0128 008E   C0A0             MOV  @SAVER2,R2         ; RESTORE MY "MOVE TO" ADDRESS
+0128 0090   011E'     
+0129 0092   0203             LI   R3,>2000
+0129 0094   2000      
+0130 0096   A0C9             A    R9,R3
+0131 0098   10DF             JMP  PBYTMV
+0132                 *
+0133 0000   009A     PBYTDN  EQU  $
+0134 009A   06A0             BL   @RESTOR
+0134 009C   00F0'     
+0135                 *
+0136                 *  NOW DO A STRAIGHT STRING COPY FROM MY STACK TO FINAL USER AREA
+0137                 *
+0138 009E   0201             LI   R1,TEMPBU          ; MOVE FROM ADDRESS
+0138 00A0   0122'     
+0139 00A2   C0A0             MOV  @ARG1,R2           ; MOVE TO ADDRESS
+0139 00A4   0106'     
+0140 00A6   C1A0             MOV  @ARG4,R6           ; # OF BYTES TO MOVE
+0140 00A8   010C'     
+0141 00AA   C196             MOV  *R6,R6
+0142                 *
+0143 0000   00AC     PBYTCP  EQU  $
+0144 00AC   DCB1             MOVB *R1+,*R2+          ; DO UNTIL NULL
+0145 00AE   0606             DEC  R6
+0146 00B0   16FD             JNE  PBYTCP
+0147                 *
+0148 00B2   045D             B    *R13
+0149                 **
+0150                 ** DETERM - DETERMINE WHAT PAGE & ADDRESS I CAN USE FOR MULTITASKING
+0151                 **          BASED UPON WHAT START/END PAGES THIS ROUTINE IS MAPPED IN.
+0152                 **
+0153 0000   00B4     DETERM  EQU  $
+0154 00B4   04C5             CLR  R5
+0155 0000   00B6     CHKNEXT EQU  $
+0156 00B6   0585             INC  R5                 ; BUMP TO NEXT PAGE
+0157 00B8   0201             LI   R1,START           ; GET STARTING ADDRESS
+0157 00BA   0000'     
+0158 00BC   09D1             SRL  R1,13              ; GET PAGE #
+0159 00BE   8141             C    R1,R5
+0160 00C0   13FA             JEQ  CHKNEXT            ; THIS ONE ISN'T GOOD, TRY NEXT
+0161 00C2   0201             LI   R1,SEND
+0161 00C4   0172'     
+0162 00C6   09D1             SRL  R1,13
+0163 00C8   8141             C    R1,R5
+0164 00CA   13F5             JEQ  CHKNEXT            ; THIS ONE ISN'T GOOD EITHER, TRY NEXT
+0165 00CC   0300             LIMI 0                  ; DISABLE INTERRUPTS
+0165 00CE   0000      
+0166 00D0   C805             MOV  R5,@PAGMAP         ; SAVE PAGE NUMBER TO MAP
+0166 00D2   0110'     
+0167 00D4   0AD5             SLA  R5,13
+0168 00D6   C805             MOV  R5,@PAGADR         ; SAVE STARTING ADDRESS OF PAGE
+0168 00D8   0112'     
+0169 00DA   0205             LI   R5,MMRREG          ; GET STARTING MEMORY MAP REG
+0169 00DC   F110      
+0170 00DE   A160             A    @PAGMAP,R5         ; + MY MAP PAGE
+0170 00E0   0110'     
+0171 00E2   D815             MOVB *R5,@SAVPAG
+0171 00E4   0114'     
+0172 00E6   D560             MOVB @PAGZER,*R5        ; SET THE MAPPER REG
+0172 00E8   0115'     
+0173 00EA   C260             MOV  @PAGADR,R9         ; SET START OF PAGE ADDRESS IN R9
+0173 00EC   0112'     
+0174 00EE   045B             B    *R11
+0175                 **
+0176                 ** RESTOR - RESTORE MY PAGE AND ENABLE INTERRUPTS
+0177                 **
+0178 0000   00F0     RESTOR  EQU  $
+0179 00F0   0202             LI   R2,MMRREG                  ; RESTORE MEMORY PAGE
+0179 00F2   F110      
+0180 00F4   A0A0             A    @PAGMAP,R2
+0180 00F6   0110'     
+0181 00F8   D4A0             MOVB @SAVPAG,*R2
+9640 and 99/4A Assembler
+UTLITY COPY ROUTINES                                Page 0004
+0181 00FA   0114'     
+0182 00FC   0300             LIMI 2                          ; ENABLE INTERRUPTS
+0182 00FE   0002      
+0183 0100   045B             B    *R11
+0184                 **
+0185                 ** DATA AREA
+0186                 **
+0187                 *
+0188 0102   0000     BASEAD  BSS  2
+0189 0104   0000     RETUAD  BSS  2
+0190 0106   0000     ARG1    BSS  2
+0191 0108   0000     ARG2    BSS  2
+0192 010A   0000     ARG3    BSS  2
+0193 010C   0000     ARG4    BSS  2
+0194                 *
+0195 010E   0009     DUTLXP  DATA UTLXOP                     ; UTILITY XOP NUMBER
+0196 0110   0000     PAGMAP  DATA 0                          ; PAGE # THAT I CAN MAP ON
+0197 0112   0000     PAGADR  DATA 0                          ; PAGE ADDRESS THAT I CAN MAP ON
+0198 0114   0000     SAVPAG  BYTE 0                          ; SAVED PAGE # AT MY PAGE ADDRESS
+0199 0115   0000     PAGZER  BYTE 0                          ; PAGE ZERO SAVE
+0200                         EVEN
+0201 0116   0000     UTSKMAP DATA 0,0,0,0                    ; USER TASK MAP
+0201 0118   0000      
+0201 011A   0000      
+0201 011C   0000      
+0202 011E   0000     SAVER2  DATA 0
+0203 0120   0000     SAVER4  DATA 0
+0204                 *
+0205 0122   0000     TEMPBU  BSS  80                         ; MAXIMUM 80 BYTE MOVE
+0206                         EVEN
+0207 0000   0172     SEND    EQU  $
+0208                         END

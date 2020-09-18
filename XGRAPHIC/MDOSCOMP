@@ -1,0 +1,6 @@
+assign ob: sys:fortran/grlib
+assign li: sys:fortran/listings
+assign equates: sys:fortran/equates
+assign FORTPAR: sys:fortran/equates/mdosfortpar.eq9
+a99 -pc -oob:circle -lli:circles  circles
+a99 -pc -oob:lmcm   -lli:lmcms    lmcms

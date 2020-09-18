@@ -1,0 +1,112 @@
+                                                                   28-Apr-89
+                                                                     rev.1
+                 ===== 9640 FORTRAN Manual Addendum =====
+
+7.13 Extended Graphics Library
+
+  The following routines are available through Public Domain as an
+  extended graphics library of functions.
+
+  Two routines are currently provided, a CIRCLE drawing subroutine originally
+  coded by J. Syzdek (for assembly), and two subroutines to move pixel data
+  between CPU and Video RAM.
+
+
+7.13.1 CALL CIRCLE
+
+  CALL CIRCLE plots a circle on the screen, given the center x coordinate,
+  the center y coordinate, the radius (in pixels), and the color code.
+
+  Calling Sequence:
+
+	CALL CIRCLE ( center_x, center_y, radius, color )
+
+  Where:
+
+	center_x : is a one word integer variable which is the
+		   x pixel coordinate,
+	center_y : is a one word integer variable which is the
+		   y pixel coordinate,
+	radius   : is a one word integer variable which is the
+		   radius of the circle in pixels
+	color    : is a one word integer variable which is the
+		   color code to make the circle.
+
+  For example, the statements:
+
+        call setmod ( 9 ) 
+	call circle ( 25, 28, 20, 7 )
+
+  will set the screen mode to 9 (graphics mode 7) and create a blue
+  circle at coordinates 25,28 of radius 20 on the upper left hand corner
+  of the screen.
+
+
+7.13.2 CALL LMMC/CALL LMCM
+
+  The LMMC and LMCM routines perform logical moves of pixels from Video
+  RAM (VRAM) memory to CPU Memory (LMCM), and from CPU Memory to Video
+  Memory (LMMC).
+
+  Calling Sequence:
+
+    CALL LMCM ( x_coord, y_coord, dots_x, dots_y, direc_x, direc_y,
+                array, bytes_xfered )
+    CALL LMMC ( x_coord, y_coord, dots_x, dots_y, direc_x, direc_y,
+                array, bytes_xfered [, logic] )
+
+  where:
+
+	x_coord :  is a one word integer variable which specifies the
+		   starting pixel coordinate, from 0 to 511,
+
+	y_coord :  is a one word integer variable which specifies the
+		   starting pixel coordinate, from 0 to 1023,
+
+	dots_x  :  is a one word integer variable which is a value from
+		   0 to 511, and is the # of pixels in the x direction
+		   comprising the window,
+
+	dots_y  :  is a one word integer variable which is a value from
+		   0 to 1023, and is the # of pixels in the y direction
+		   comprising the window,
+
+	direc_x :  is a one word integer variable, and is set to 0 for
+		   transfer in the right direction, and 1 for transfer
+		   in the left direction,
+
+	direc_y :  is a one word integer variable, and is set to 0 for
+		   transfers in the down direction, and 1 for transfers
+		   in the up direction,
+	array   :  is a FORTRAN array that will contain the pixel values,
+
+	bytes_  :  is a one word integer variable which will contain the
+	xferred    the number of bytes of data actually transferred, and
+
+        logic   :  is a one word integer variable which is the logic
+		   operation to perform (0, just copy) (optional)
+
+   This routine is only callable in graphics modes 4, 5, 6, or 7.  The
+   upon execution of the routine CALL LMCM, the array will contain a
+   packed array of color pixel values, packed into bytes according to
+   the graphics mode, as follows:
+
+              graphics mode 4,6  :  two pixels/byte
+              graphics mode 5:      four pixels/byte
+              graphics mode 7:      one pixel/byte
+
+   For example, the following will transfer an array of 10,000 pixel
+   elements from a window at coordinates 50,80, and of size 200,100.
+
+              integer *1 pixels
+              common pixels(10000)
+              call setmod(8)        ! graphics mode 6
+              call lmcm(50,80,200,100,0,0,pixels,notrans)
+
+   The following statement will transfer the pixel array back to the
+   video ram screen:
+
+              call lmmc(50,80,200,100,0,0,pixels,notrans)
+
+
+ ============================================================================

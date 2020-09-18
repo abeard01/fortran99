@@ -1,0 +1,684 @@
+	program utility
+	implicit integer(a-z)
+c
+c  utility :  a new utility program for 99 FORTRAN, it supports the
+c	      following features:
+c
+c	      1. User Preferences
+c	      2. File Sector Editing
+c	      3. Disk Directory
+c             4. Transform Utility
+c
+c  Update History:
+c
+c   v4.4     19-Sep-89    Initial Rewrite for FORTRAN 4.4
+c   v4.42    17-Dec-89    Fixed Disk Directory Protect.  Moved some
+c			  variables to common to shrink local data.
+c   v4.43    06-Jan-90    Display Record size of 256 properly.
+c   v4.44    12-Mar-90    Fix problem with standalone version wrong
+c
+	include 'HDS1.UTILITY.UTILCOM'
+c
+	logical endcase
+c
+	version = 4.44		! set version number
+c
+c  get current screen mode.  if not 80 column, set 40 column, since
+c  I need at least 40 columns to run.
+c
+	call getmod ( mode )
+	if ( mode .ne. 1 ) call set40
+c
+c  display main menu while not exit sequence
+c
+	endcase = .false.
+	do while ( .not. endcase )
+	  write ( 6, 9100 ) version
+c
+	  status = 0
+	  do while ( status .eq. 0 )
+	    call key ( 0, k, status )
+	  enddo
+c
+	  k = iand ( k, z'007f' )	! mask off high order bit
+	  if      ( k .eq. z'0031' ) then
+	     call prefs
+	  else if ( k .eq. z'0032' ) then
+	     call diskdir
+	  else if ( k .eq. z'0033' ) then
+	     call transform
+	  else if ( k .eq. z'0034' ) then
+             call createmen
+	  else if ( k .eq. z'0035' .or. k .eq. z'000f' ) then
+	     endcase = .true.
+	  endif
+	enddo
+	call exit
+c
+9100	format ( '1', M1.12, '99 Utilities ',f4.2,
+     1                M4.5,  'Press:',
+     2                M6.7, '1 To Modify Preferences',
+     3                M8.7, '2    Do Disk Directory',
+     5               m10.7, '3    Transform a File',
+     6               M12.7, '4    Create New Menu',
+     7               M14.7, '5    Exit')
+	end
+	subroutine prefs
+	implicit integer(a-z)
+c
+c  prefs  :  process user preferences.   The user is requested his
+c	     preferences for a number of items, including:
+c
+c	     GPLRES   201E    RELOAD CHARACTER SET ON RESET
+c	     NUMLIN   2036    NUMBER OF PRINTER LINES/PAGE
+c	     RES40F   2090    DEFAULT SCREEN SIZE (0=40, 1=80, 3=32)
+c            COUNTD   201A    COUNTDOWN FOR CURSOR (DEFAULT=200)
+c            MEMTYP   20A8    MEMORY MODEL (0=E/A, 1=MINI, 2=SUPER)
+c            DEFFIL   2096    DEFAULT # OF FILES TO OPEN (=33)
+c	     COLDEF   2092    BACKGROUND COLOR
+c	     COLDEF   2092    FOREGROUND COLOR
+c	     BLOCKC   2094    CHARACTER FOR CURSOR
+c	     PRTDOP   209C    DEFAULT LABEL FOR PRINTER
+c            ENCHAR   2098    ENDING CHARACTER(S) FOR PRINTER
+c	     EXCDEV   208E    WILD CARD LABEL BINDING
+c	     BOTSHE   20A6    BOOT DISK NAME
+c	     PRTADR   20A0    PRINTER NAME
+c
+	include 'HDS1.UTILITY.UTILCOM/NOLIST'
+c
+c local data
+c
+	real *8 colors(16), models(3)
+	integer screenl(4)
+	data colors / 'TRANSPAR', 'BLACK   ', 'MEDGREEN', 'LIGGREEN',
+     +                'DARKBLUE', 'LIG BLUE', 'DARK RED', 'CYAN    ',
+     +                'MED RED ', 'LIG RED ', 'DARK YEL', 'LIG YELL',
+     +                'DARK GRE', 'MAGENTA ', 'GRAY    ', 'WHITE   '/
+	data screenl / 40, 80, 32, 32 /
+	data models / 'E/A     ', 'MINI-MEM', 'SUPER-CA' /
+c
+c  get each of the values from the current running menu image
+c
+c					gplres - reset char set on menu
+	gplres = peek ( z'201e' )
+	if ( gplres .eq. 0 ) then
+	  gplcha = 'N'
+	else
+	  gplcha = 'Y'
+	endif
+c					numlin - number lines per printed page
+	numlin = peek ( z'2036' )
+c					res40f - display type (32/40/80)
+	res40f = iand ( peek ( z'2090' ), z'0003' ) + 1
+c					countd - countdown for cursor blink
+	countd = peek ( z'201a' )
+c					memtyp - memory model (E/A,MINI,SUPER)
+	memtyp = peek ( z'20a8' )
+	if ( memtyp .lt. 0 .or. memtyp .gt. 2 ) memtyp = 0
+	memtyp = memtyp + 1
+c					deffil - default # files to open
+	deffil = iand ( peek ( z'2096' ) / 256, z'000f' )
+c					coldef - default screen colors
+	coldef = peek ( z'2092' )
+	bgcolo = iand ( ishft ( coldef, -8 ), z'000f' )  + 1
+	fgcolo = iand ( ishft ( coldef,-12 ), z'000f' )  + 1
+c					blockc - character to use for cursor
+	blockc = iand ( peek ( z'2094' ) / 256, z'00ff' )
+c					prtdop - printer label binding
+	prtdop = peek ( z'209c' )
+c					enchar - ending printer character
+	enchar = iand ( peek ( z'2098' ) / 256, z'00ff' )
+c					excdev - wild card label binding
+	excdev = peek ( z'208e' )
+c					botshe - boot disk name
+	botshe = peek ( z'20a6' )
+	do 1010 i=1,16
+	  bootdisk(i) = peekk(botshe)
+	  botshe = botshe + 1
+1010	continue
+c					prtadr - printer name
+	prtadr = peek ( z'20a0' )
+	do 1020 i=1,26
+	  printer(i) = peekk(prtadr)
+	  prtadr = prtadr + 1
+1020	continue
+c
+c  now display the screen of information
+c
+	write ( 6, 9100 ) gplcha, deffil, numlin, screenl(res40f), 
+     +                    countd, models(memtyp), colors(bgcolo),
+     +			  colors(fgcolo), blockc, prtdop,
+     +                    enchar, excdev, bootdisk, printer
+c
+c  do for each item.  position the cursor, input the item from
+c  the user, and skip to next item.
+c
+c  Reload Character Set on Reset
+c
+1800	continue
+	write ( 6, 9101 )
+	k = 0
+	do while ( k .ne. 13 )
+	  status = 0
+	  do while ( status .eq. 0 )
+	    call key ( 0, k, status )
+	  enddo
+	  if ( k .eq. z'0031' ) then
+	    if ( gplcha .eq. 'Y' ) then
+              gplcha = 'N'
+	    else
+	      gplcha = 'Y'
+	    endif
+	    write ( 6, 9102 ) gplcha
+	  endif
+	enddo
+c
+c  Number of Files to Open
+c
+1900	continue
+	write ( 6, 9105 )
+	read  ( 6, 9120, end=2000, err=2000 ) len, temp
+	if ( len .eq. 0 ) goto 2000
+	if ( temp .lt. 1 .or. temp .gt. 9 ) goto 1900
+	deffil = temp
+c
+c  Number of Lines/Page
+c
+2000	continue
+	write ( 6, 9110 )
+	read  ( 6, 9120, end=2100, err=2100 ) len, temp
+	if ( len .eq. 0 ) goto 2100
+	if ( temp .lt. 10 .or. temp .gt. 100 ) goto 2000
+	numlin = temp
+c
+c  2. 32/40/80 columns
+c
+2100	continue
+	write ( 6, 9130 )
+	k      = 0
+	do while ( k .ne. 13 )
+	  status = 0
+	  do while ( status .eq. 0 )
+	    call key ( 0, k, status )
+	  enddo
+	  if ( k .eq. z'0031' ) then
+	    if      ( res40f .eq. 1 ) then
+	      res40f = 2
+	    else if ( res40f .eq. 2 ) then
+	      res40f = 3
+	    else
+	      res40f = 1
+	    endif
+  	    write ( 6, 9135 ) screenl(res40f)
+	  endif
+	enddo
+c
+c  count for cursor blink
+c
+2300	continue
+	write ( 6, 9140 )
+	read  ( 6, 9150, end=2400, err=2400 ) len, temp
+	if ( len .eq. 0 ) goto 2400
+	if ( temp .lt. 10 .or. temp .gt. 9999 ) goto 2300
+	countd = temp
+c
+c  Memory Model (E/A, Mini-Mem, Super-Cartridge)
+c
+2400	continue
+	write ( 6, 9160 )
+	k = z'0031'
+	do while ( k .eq. z'0031' )
+	  status = 0
+	  do while ( status .eq. 0 )
+	    call key ( 0, k, status )
+	  enddo
+	  if ( k .eq. z'0031' ) then
+	    memtyp = memtyp + 1
+	    if ( memtyp .gt. 3 ) memtyp = 1
+	    write ( 6, 9170 ) models(memtyp)
+	  endif
+	enddo
+c
+c  Background Color/Foreground Color
+c
+2500	continue
+	write ( 6, 9180 )
+	k = z'0031'
+	do while ( k .eq. z'0031' .or. k .eq. z'0032' )
+	  status = 0
+	  do while ( status .eq. 0 )
+	    call key ( 0, k, status )
+	  enddo
+	  if ( k .eq. z'0031' ) then
+	    fgcolo = fgcolo + 1
+	    if ( fgcolo .gt. 16 ) fgcolo = 1
+	    write ( 6, 9182 ) colors(fgcolo)
+	    call screen ( bgcolo, fgcolo )
+	  else if ( k .eq. z'0032' ) then
+	    bgcolo = bgcolo + 1
+	    if ( bgcolo .gt. 16 ) bgcolo = 1
+	    write ( 6, 9184 ) colors(bgcolo)
+	    call screen ( bgcolo, fgcolo )
+	  endif
+	enddo
+c
+c  Character for Cursor
+c
+2600	continue
+	write ( 6, 9190 )
+	read  ( 6, 9200, err=2700, end=2700 ) len, temp
+	if ( len .eq. 0 ) goto 2700
+	if ( temp .lt. 0 .or. temp .gt. 255 ) goto 2600
+	blockc = temp
+c
+c  Default Label for Printer
+c
+2700	continue
+	write ( 6, 9210 )
+	read  ( 6, 9120, end=2800, err=2800 ) len, temp
+	if ( len .eq. 0 ) goto 2800
+	if ( temp .eq. 0 ) goto 2700
+	prtdop = temp
+c
+c  Terminating Printer Character
+c
+2800	continue
+	write ( 6, 9220 )
+	read  ( 6, 9200, end=2900, err=2900 ) len, temp
+	if ( len .eq. 0 ) goto 2900
+	enchar = temp
+c
+c  Wild Card Label Binding
+c
+2900	continue
+	write ( 6, 9230 )
+	read  ( 6, 9150, end=3100, err=3100 ) len, temp
+	if ( len .eq. 0 ) goto 3100
+	if ( temp .eq. 0 ) goto 2900
+	excdev = temp
+c
+c  Boot Disk Name
+c
+3100	continue
+	write ( 6, 9280 )
+	read  ( 6, 9290, end=3200, err=3200 ) len, tboot
+	if ( len .eq. 0 ) goto 3200
+	do 3110 i=1,16
+	  bootdisk(i) = tboot(i)
+3110	continue
+c
+c  Printer Name
+c
+3200	continue
+	write ( 6, 9300 )
+	read  ( 6, 9310, end=3300, err=3300 ) len, tprinter
+	if ( len .eq. 0 ) goto 3300
+	do 3210 i=1,26
+	  printer(i) = tprinter(i)
+3210	continue
+c
+c  all done, display final result to the user
+c
+3300	continue
+	write ( 6, 9100 ) gplcha, deffil, numlin, screenl(res40f), 
+     +                    countd, models(memtyp), colors(bgcolo),
+     +			  colors(fgcolo), blockc, prtdop,
+     +                    enchar, excdev, bootdisk, printer
+c
+	write ( 6, 9320 )
+	status = 0
+	do while ( status .eq. 0 )
+	  call key ( 0, k, status )
+	enddo
+c
+c  if small 'y' or caps 'Y', then:
+c
+	if ( k .eq. z'0059' .or. k .eq. z'0079' ) then
+c
+	  if ( gplcha .eq. 'Y' ) then
+            gplres = 1
+	  else
+	    gplres = 0
+	  endif
+	  call loadm ( z'201e', gplres )
+c
+	  call loadm ( z'2036', numlin )
+c
+	  call loadm ( z'2090', res40f - 1 )
+c
+	  call loadm ( z'201a', countd )
+c
+	  call loadm ( z'20a8', memtyp - 1 )
+c
+	  deffil = (deffil + z'0030') * 256
+	  call loadm ( z'2096', deffil )
+c
+	  coldef = ishft ((fgcolo-1), 12 ) + ishft((bgcolo-1),8)
+	  call loadm ( z'2092', coldef )
+c
+	  call loadm ( z'2094', blockc * 256 )
+c
+	  call loadm ( z'209c', prtdop )
+c
+	  call loadm ( z'2098', enchar * 256 )
+c
+	  call loadm ( z'208e', excdev )
+c
+	  botshe = peek ( z'20a6' )
+	  do 4010 i=1,8
+	    k = ( (i-1) * 2 ) + 1
+	    call loadm ( botshe, bootdisk(k) )
+	    botshe = botshe + 2
+4010	  continue
+c
+	  prtadr = peek ( z'20a0' )
+	  do 4020 i=1,13
+	    k = ( (i-1) * 2 ) + 1
+	    call loadm ( prtadr, printer(k) )
+	    prtadr = prtadr + 2
+4020	  continue
+c
+c set screen mode to desired mode
+c
+	  if ( res40f .eq. 2 ) then
+	    call set80
+	  else
+	    call set40
+	  endif
+	endif
+	return
+9100	format ( '1', m1.12, 'Preferences'//
+     +           '  Reload CharSet on Reset.',4x,a1/
+     +           '  Default # Files to Open.',i5/
+     +		 '  Number of Lines/Page....',i5/
+     +		 '  32/40/80 Columns .......',i5/
+     +           '  Count for Cursor Blink..',i5/
+     +           '  Memory Model ...........',a8/
+     +           '  Background Color .......',a8/
+     +           '  Foreground Color .......',a8/
+     +           '  Character for Cursor ...   ',z2/
+     +           '  Default Label for Printer',i4/
+     +           '  Terminating Printer Char   ',z2/
+     +           '  Wild Card Label Binding.',i5/
+     +           '  BOOT Disk Name:    ',16a1/
+     +           '  Printer: ',26a1 )
+9101	format ( '+', m3.1, '>', m23.1, 'Press 1 to Toggle')
+9102	format ( '+', m3.26, 4x, a1 )
+9105	format ( '+', m23.1, 17x, m3.1, ' ', m4.1, '>', m4.34, 4x, m4.34 )
+9110	format ( '+', m4.1, ' ', m5.1, '>', m5.34, 4x, m5.34 )
+9120	format ( q, i2 )
+9130	format ( '+', m5.1, ' ', m6.1, '>', m23.1, 'Press 1 to Toggle')
+9135	format ( '+', m6.26, i5 )
+9140	format ( '+', m6.1, ' ', m7.1, '>', m23.1, 17x, 
+     +                m7.34, 4x, m7.34 )
+9150	format ( q, i4 )
+9160	format ( '+', m7.1, ' ', m8.1, '>', m23.1, 'Press 1 to Toggle')
+9170	format ( '+', m8.26, 8x, m8.26, a8 )
+9180	format ( '+', m8.1, ' ', m22.1, 'Press 1 to Toggle Foreground'/
+     +                      '+', m23.1, '      2 to Toggle Background'/
+     +                      '+', m9.1,'>', m10.1, '>' )
+9182	format ( '+', m10.26, 8x, m10.26, a8 )
+9184	format ( '+', m9.26,  8x, m9.26,  a8 )
+9190	format ( '+', m9.1, ' ', m10.1, ' ', m22.1, 28x, m23.1, 28x,
+     +                m11.1, '>', m11.34 )
+9210	format ( '+', m11.1, ' ', m12.1, '>', m12.34 )
+9200	format ( q, z2 )
+9220	format ( '+', m12.1, ' ', m13.1, '>', m13.34 )
+9230	format ( '+', m13.1, ' ', m14.1, '>', m14.34 )
+9240	format ( '+', m14.1, ' ', m15.1, '>' )
+9280	format ( '+', m14.1, ' ', m15.1, '>', m15.21, 16x, m15.21 )
+9290	format ( q, 16a1 )
+9300	format ( '+', m15.1, ' ', m16.1, '>', m16.11, 28x, m16.11 )
+9310	format ( q, 26a1 )
+9320	format ( '+', m20.1, 'Shall I Use Preferences (Y/N)?')
+	end
+	subroutine transform
+	implicit integer(a-z)
+c
+c  transform - this program transforms an input file in dis/fix/128 format
+c              to an output file in dis/fix/80 or dis/var/80 format.
+c
+c  from 9640 version originally published in Berry Miller's 9640 NEWS.
+c
+c  Update History:
+c
+c   v1.0      26-Jun-89       Initial Version
+c
+	INCLUDE 'HDS1.UTILITY.UTILCOM/NOLIST'
+c
+	logical fileend               ! a logical variable to declare end file
+c
+c  following statements equivalence the 640 byte buffer two ways,
+c  the first equivalences five 128 byte records to it, the second
+c  equivalences eight 80 byte records.
+c
+	integer *1 inbuf(128,5), oubuf(80,8)
+	equivalence ( inbuf(1,1), buffer(1) ), (oubuf(1,1), buffer(1))
+c
+	error = 0                     ! set no error
+	write ( 6, 9050 )             ! display banner
+c
+c  request names of input, output, and option for fixed/variable file
+c
+	write ( 6, 9051 )
+	len = 0
+	do while ( len .eq. 0 )
+	  read  ( 6, 9052, end=9999, err=9999 ) len, infile
+	enddo
+c
+	if ( len .eq. 0 ) then
+	  write ( 6, 9100 )
+	  goto 9999
+	endif
+c
+        call open ( 1, infile, 2, 0, 0, 0, 128, error )
+        if ( error .ne. 0 ) then
+          write ( 6, 9120 ) error, infile
+          goto 9999
+	endif
+c
+	write ( 6, 9053 )
+	len = 0
+	do while ( len .eq. 0 )
+	  read  ( 6, 9052, end=9999, err=9999 ) len, oufile
+	enddo
+c
+	write ( 6, 9055 )
+	len = 0
+	do while ( len .eq. 0 )
+	  read  ( 6, 9056, end=9999, err=9999 ) len, option
+	enddo
+c	
+c  make sure the two file names are specified
+c
+	if ( oufile(1) .eq. ' ' ) then
+          write ( 6, 9100 )
+          goto 9999
+	endif
+c
+	if ( option .eq. 'Y' .or. option .eq. 'y' .or.
+     +       option .eq. ' ' ) then
+	  disvar = 1
+	else
+	  disvar = 0
+	endif
+c
+c  Open the input and output files.
+c
+	if ( disvar .eq. 0 ) then
+          write ( 6, 9060 ) infile, oufile
+        else
+          write ( 6, 9070 ) infile, oufile
+        endif
+c
+	call open ( 2, oufile, 1, 0, disvar, 0, 80, error )
+        if ( error .ne. 0 ) then
+          write ( 6, 9130 ) error, oufile
+          goto 9999
+        endif
+c
+c  input and output files are now open.  Read records from input file,
+c  and write them to output file
+c
+c  to make things simple, read 5 dis/fix 128 records into a 640 byte buffer
+c  and write eight dis/fix 80 records, or a variable number of display/var/8
+c  records.
+c
+        ouptr = 0                     ! output record pointer
+        do while ( ouptr .lt. 80 )    ! blank output record
+          ouptr = ouptr + 1
+          ovbuf(ouptr) = ' '
+        enddo
+        ouptr = 0                     ! reset output pointer again
+c
+	iptr    = 0		      ! count of records pointer
+        fileend = .false.             ! set not file end
+        do while ( ( error .eq. 0 ) .and. ( .not. fileend ) )
+          inrec = 0
+          do while ( inrec .lt. 5 )
+            inrec = inrec + 1
+            read ( 1, 9140, err=9000, end=1000, status=error )
+     +            ( inbuf(i,inrec), i=1,128 )
+          enddo
+          goto 1010
+c
+c  now write eight dis/fix 80 records
+c
+1000      continue
+          fileend = .true.            ! set eof on input file
+          inrec   = inrec - 1
+1010      continue
+c
+c  if display/fixed/80 output file, then just write the needed number
+c  of records (usually 8).
+c
+          if ( disvar .eq. 0 ) then
+            ouptr = 0                 ! set output record counter
+            toprec = ( inrec * 128 ) / 80
+            do while ( ouptr .lt. toprec )
+	      iptr = iptr + 1
+	      write ( 6, 9180 ) iptr
+              ouptr = ouptr + 1
+              write ( 2, 9150, err=9010, status=error )
+     +               ( oubuf(i,ouptr), i=1,80 )
+            enddo
+c
+c  if display/variable/80 output file, things are a little more complicated.
+c  flush the input file to the output file, one record at a time.  Each
+c  record is terminated by a line feed, carriage returns are ignored.
+c
+          else
+            inptr = 0
+            topptr = inrec * 128        ! # of bytes input
+            do while ( inptr .lt. topptr )
+              inptr = inptr + 1
+c
+c  if character is a control/z, must be end of file.  force file end,
+c  and set inptr high to force loop exit.
+c
+              if ( buffer(inptr) .eq. z'1a' ) then
+                fileend = .true.
+                inptr = 641
+c
+c  if a line feed is detected, or the output pointer is at 80 characters,
+c  then write the output variable/80 record to the output file
+c
+              else if ( buffer(inptr) .eq. z'0a' .or.ouptr.eq.80)then
+	        iptr = iptr + 1
+	        write ( 6, 9180 ) iptr
+                write ( 2, 9150, err=9010, status=error ) ovbuf
+                ouptr = 0
+                do while ( ouptr .lt. 80 )
+                  ouptr = ouptr + 1
+                  ovbuf(ouptr) = ' '
+                enddo
+                ouptr = 0
+c
+c  if a carriage return is detected, then do nothing (skip character)
+c
+              else 12 )t'9109109, m4) ),/ 2/ 2/, infi&&&
+	c7,ageinue
+	winue
+	wies t23.12.1   !dr ugleIL6.1,6.1,6  6lowrom800	')n
+	dlow  	ft(tantant%oggl ginue
+	wkc da
+	e  enING
+= peekk6.6.6M4. 'le/8	iBOiptr	enWWW  W
+	if ( tem
+	if ( tem
+HDSWIWIWr=2do
+c
+do
+c
+doo4.34 = 1 = 1      ecord  M M t (
+c	     Pmps to is to is  s.
+	 !ES/AMplk l',olo0' )' )
+c			34343  3x, m=90
+c  I/va   egro14 laŠŠŠ  Š0 ) tRELR)
+	    lar	format ( '14141102 eclecle	format ( '+', 210inte)
+c
+	)
+	    x, mme8E6, 913	ipS(bgt folds0533  2 ) in =²gplcha = gplcha = ger
+  ) +else else e= 0 unte', m120	20	2 notndinndinn  nkc 6
+	  290. '. '.lockc lockc lN N NerlTe600eq. 0 ) eq. 0 ) e)
+	    +', m6+', m6+36'36'3:
+c
+:
+c
+:  :200	`numbernumbern  C  C eclecle
+c	     BO	format ct..eq.8 80 òndiolo2.72.72  2, cNy Pr, ' ME
+  tME
+ NAnterdo
+ca v'0032'0032'= 1E   E   E  E= 1f(f(fFile= 'N= 'N=  =   iangleI  en( '
+	colWI'Pm ( 256m (3.1, dm3.1, 3.1, 3N  R  R  Rabto O NA'Pif
+f4r aý m3 m3 fgcolofgcolofpenpenpdm???o
+c
+umbewrite E   E   E d,  n
+ m (n
+	dop        or(iinue
+90,,a ( '+',
+	  rptr +600e90,90,9 = 0
+ce  end  end  opMo M M fil re ) fpenpenpK 
+	e
+	e
+ Mc
+2c
+2co
+o
+ogplcha =o
+o
+o600e600e6  write= ip10001000 E   rin+ BL 
+914 l  m2 m2    mn lotanting
+ 80 r80 r8  8   A'  Hn ddev x,o
+c
+o
+c
+oe' f ( g     2s toÀuml .e .e 208À =27ˆˆˆXM777lo7\\\œ  Ø M7°“ˆ    AÂ99or 9y:oryy°°°999t°EdOREor or oor °oFOoen     2ÇÇÇÈÈÈ EÈ     1 ÉÉÉN,ÉenN(aefof 9°°°ene°RTeÐÐÐIIIÆ"""Ï""RTRUp-R‚‚‚al‚ANÏANÏAncA‚Ì°°°ÖANÏ‚ÆÍÍÍ¸¸¸Ut¸ TÖAÖAÖAFFF€€€InŒŒŒÇÇÇ×FFFceF	 c˜VVVÐáááts˜   2áPPP×××FFFes
+FÐáÐáÐ¨¨¨(f„„„000˜˜˜ááááá fffÙ!ß   „„„É9n………ts˜  …2.trfqqqenqFF
+eîîî 4îts˜1 Aîîîöuuun€TTTÅÅÅ000 nn°U°J(ååå°J	  åN¨¨¨cto¨f"Gn^^^B"àct† ƒ]   AN  ŸŸŸ°J
+FŸ“““„„„en„AN en€A…AN A°AN A°A6vü¸¸¸ BBBn€ne nnne HAN e###J(c#AN Ac!m‚‚‚. T‚/•?ANA“u¾444k D4ANAÁÁÁvü`Šž““’2BB›ÆAN AcRRR¾¾¾!m(±²dddridm‚C˜6vR#BB\\\ea\¥¥¥—/•nà!(± A°L@ÍÍÍ$$$(± A„„ÏŸŸ‹jø¸Ä###644£Á(± A„) !"""vü` Êÿm‚Dire„ BK@u(± A°LPPPÂÂÂ
+ó‚•TTH‚`o.4Â€¤lll nne|||64õ(± A°yh```T89vSãÑrir @@@ÑàóWV—/B`öe44£@m‚D¼00 nøˆÚÚÚ¨ Ê(± A°yBB\¶–ýÏŸ$ ““y```üˆotT¥æU(#B»/•nWV3""˜Mé•?AæUW n nnRR B31! m3z'00!RRRRR
+ nnR nnR``A°yBl	 nnR nnR€€€~===ˆo =ü.ˆòòòlumò313“@""!
+ómæUW„øöž“æUW„)ÁÇËÏÓ×ÛßÛëÀçä¼Ð““€vü` @PP€äØÐÀ\0000´““ÁÁ‚•ãÑm‚D BT
+ó@mà!(ÏÃÏŸÃ(@0 À\ëÀÔ„„Ô   @@@6v@¹¹¹———¹ððð    $,    !mƒ,† ‚ƒƒƒ     !m!„) !`0!!PPP!`IP`0!!$,B! P""ƒ! ‚›#…!PIII`I !  !  !¦***p¦P—   T PTHPPPP000```˜˜˜00›!!!""¨m!Œ!`!lF¹```æUÂ€`0Ñæ¼h˜Dh! cš˜   @ ¾!¼½ÈÉÉÉº¦FFF—*¹žp¦bš¥   ÇÇÇÑÇ@mÑÕ¿!Ë²‚`KKKµ¼½©!ººº`ºØ!Á!ÂÂÂ @Œ!º!º!h`!Ö½¾¾¾ÊlÌŒ!P!@@¾­!!@Œpœ¦Ž‘’“”•¦Ž¦Ž¦¦—¨©ª‘’‘’‘!º!Û ¾¦®®®² Î‘8²‘8²¦F¶Ê¦V'‘8²ÓLBV'!l !———º¦——Q‡‡‡ !º!Û!h`hÂHppp!¼pHph`hh @@···zzz¥hhhÆ!Æ7qæææ®Bæ®`ÃÆ/h®`º!Û!®`º!Û!6hÀÀÀ @@À!@ 9-‚‚‚½È‚ÑC‚‚9;¹¹¹!Á¹``Ñ&‚‚ @@@    B @   ¹¹¹¹¹®B ¹Úe   aaa @a@g8ä  ‚‚‚‚‚ÐÐÐ`KÐ–®Ñ®Ñ®ÂÂÂä !@!!@!!  ddd €€ (à   TTTÞÞÞØÞãÑØ’“ãø’Ö½ä    aa ä aÞÞ@ ä @Þä  €€Ô  "ä ä4Ô Ô Ô€ÔRÔ x€ÔÞÞ@ ÞÞÞ@ ÞÞ€€€ˆ€€€ÔLNð€Š€€Lähhh\Š­êhhh€€Dà¬ÞœŽ~€ÔÞ(Ô TÐ€€€€€€   ˆ```Ø
+ˆˆˆÞÞˆTÞ€€½­f`````€QQQFTTTŽŽŽ BŽ ‚‚‚øøø‘8øTT^š­>>>>0Ñ B0...V   0 ¶0 B øø@hŒŒŒ©ŒV (!@OWÖ½^^š`CRµÐÐÐBˆsssddsøø’>>>>>]fø*êïó÷ûÿÖ½]ûëèçä¼Ð€€€¾¾€ÞÞ@¾€äØÐÀ€^š^š^!@m^!0´€ä€ä€Ž€ãÑŽlÌã BTlœ øøÖ½]ÃÃÃÃ(   Ê   P    ¢÷÷÷’“÷èi^@     €@(   dïóV„ïóV¢ €Ð€Ð 0ïóVPPPPPo€F$FBBD Hdq!R @d!@dddèÖñBB0dd´o>>>±E$€^áÒfpB¤V AÄ @f Bê” L„   D¤ *êëè2F$‘5,¤”¬´L ret ==eˆˆˆ²¶"@= r “¼¼¼±±±±ŒOW±-ŸŸŸÄÄÄÅÅÅÆÆÆÇÈÆÆÆÈÆøÆ È¤V  d!Ç072d!Çd!Ç!!!ˆs!BˆˆsB07¤ÆÆ>±6111222ÈÈÈÙÆÛ €À ,
+   TTTàc´˜˜˜èÖñ˜  ä   2    €Ð  ÷û€     €€Ô  ",4     ¬´ T   
+  
+€ˆ
+ LNd€Š
+LXhhh\\\hhhœŽ DPÐ  (  TD€–PÚ*Ô
+   
+€
+Œ"""‚ttthh÷t@000jŒŒŒœŽŒÐÐÐ  lÐhh""hÐ" @0@0@@hh÷hôôô@0 ô]fô***F$‘*¤”Fêêêæä¼Ð""€€€æähP€Fæ€äØÐÀ€@j@j!D !ddD´""ppp  p€F   €ÐÀ P fÐŸ£££Â¬Ã(@`  n  °   € sæä\W\\\r9 @@	 
+ŒVSPRITE  5  ""‚tôhAjŒBÿùC<BÁ`B "B…B¬Ãuæähô BrB ôô€F€hNBÀBñ¼Ð""€Ð"F@0€€  `€€hF  UB]ftfôôÀBqBÅBÜô€€hH@jñ¼Do**npp ÿTE kUBŸ£‘5ÂØÐ€€hB@`  ôô€‚t€ñ¼DWn  °T ££Â¬ÐÀD@`Rn ôhôhôh@µµµ	!µ€m\\z­­­€€€@` €'H@“€ € €ase€
+ŒcUBSPSPS€€®r9 r9 r mer‹‹‹u ‹B\\z\\\z\\šššôh@` @   dT ÂØT ÂØTôh¸¶¶¶;	!	€€k)UBôhppÐ€
+@	@0‚t€‚t€‚<BM¤`‰'''A(@@B .e¬Ãôhêêê	!êl	
+Œ
+de
+<BM€ppÃÃÃSPæ…ôh 
+Œc
+
+Œc
+
+@	È@j¸¸¸‚t€‚( k¸ôh@@T ÂT ÂTMjŒ‚t€‚( k‚A< @0ppÐppÐp-8   @j@j`	tdB8ŒŒBl\e  ¶¶¶øããã9r¼¼¼BB2 rØØØœœœ "œ9sZ9s0YYY†2rbbb”YYJ   æäh  Ë  bá777ØÐ7ä.¼N  L@€€€ÊIˆ
+DDD€ñ¼D Ä!!!b!!a €€€€ßHHHããã  ã ÿ  Ü¤HŒ„„ˆˆˆÀ€ÈB€€ ã€€ ã€ €HHHfãB§§§ãã§&&&td& °¤ÀÀÀ&„˜d À€¤À€¤Àd‚‰gd &&&&ƒƒƒUB!ƒˆˆˆ@###(XXX£´"£jŠH£´ˆççç§HPÐlˆ&ƒ@` &€€@#€l‡‡‡m***UB*g'˜Ò...rBmU.&*˜È@##$$$äÂÈ@&/HHH ˜[[[u6ª ˆˆˆUBˆ_o÷ÂÄì& ˆ ˆ Q###Bÿ#   B V$¸ æææ °uNæ5¶ˆ¶¶¶ @¶º /·¶ˆwww¶ˆäääzzz l¹¹¹BBBddde¶ˆ€€€&ªªªl¹¤q¤q¤q¤}¾ÈäÂ>>> / >%±±±			  	&ª€€€T) lˆˆˆˆˆÀˆi*hýÀXy!æææ(˜È-·¶/(qÂÄÄ‰[[ t€€€t€t€tÈ@†aÜt€‘rÞÞÞtÞÑ!ÞÞÇÇÇ6bØØØnpÈØqñ$$$‰Ka( ‘ ÈÈÈ     ¨¨¨a(¨Âr¸¸¸¨¨¨¨¨¨  A	‘	AA   4Dil¹¤Â	  ¹¹¹Ð¬‰p(©XQQQ©X©X©A +++ä©XD!QQ€ ÕÕÕˆ¶ÕL±±±€»Ì$ØUÄÍÕÝåíõýýýÀÀÀtfÀUBt*hUHL±L±LUBUQQQUBQ ôUB ææBaÜæaÜa…*h* ä&ª*Ì$& /  ÌUBU ùùùöööP€À  2Ü @@@ ¾    (˜& ÀB©(`BÀ…`  A	‘A@‘‘‘   4Dal¹¤Â		‘±±±È¬‰p(©XQQQ	‘±	‘±	A +++Ü	‘± D!@ÔÔÔ ÔL±±±³Ä$ØM¼ÅÍÕÝåíEEEHHHtHUB*hUÔÔÔÔÔ*h*UB ôUB ææBaÜæaÜa…ÕÝ	&ªÕ$Ø& /  $UBU ñññÎÎÎP€À  2Ü @@@      ooo›››ô›(˜ä   ;  (! ! €$Ö  " l*ä0 ; ; D      ; ô   ô   €ˆ    HN¼|†  L°dddX  UUUD°N¬|bpbT   $pb |‚bÀ¬|Y"eeeÐf¨b˜ŠBôÎ|Àˆ>b,„ÀˆZÅÅÅF0¨.|
