@@ -1,0 +1,13 @@
+      DOUBLE PRECISION FUNCTION DLOG(X)
+C
+C  DLOG: Double Precision NATURAL Logorithm Function
+C
+C  Copyright 1988 by LGMA Products
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      DOUBLE PRECISION X,DLOG10
+      DLOG=2.302585092994D0*DLOG10(X)
+      END

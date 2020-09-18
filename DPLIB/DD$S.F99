@@ -1,0 +1,22 @@
+	double precision function dd$(d1,d2)
+	implicit double precision(a-z)
+c
+c  DD$: Double Precision Argument to Double Precision Power
+c
+c  Copyright 1988 by LGMA Products
+c
+c  Change History:
+c
+c  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+c  13-July-89   v4.4   Slight recoding
+c
+	if ( d1 .le. 0.0d0 ) then
+	  dd$ = 1.0d99
+	else if ( d2 .eq. 2.0d0 ) then
+	  dd$ = d1 * d1
+	else if ( d2 .eq. 3.0d0 ) then
+	  dd$ = d1 * d1 * d1
+	else
+	  dd$ =  dexp(d2*dlog(d1))
+	endif
+	end

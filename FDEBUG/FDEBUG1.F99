@@ -1,0 +1,1316 @@
+	subroutine select
+	implicit integer(a-z)
+c
+c  select : select the module scope
+c
+	include 'DEBCOM/NOLIST'
+c
+	if ( nosource .eq. 0 ) then
+	  error = -15			! no symbol file
+	else if ( argc .gt. 2 ) then
+	  error = -4			! too many subcommands
+	else if ( argv(1,2) .eq. '?' ) then
+	  write ( rslabel, 9100 )
+	else if ( argv(1,2) .eq. ' ' ) then
+	  selsrcm = 1			! use main program
+	else
+	  do 1000 i=1,nosource		! scan def list for desired
+	    do 1010 j=1,9
+	      if ( argv(j,2) .ne. srfilen(j,i) ) goto 1000
+1010	    continue
+	    goto 1020
+1000	  continue
+c
+c  no match, annunciate error
+c
+	  write ( rslabel, 9120 ) (argv(i,2),i=1,9)
+	  return
+c
+1020	  continue
+	  selsrcm = i
+	  write ( rslabel, 9110 ) (srfilen(i,selsrcm),i=1,9), 
+     +			     syfilel(selsrcm)
+	endif
+9999	return				! exit
+c
+9100	format ( ' Select Module Command Format:'/
+     +           '    S[ELECT] [module_name]'/
+     +           ' if [module_name] omitted, selected=MAIN')
+9110	format ( ' Module ',9a1,' Selected, Located @',z4)
+9120	format ( ' Module ',9a1,' not found')
+	end
+	subroutine view
+	implicit integer(a-z)
+c
+c  view : display source lines from source file
+c
+c		V start end	:  view lines
+c		V.D start end   :  view lines w/disassembly
+c
+	include 'DEBCOM/NOLIST'
+c
+	integer *4 saddr, lsize
+	integer *2 saddress(2)
+	logical *2 disassem
+	equivalence ( saddress(1), address1 )
+c
+	disassem = .false.		! assume no disassembly
+c
+	if      ( argc .lt. 2 ) then
+	  error = -7			! too few subcommands
+	else if ( argc .gt. 4 ) then
+	  error = -4			! too many subcommands
+	else if ( argv(1,2) .eq. '?') then
+	  write ( rslabel, 9100 )	! help requested
+	else if ( srfilea(selsrcm) .eq. z'00000000' ) then
+	  error = -26			! no source file for module
+	else
+c
+c  see if disassemble option chosen
+c
+	  do 1000 i=1,29
+	  if ( argv(i,1) .eq. '.' ) then
+	    if ( argv(i+1,1) .eq. 'D' ) then
+	      disassem = .true.
+	    endif
+	  endif
+1000	  continue
+c
+c  convert passed address to symbol
+c
+	  call cvtsym ( address1, argv(1,2), vdpflag, .true.,
+     +		error )
+	  if ( error .ne. 0 ) return
+	  if ( argc .eq. 2 ) then
+	    address2 = address1
+	  else
+	    call cvtsym ( address2, argv(1,3), vdpflag, .true.,
+     +			error )
+	    if ( error .ne. 0 ) return
+	  endif
+c
+c  have start and end line numbers in address1/address2.  save in
+c  integer *2 variables (I will use address1/2 later for other
+c  purposes)
+c
+	  istart  = address1
+	  iend    = address2
+c
+	  if ( iend .lt. istart ) then
+	    error = -9			! addr2 must be greater than addr1
+	  else if ( selsrcm .eq. 0 ) then
+	    error = -15			! no selected source module
+	  else
+	    saddr = srfilea(selsrcm)
+	    do 1005 linecnt=1,iend
+	      call cpmbr  ( saddr,  cmline, 80 )
+	      call expand ( srline, cmline, size )
+	      if ( linecnt .ge. istart .and. linecnt .le. iend)
+     +				then
+		call getloc ( linecnt )
+	        write ( rslabel, 9110 ) linecnt, saddress(2),
+     +				srline
+		if ( disassem .and. ( address1 .ne. address2 ))
+     +			call disass
+	      endif
+	      lsize = size
+	      saddr = saddr + lsize
+c
+c  check and see if past end of module.  If so, then make sure user has
+c  seen last line number and line.
+c
+	      if ( saddr .ge. srfilee(selsrcm)) then
+		if ( linecnt .lt. istart ) then
+		  call getloc ( linecnt )
+		  write ( rslabel, 9110 ) linecnt, saddress(2),
+     +			srline
+		  if ( disassem .and. ( address1 .ne. address2 ))
+     +			call disass
+		endif
+		goto 1010
+	      endif
+1005	    continue
+1010	    continue
+	  endif
+	endif
+c
+9100	format ( ' View Source File Command Format:'/
+     +           '   V[IEW] start_line_# [end_line_#]'/
+     +           '   V[IEW][.DISASSEMBLE] start_line end_line')
+9110	format ( i5,1x,z4,1x,80a1 )
+	end
+	subroutine workspace
+	implicit integer(a-z)
+c
+c  workspace : displays the workspace registers 0 thru 15.
+c
+	include 'DEBCOM/NOLIST'
+c
+	integer *4 workv, lwsp
+	integer *1 worka(30)
+	equivalence ( worka(1), argv(1,2))
+c
+c  if only 'W' command, then just display registers
+c
+	lwsp = wsp
+	lwsp = jiand ( lwsp, z'0000ffff' )
+	call cimbr ( lwsp, wsps, 32 )
+c
+	if      ( argc .eq. 1 ) then
+	  write ( rslabel, 9100 ) wsps
+c
+c  if an optional argument was specified, display help if ?
+c
+	else if ( argc .eq. 2 ) then
+	  if ( argv(1,2) .eq. '?' ) then
+	    write ( rslabel, 9130 )
+	  else
+c
+c  convert the argument to binary, check to make sure in range
+c
+	    call cvtsym ( address1, argv(1,2), vdpflag, .false.,
+     +			error )
+	    if ( error .eq. 0 ) then
+	      workno = address1
+	      if ( workno .lt. 0 .or. workno .gt. 15 ) then
+		error = -8
+c
+c  valid register specified.  enter modify loop
+c
+	      else
+	        do 1000 i=workno,15
+		  write( rslabel, 9110 ) i, wsps(i+1)
+	          read ( rslabel, 9120, end=1100, err=1100 ) 
+     +				size, worka
+		  if ( worka(1) .eq. '.' ) goto 1100
+		  if ( size .gt. 0 ) then
+		    call cvtsym ( workv, worka, vdpflag, .false.,
+     +                            error )
+		    if ( error .ne. 0 ) goto 1100
+		    wsps(i+1) = workv
+		  endif
+1000		continue
+1100		continue
+	      endif
+	    endif
+	  endif
+	  call cimbw ( lwsp, wsps, 32 )
+	else
+	  error = -4
+	endif
+9100	format ( ' R0=',Z4,' R1=',Z4,' R2=',Z4,' R3=',Z4,
+     +           ' R4=',Z4,' R5=',Z4,' R6=',Z4,' R7=',Z4/
+     +           ' R8=',Z4,' R9=',Z4,' RA=',Z4,' RB=',Z4,
+     +           ' RC=',Z4,' RD=',Z4,' RE=',Z4,' RF=',Z4)
+9110	format ( '+R',Z1,'=',Z4,1x,c31 )
+9120	format ( q, 30a1 )
+9130	format ( ' Workspace Display/Modify Format:'/
+     +           ' W[ORKSPACE]    display workspace registers'/
+     +           ' W[ORKSPACE] #  modify starting at #')
+	end
+	subroutine hex
+	implicit integer(a-z)
+c
+c  hex  :  performs hexadecimal or decimal arithmetic.
+c
+c     command line is:   HEX aaaaaaa bbbbbbb
+c
+c	where:  aaaaaaa and bbbbbbb are integer *4 arguments
+c
+	include 'DEBCOM/NOLIST'
+c
+	integer *4 sum, diff, mult, divi, modu
+c
+	if ( argv(1,2) .eq. '?' .or. argv(1,3) .eq. '?' ) then
+	  write ( rslabel, 9100 )
+	  return
+	endif
+c
+	if      ( argc .lt. 2 ) then
+	  error = -7			! too few subcommands
+	  return
+	else if ( argc .gt. 3 ) then
+	  error = -4			! too many subcommands
+	  return
+	endif
+c
+c  convert the two arguments to address1 and address2
+c
+	call cvtsym ( address1, argv(1,2), vdpflag, .false., error )
+	if ( error .ne. 0 ) return
+	if ( argc .gt. 2 ) then
+	  call cvtsym ( address2, argv(1,3), vdpflag, .false., error )
+	  if ( error .ne. 0 ) return
+	else
+	  address2 = 0
+	endif
+c
+c  do the arithmetic needed, and display the results
+c
+	sum   =   address1 + address2
+	diff  =   address1 - address2
+	mult  =   address1 * address2
+	divi  =   address1 / address2
+	modu  =   address1 - ( divi * address2 )
+c
+	write ( rslabel, 9110 ) address1, address2, sum, diff, mult,
+     +                    divi, modu, address1, address2
+9100	format ( ' Hexadecimal Command Format:'/
+     +           '   H[EX] number1 number2')
+9110	format ( ' H1=',Z8,'  H2=',Z8,'  H1+H2=',Z8/
+     +           ' H1-H2=',Z8,'  H1*H2=',Z8/
+     +           ' H1/H2=',Z8,'  R ',Z8/
+     +           ' H1(I)=',I12,'  H2(I)=',I12)
+	end
+	subroutine registers
+	implicit integer(a-z)
+c
+c  registers : display/modify registers
+c
+	include 'DEBCOM/NOLIST'
+c
+	integer *1 worka(30)
+	integer *4 workv
+	equivalence ( worka(1), argv(2,1) )
+	integer *2 types(7), disp(7)
+c
+	integer *1 modname(9)
+	integer *2 start, lineno
+	integer *4 label
+c
+	data types / 'L>', 'A>', 'EQ', 'C ', 'OV', 'OP', 'X '/
+c
+	if ( argc .gt. 1 ) then
+	  if ( argv(1,2) .eq. '?' ) then
+	    write ( rslabel, 9100 )
+	  else
+	    error = -4			! too many subcommands
+	  endif
+c
+c  display and possibly read three new values for wsp, pc, and sr
+c
+	else
+	  write ( rslabel, 9110 ) wsp
+	  read  ( rslabel, 9140, end=9999, err=9999 )
+     +			size, worka
+	  if ( worka(1) .eq. '.' ) return
+	  if ( size .gt. 0 ) then
+	    call cvtsym ( workv, worka, vdpflag, .false., error )
+	    if ( error .ne. 0 ) return
+	    wsp = workv
+	  endif
+c
+c  look up information about current program counter.  Module Name,
+c  line number, and FORTRAN label:
+c
+	  call findloc ( pc, modname, start, lineno, label )
+c
+	  write ( rslabel, 9120 ) pc, modname, lineno, label
+	  read  ( rslabel, 9140, end=9999, err=9999 )
+     +			size, worka
+	  if ( worka(1) .eq. '.' ) return
+	  if ( size .gt. 0 ) then
+	    call cvtsym ( workv, worka, vdpflag, .false., error )
+	    if ( error .ne. 0 ) return
+	    pc = workv
+	  endif
+c
+c  status register gets special decoded display (tired of looking it
+c  up in the manual).
+c
+	  newval = sr
+	  do 1000 i=1,7		! first blank array
+	    if ( newval .lt. 0 ) then
+	      disp(i) = types(i)
+	    else
+	      disp(i) = '  '
+	    endif
+	    newval = newval * 2
+1000	  continue
+c
+	  newval = iand ( sr, z'000f' )
+c
+	  write ( rslabel, 9130 ) sr, disp, newval
+	  read  ( rslabel, 9140, end=9999, err=9999 )
+     +		size, worka
+	  if ( worka(1) .eq. '.' ) return
+	  if ( size .gt. 0 ) then
+	    call cvtsym ( workv, worka, vdpflag, .false., error )
+	    if ( error .ne. 0 ) return
+	  endif
+	endif
+9999	return
+c
+9100	format ( ' Register Display/Modify Format:'/
+     +           '   R[EGISTERS]   (there are no arguments)')
+9110	format ( '+WP = ',z4,1x,c31)
+9120	format ( '+PC = ',z4,1x,9a1,', %',i5,', *',i6,1x,c31)
+9130	format ( '+SR = ',z4,1x,7(a2,'/'),', level=',i2,1x,c31)
+9140	format ( q, 30a1 )
+	end
+	subroutine initmem
+	implicit integer(a-z)
+c
+c  initmem :  initialize the memory areas
+c
+c  Update History:
+c
+c     16-May-91       Added non-fortran entry point
+c
+	include 'DEBCOM/NOLIST'
+c
+c  misc cells
+c
+	noargs   = 10		! number of arguments maximum
+	maxbrk   = 10		! maximum number of breakpoints
+	error    = 0		! no error
+c
+c  set no symbol file loaded, no source files loaded
+c
+	symload  = 0		! symbol file loaded
+	nosource = 0		! number of source files loaded
+	selsrcm  = 0		! no selected module
+	progload = .false.	! no task loaded
+c
+c  if the task has been successfully loaded, then set up the
+c  dummy information concerning the program workspace, pc,
+c  etc.
+c
+	if ( forttask ) then
+	  pc   =  z'0402'	! start address of program
+	else
+	  pc   =  z'0400'	! start address of program
+	endif
+	sr   =  z'0002'		! interrupts enabled
+	wsp  =  z'f000'		! workspace pointer
+c
+c  zero other saved workspaces
+c
+	do 1045 i=1,128
+1045	savmem(i) = 0		! locations >f020 to >f07f
+c
+c  initialize breakpoint array
+c
+	do 1010 i=1,maxbrk
+1010	breaks(i) = 0		! set no breakpoints
+c
+c  initialize the breakpoint handler, with no program loaded
+c
+	call initbr ( 0, 0 )
+	end
+	subroutine status
+	implicit integer(a-z)
+c
+c  status :  displays the current debugger status
+c
+c  Update History:
+c
+c    15-Aug-89         Changed types array for new data types
+c
+	logical *2 initsrch, nextpack
+	integer *2 types(8), area, itype, symline
+	integer *4 symlabel
+	real    *8 areas(2)
+	integer *1 modname(12), varname(9), myvarnm(10)
+c
+	include 'DEBCOM/NOLIST'
+c
+	equivalence ( work(5), modname ), ( work(7), varname ),
+     +		    ( work(5), symline ), ( work(5), symlabel )
+c
+	data types / 'i ', 'k ', 'j ', 'a ', 'd ', 'c ', 'e ', 'l '/
+	data areas / 'COMMON  ', 'LOCAL   ' /
+c
+c  first, display the file name loaded.
+c
+	if ( argc .gt. 2 ) then
+	  error = -4		! too many subcommands
+	else if ( argv(1,2) .eq. '?' ) then
+	  write ( 6, 9160 )
+	else
+	  if ( progload ) then
+	    write ( rslabel, 9100 ) ffile
+	  else
+	    write ( rslabel, 9105 )
+	  endif
+c
+c  Now display the source files and symbol files loaded
+c
+	  if ( argc .eq. 1 ) then
+	    if ( nosource .eq. 0 ) then
+	      write ( rslabel, 9110 )
+	    else
+	      write ( rslabel, 9120 ) symload
+	      write ( rslabel, 9130 ) selsrcm, 
+     +			   (srfilen(i,selsrcm),i=1,9),
+     +			    syfilel(selsrcm), syfilea(selsrcm),
+     +                      srfilea(selsrcm), srfilee(nosource)
+	      write ( rslabel, 9140 ) nosource
+ 	      do 1000 i=1,nosource
+1000	      write ( rslabel, 9150 ) i, (srfilen(j,i),j=1,9),
+     +				   syfilel(i), syfilea(i),
+     +				   srfilea(i), srfilee(i)
+            endif
+c
+c  Display parameters for individual module
+c
+	  else
+	    do 1010 i=1,nosource
+	      do 1020 j=1,9
+	      if ( argv(j,2) .ne. srfilen(j,i) ) goto 1010
+1020	      continue
+	      goto 1030
+1010	    continue
+	    error = -20		! symbol not found
+	    return
+1030	    continue
+c
+c  Loop through the symbol file, and display each packet encountered
+c
+	    if ( initsrch(i) ) then
+	      length = work(2) - z'02'
+	      write ( rslabel, 9170 ) length, 
+     +			(modname(j),j=1,length), symloc
+	      do while ( nextpack(i) )
+c					It's a variable packet
+	        if ( work(1) .eq. z'60' ) then
+		  length = work(2) - z'04'
+		  itype  = work(6) + z'01'
+		  area   = work(5) + z'01'
+c
+		  do 1040 i=1,10
+1040		  myvarnm(i) = ' '
+c
+		  do 1050 i=1,length
+1050		  myvarnm(i) = varname(i)
+c
+	          write ( 6, 9180 ) myvarnm, symloc,
+     +				types(itype), areas(area)
+c					It's a FORTRAN label
+	        else if ( work(1) .eq. z'61' ) then
+		  write ( 6, 9190 ) symlabel, symloc
+c					It's a FORTRAN line number
+		else if ( work(1) .eq. z'62' ) then
+		  write ( 6, 9200 ) symline, symloc
+	        endif
+	      enddo
+	    else
+	      error = -26		! no symbol file
+	    endif
+	  endif
+	endif
+9100	format ( '0 Program Loaded:         ',40a1 )
+9105	format ( '0 NO Program Loaded')
+9110	format ( '  NO Symbol or Source File(s) Loaded')
+9120	format ( 6x,'Symbol File Loaded    @',z8 )
+9130	format ( '   Selected Module Number: ',i6/
+     +           '                     Name: ',9a1/
+     +		 '                 Location: @',z4/	
+     +           '       Symbol Table Start: ',z8/
+     +           '        Source File Start: ',z8/
+     +           '          Source File End: ',z8)
+9140	format ( ' Number of Modules Loaded:',i6 )
+9150	format ( 3x, i3,'. ', 9a1, ' @',z4, ', Symbol @',z8,
+     +           ', Source @',z8, ', End @',z8 )
+9160	format ( ' Parameter Display Command Format:'/
+     +           '   P               -  display debugger parameters'/
+     +           '   P [module_name] -  display parameters for module')
+9170	format ( 3x,'Module ',na1,' is at location ',z4)
+9180	format ( 9x,'Variable ',10a1,' @',z4,', type=',a1,', area=',a8 )
+9190	format ( 9x,'Label    ',i10, ' @',z4 )
+9200	format ( 9x,'Line No. ',i10, ' @',z4 )
+	end
+	subroutine fdisass
+	implicit integer(a-z)
+c
+c  fdisass : inline disassembler, taken from my own x-basic example
+c
+	include 'DEBCOM/NOLIST'
+c
+	if      ( argc .lt. 2 ) then
+	  error = -7		! too few arguments
+	else if ( argc .gt. 3 ) then
+	  error = -4		! too many arguments
+	else if ( argv(1,2) .eq. '?' ) then
+	  write ( rslabel, 9100 )
+	else
+	  call cvtsym ( address1, argv(1,2), vdpflag, .false.,
+     +		error )
+	  if ( error .ne. 0 ) return
+	  if ( vdpflag ) then
+	    error = -11		! can't disassemble VDP memory
+	    return
+	  endif
+	  if ( argc .eq. 2 ) then
+	    address2 = address1 + z'00000010'
+	  else
+	    call cvtsym ( address2, argv(1,3), vdpflag, .false.,
+     +          error )
+	    if ( error .ne. 0 ) return
+	    if ( vdpflag ) then
+	      error = -11	! can't disassemble VDP memory
+	    endif
+	  endif
+c
+	  if ( address1 .gt. address2 ) then
+	    error = -9		! addr1 must be > addr2
+	  else
+	    call disass		! disassemble it
+	  endif
+	endif
+9100	format ( ' Disassemble Command Format:'/
+     +           '    D[ISASSEMBLE] [address1]'/
+     +           '    D[ISASSEMBLE] [address1] [address2]')
+	end
+	subroutine disass
+	implicit integer(a-z)
+c
+c  disass : disassemble code starting at address1, continuing to address2
+c
+	include 'DEBCOM/NOLIST'
+c
+	integer *2 offset(9), byte1, byte2, value, taddress(2)
+	integer *4 formats(71), saddress
+	logical *2 invinst
+	integer *1 values(2), asciis(2)
+	equivalence ( values, value ), (taddress(1),saddress)
+c
+c  define the TMS9995 instruction set (extended with DIVS & MPYS)
+c
+	data formats /
+     +	   'SZC ', 'SZCB', 'S   ', 'SB  ', 'C   ', 'CB  ', 'A   ',
+     +     'AB  ', 'MOV ', 'MOVB', 'SOC ', 'SOCB',
+     +     'JMP ', 'JLT ', 'JLE ', 'JEQ ', 'JHE ', 'JGT ', 'JNE ',
+     +     'JNC ', 'JOC ', 'JNO ', 'JL  ', 'JH  ', 'JOP ', 'SBO ',
+     +     'SBZ ', 'TB  ',
+     +     'COC ', 'CZC ', 'XOR ',
+     +     'LDCR', 'STCR',
+     +     'SRA ', 'SRL ', 'SLA ', 'SRC ',
+     +     'DIVS', 'MPYS',
+     +     'BLWP', 'B   ', 'X   ', 'CLR ', 'NEG ', 'INV ', 'INC ',
+     +     'INCT', 'DEC ', 'DECT', 'BL  ', 'SWPB', 'SETO', 'ABS ',
+     +     'IDLE', 'RSET', 'RTWP', 'CKON', 'CKOF', 'LREX',
+     +     'LI  ', 'AI  ', 'ANDI', 'ORI ', 'CI  ', 'STWP', 'STST',
+     +     'LWPI', 'LIMI',
+     +     'XOP ', 'MPY ', 'DIV ' /
+c
+	data offset / 1, 13, 29, 32, 34, 38, 54, 60, 69 /
+c
+c  at this point, we have the start and ending addresses to disassemble
+c  in the I*4 variables address1 and address2.
+c
+	do while ( address1 .le. address2 )
+	  saddress = address1		! save starting address
+	  call cpmbr ( address1, values, 2 )
+	  address1 = address1 + z'00000002'
+c
+c  extract the two bytes of data into the variables byte1 and byte2
+c
+	  byte1 = values(1)
+	  byte1 = iand(byte1,z'00ff')
+	  byte2 = values(2)
+	  byte2 = iand(byte2,z'00ff')
+	  invinst = .false.		! instruction is assumed valid
+c
+c  the following code extracts the instruction format and the
+c  type of opcode for the format.
+c
+	  type = byte1 / 16
+	  if ( type .ge. 4 ) then
+	    format = 1
+	    type   = type - 3
+	  else
+	    type = byte1 / 4
+	    if ( (type .ge. 8) .and. (type .le. 10 ) ) then
+	      format = 3
+              type = type - 7
+	    else if ( (type .ge. 12) .and. (type .le. 13) ) then
+	      format = 4
+	      type = type - 11
+	    else if ( type .eq. 11 ) then
+	      format = 9		! XOP instruction
+	      type   = 1
+	    else if ( (type .eq. 14) .or. (type .eq. 15) ) then
+	      format = 9		! MUL or DIV
+	      type = type - 12
+	    else
+	      type = byte1
+	      if ( (type .ge. 16) .and. (type .le. 31)) then
+		format = 2
+		type = type - 15
+	      else if ( (type.ge.8) .and. (type .le. 11)) then
+		format = 5
+		type = type - 7
+	      else
+	   	type = byte1
+		type = ( type*4 ) + (byte2/64)
+		if ( (type .eq. 6 ) .or. (type .eq. 7 ) )then
+		  format = 6		! mpys or divs
+		  type = type - 5
+		else if ( (type .ge. 16) .and. (type.le.30) ) then
+		  format = 6
+		  type = type - 13
+		else
+		  type = byte1
+		  type = (type*8) + (byte2/32)
+		  if ( (type.ge.16) .and. (type .le. 24)) then
+		    format = 8
+		    type = type - 15
+		  else if ( (type .ge. 26) .and. (type.le.31) ) then
+		    format = 7
+		    type = type - 25
+		  else
+		    invinst = .true.
+		  endif
+		endif
+	      endif
+	    endif
+	  endif
+c
+c  now have the opcode and format.  If an invalid instruction was
+c  detected, then display the data as a format statement.
+c
+	  if ( invinst ) then
+	    call toascii ( value, asciis )
+	    write ( rslabel, 9110 ) taddress(2), value, 
+     +				    asciis, value
+	  else
+c
+c  clear buffers, set bufptr
+c
+	    recptr = 0		! # of words to dump after instr
+	    bufptr = 0		! output buffer pointer
+	    do 1000 i=1,30
+1000	    buf(i) = ' '
+c
+c  compute instruction symbol offset
+c
+	    isym = offset(format) + (type-1)
+c
+c  goto execution format type
+c
+c		    1    2    3    4    5    6    7    8    9
+	    goto(1100,1200,1300,1400,1500,1600,1700,1800,1900)
+     +		,format
+c
+c  format type 1
+c
+1100	    continue
+	    opcode = byte1/32
+	    left   = byte1 - opcode * 32
+	    b      = left / 16
+	    left   = left - b * 16
+	    td     = left / 4
+	    left   = left - td * 4
+	    d      = left * 4
+	    left   = byte2 / 64
+	    d      = left + d
+	    left   = byte2 - left * 64
+	    ts     = left / 16
+	    left   = left - ts * 16
+	    s      = left
+	    call fillinst
+	    s      = d
+  	    ts     = td
+	    bufptr = bufptr + 1
+	    buf(bufptr) = ','
+	    call fillinst
+	    goto 2000
+c
+c  format type 2
+c
+1200	    continue
+	    disp = byte2
+	    if ( disp .ge. 128 ) disp = - (256-disp)
+c					sbo, sbz, or tb
+	    if ( type .ge. 14 ) then
+	      call convertr ( disp )
+	    else
+c					jmp instruction
+	      shaddr = saddress
+	      jval   = shaddr + disp*2 + 2
+	      bufptr = bufptr + 1
+	      buf(bufptr) = '@'
+	      call converth ( jval )
+	      bufptr = bufptr + 3
+	    endif
+	    goto 2000
+c
+c  format type 3
+c
+1300	    continue
+	    opcode = byte1 / 4
+	    left   = byte1 - opcode * 4
+	    d      = left * 4
+	    left   = byte2 / 64
+	    d      = d + left
+	    left   = byte2 - left * 64
+	    ts     = left / 16
+	    left   = left - ts*16
+	    s      = left
+	    td     = 0
+	    call fillinst
+	    bufptr = bufptr + 1
+	    buf(bufptr) = ','
+	    ts     = td
+	    s      = d
+	    call fillinst
+	    goto 2000
+c
+c  format type 4
+c
+1400	    continue
+	    opcode = byte1 /4 
+	    left   = byte1 - opcode * 4
+	    c      = left * 4
+	    left   = byte1 / 64
+	    c      = c + left
+	    left   = byte2 - left * 64
+	    ts     = left / 16
+	    left   = left - ts * 16
+	    s      = left
+	    call fillinst
+	    goto 2000
+c
+c  format type 5
+c
+1500	    continue
+	    c      = byte2 / 16
+	    w      = byte2 - c * 16
+	    bufptr = bufptr + 1
+	    buf(bufptr) = 'R'
+	    call convertr ( w )
+	    bufptr = bufptr + 1
+	    buf(bufptr) = ','
+	    call convertr ( c )
+	    goto 2000
+c
+c  format type 6
+c
+1600	    continue
+	    left  = byte2 / 64
+	    byte2 = byte2 - left * 64
+	    ts    = byte2 / 16
+	    s     = byte2 - ts * 16
+	    call fillinst
+	    goto 2000
+c
+c  format type 7 - no operand
+c
+1700	    continue
+	    goto 2000
+c
+c  format type 8
+c
+1800	    continue
+	    left = byte2 / 16
+	    w    = byte2 - left * 16
+	    if ( (type.eq.6) .or. (type.eq.7) ) then
+	      ts = 0
+	    else
+	      ts = 4
+	    endif
+	    s = w
+	    call fillinst
+	    goto 2000
+c
+c  format type 9
+c
+1900	    continue
+	    opcode = byte1 / 4
+	    left   = byte1 - opcode * 4
+	    d      = left * 4
+	    left   = byte2 / 64
+	    d      = d + left
+	    left   = byte2 - left * 64
+	    ts     = left / 16
+	    left   = left - ts*16
+	    s      = left
+	    td     = 0
+	    call fillinst
+	    bufptr = bufptr + 1
+	    buf(bufptr) = ','
+c					skip 'R' for XOP
+	    if ( type .ne. 1 ) then
+	      bufptr = bufptr + 1
+	      buf(bufptr) = 'R'
+	    endif
+	    call convertr ( d )
+	    goto 2000
+c
+c  end cases, terminate buffer
+c
+2000	    continue
+	    call cpmbr ( saddress, values, 2 )
+	    call toascii ( values, asciis )
+	    write ( rslabel, 9120 ) taddress(2), value, asciis,
+     +			      formats(isym), buf
+c
+c  flush any gobbled instructions
+c
+	    saddress = saddress + z'00000002'
+	    do while ( recptr .ne. 0 )
+	      call cpmbr ( saddress, values, 2 )
+	      call toascii ( values, asciis )
+	      write ( rslabel, 9130 ) taddress(2), value, asciis
+	      saddress = saddress + z'00000002'
+	      recptr = recptr - 1
+	    enddo
+	  endif
+	enddo
+9999	continue
+c
+9110	format ( 7x,z4,1x,z4,1x,'''',2a1,'''',10x,'DATA >',z4)
+9120	format ( 7x,z4,1x,z4,1x,'''',2a1,'''',10x,a4,1x,30a1)
+9130	format ( 7x,z4,1x,z4,1x,'''',2a1,'''' )
+	end
+	subroutine fillinst
+	implicit integer(a-z)
+c
+c  fillinst : fill in the right hand part of an instruction based
+c	      on the ts & s parts of the instruction.
+c
+	include 'DEBCOM/NOLIST'
+c
+	integer *1 values(2)
+	integer *2 value
+	equivalence ( values(1), value )
+c
+	tts = ts + 1
+	goto ( 5030, 5020, 5090, 5020, 5030 ) , tts
+c
+5020	continue
+	bufptr = bufptr + 1
+	buf(bufptr) = '*'
+c
+5030	continue
+	bufptr = bufptr + 1
+	buf(bufptr) = 'R'
+	call convertr ( s )
+	if ( ts .eq. 3 ) then
+	  bufptr = bufptr + 1
+	  buf(bufptr) = '+'
+	endif
+	if ( ts .eq. 4 ) then
+	  bufptr = bufptr + 1
+	  buf(bufptr) = ','
+	  goto 5100
+	endif
+	return
+c
+5090	continue
+	bufptr = bufptr + 1
+	buf(bufptr) = '@'
+c
+5100	continue
+	recptr   = recptr + 1
+	call cpmbr ( address1, values, 2 )
+	address1 = address1 + z'00000002'
+	call converth ( value )
+	if ( ( ts .ne. 4) .and. ( s .ne. 0 ) ) then
+	  bufptr = bufptr + 1
+	  buf(bufptr) = '('
+	  bufptr = bufptr + 1
+	  buf(bufptr) = 'R'
+	  call convertr ( s )
+	  bufptr = bufptr + 1
+	  buf(bufptr) = ')'
+	endif
+5230	continue
+	return
+	end
+	subroutine convertr ( rvalue )
+	implicit integer(a-z)
+c
+c  convertr :  convert the register number in rvalue to an ascii
+c	       string and place in output buffer buf.
+c
+	include 'DEBCOM/NOLIST'
+c
+	if ( rvalue .ge. 10 ) then
+	  bufptr = bufptr + 1
+	  buf(bufptr) = '1'
+	  rvalue = rvalue - 10
+	endif
+	bufptr = bufptr + 1
+	buf(bufptr) = rvalue + z'0030'
+	end
+	subroutine converth ( rvalue )
+	implicit integer(a-z)
+c
+c  converth : convert a 16-bit address into a 4 hex digit string
+c	      and place the result in output buffer buf.
+c
+	include 'DEBCOM/NOLIST'
+c
+	integer *1 ivalue, ichar
+	integer *2 idig(4)
+	logical *2 initsrch, nextpack
+c
+	equivalence (work(5),symline)
+c
+c  perform symbol search on value.  search the following:
+c
+c	a) current module line numbers
+c	b) current module variables
+c	c) main module common
+c
+	if ( selsrcm .ne. 0 .and. ((rvalue .lt. 0) .or.
+     +				  (rvalue .gt. z'0400')) ) then
+	  do 1000 i=1,nosource		! first, search def'd names
+	    if ( syfilel(i) .eq. rvalue ) then
+	      do 1010 j=1,9
+	        if ( srfilen(j,i) .ne. ' ' ) then
+	          bufptr = bufptr + 1
+	          buf(bufptr) = srfilen(j,i)
+	        endif
+1010	      continue
+	      return
+	    endif
+1000	  continue
+c
+c  the symbol name was not found within the module DEF'd names.  perform
+c  a search on my module scope for a label or local variable name.
+c
+	  if ( initsrch(selsrcm) ) then
+	    do while ( nextpack(selsrcm) )
+c
+c  try for a match on line number.  If found, then move the line
+c  number to the output line with the symbol %.
+c
+	      if ( work(1) .eq. z'62' ) then
+	        if ( symloc .eq. rvalue ) then
+	 	  bufptr = bufptr + 1
+		  buf(bufptr) = '%'
+		  call convertd ( symline )
+		  return
+	        endif
+c
+c  try for a match on a variable name.  If found, then move the variable
+c  name to the output buffer.
+c
+	      else if ( work(1) .eq. z'60' ) then
+	        if ( symloc .eq. rvalue ) then
+		  length = work(2) - z'04'
+		  do 1020 i=1,length
+		    ichar = work(i+6)
+		    if ( ichar .ne. ' ' ) then
+		      bufptr = bufptr + 1
+		      buf(bufptr) = ichar
+		    endif
+1020		  continue
+		  return
+	        endif
+	      endif
+	    enddo
+	  endif
+c
+c if symbol not found above, must search common variable names, which
+c are only located in the main program common space.
+c
+1200	  continue
+	  if ( initsrch(1) .and. selsrcm .ne. 1 ) then
+	    do while ( nextpack(1) )
+	      if ( work(1) .eq. z'60' .and. work(5) .eq. z'00' )
+     +			then
+	        if ( symloc .eq. rvalue ) then
+	          length = work(2) - z'04'
+		  do 1030 i=1,length
+		    ichar = work(i+6)
+		    if ( ichar .ne. ' ' ) then
+		      bufptr = bufptr + 1
+		      buf(bufptr) = ichar
+		    endif
+1030		  continue
+		  return
+	        endif
+	      endif
+	    enddo
+	  endif
+	endif
+c
+c  at this point, if symbol wasn't found, then must resort to a plain
+c  old hexadecimal 4 digit value
+c
+	bufptr = bufptr + 1
+	buf(bufptr) = '>'
+c
+	idig(1) = ishft ( rvalue, -12 )
+	idig(2) = ishft ( rvalue, -8 )
+	idig(3) = ishft ( rvalue, -4 )
+	idig(4) = rvalue
+c
+	do 1050 i=1,4
+	  ivalue = iand ( idig(i), z'000f' )
+	  if ( ivalue .lt. z'0a' ) then
+	    ivalue = ivalue + z'30'
+	  else
+	    ivalue = ( ivalue - z'0a') + 'A'
+	  endif
+	  bufptr = bufptr + 1
+	  buf(bufptr) = ivalue
+1050	continue
+	end
+	subroutine convertd ( rvalue )
+	implicit integer(a-z)
+c
+c  convertd : convert the decimal value in rvalue, and put the resulting
+c	      ascii string in buf.
+c
+	include 'DEBCOM/NOLIST'
+c
+	integer *1 ichar
+c
+	ivalue = rvalue
+	idivdr = 10000
+c
+	do while ( idivdr .ne. 0 )
+	  ndigit = ivalue / idivdr
+	  ivalue = ivalue - ( ndigit * idivdr )
+	  idivdr = idivdr / 10
+	  bufptr = bufptr + 1
+	  ichar  = ndigit
+	  ichar  = ichar + '0'
+	  buf(bufptr) = ichar
+	enddo
+	end
+	subroutine toascii ( values, asciis )
+	implicit integer (a-z)
+c
+c  toascii : convert two integer *1 values to equivalent ascii.
+c
+	integer *1 values(2),asciis(2)
+c
+	asciis(1) = '.'
+	asciis(2) = '.'
+c
+	if ( values(1) .ge. ' ' .and. values(1) .le. 'z' ) then
+	  asciis(1) = values(1)
+	endif
+c
+	if ( values(2) .ge. ' ' .and. values(2) .le. 'z' ) then
+	  asciis(2) = values(2)
+	endif
+	end
+	logical *2 function comparr ( string1, string2, stptr )
+	implicit integer(a-z)
+c
+c  compares two arrays.  if string1 = string2, then return .true.
+c
+	integer *1 string1(80), string2(9), toupper, string3(9),
+     +		   ichar
+	integer *2 stptr
+c
+c  extract the next nine characters from the string1 array and place
+c  in string2
+c
+	do 1000 i=1,9
+1000	string3(i) = ' '
+c
+	comparr = .false.		! compare arrays
+	inptr   = stptr
+c
+c  should be at a valid character, don't skip any to start
+c
+	ouptr = 0
+	do while ( ouptr .lt. 9 .and. inptr .lt. 73 )
+	  ouptr = ouptr + 1
+	  string3(ouptr) = toupper(string1(inptr))
+	  inptr = inptr + 1
+	  do while ( string1(inptr) .eq. ' ' .and. inptr .lt. 73 )
+	    inptr = inptr + 1
+	  enddo
+	  ichar = string1(inptr)
+	  if ( ichar .eq. '!' ) inptr = 73
+	  if ( ichar .eq. '(' ) inptr = 73
+	  if ( ichar .eq. '/' ) inptr = 73
+	enddo
+c
+c  now compare the two strings, string2 & string3
+c
+	do 1010 i=1,9
+	if ( string3(i) .ne. string2(i) ) return
+1010	continue
+	comparr = .true.		! they are the same
+9999	return
+	end
+	integer *1 function toupper ( char )
+	implicit integer *1 (a-z)
+c
+c  converts the passed character to upper case
+c
+	ichar = char
+	if ( ichar .ge. 'a' .and. ichar .le. 'z' ) then
+	  ichar = ( ichar - 'a' ) + 'A'
+	endif
+	toupper = ichar
+	end
+	subroutine getloc ( lineno )
+	implicit integer(a-z)
+c
+c  getloc : returns start & end locations in address1/2,
+c	    given line number
+c
+	include 'DEBCOM/NOLIST'
+	logical *2 done, initsrch, nextpack
+	integer *2 symline
+	integer *4 llength
+	equivalence ( symline, work(5))
+c
+	loc      = 0		! found location
+	nloc     = 0		! next location
+c
+	if ( initsrch(selsrcm) ) then
+	  done = .false.
+	  do while ( nextpack(selsrcm) .and. (.not. done) )
+	    if      ( work(1) .eq. z'60' ) then
+	      done = .true.
+	    else if ( work(1) .eq. z'62' ) then
+	      if ( symline .eq. lineno ) then
+	        loc    = symloc
+		nloc   = loc
+	        do while ( nextpack(selsrcm) .and. (.not. done) )
+		  if      ( work(1) .eq. z'60' ) then
+		    done = .true.
+		  else if ( work(1) .eq. z'62' ) then
+		    nloc = symloc - 2
+		    done = .true.
+		  endif
+		enddo
+	      else if ( symline .gt. lineno ) then
+		loc  = symloc
+		nloc = loc
+		done = .true.
+	      endif
+	    endif
+	  enddo
+	endif
+c
+c  found location is in variable loc, next location after is in variable
+c  nloc (unless it wasn't found, in which case both are zero).
+c
+	address1 = loc
+	if ( nloc .ne. 0 ) then
+	  address2 = nloc
+	else
+	  address2 = loc + 4
+	endif
+	end
+        subroutine prnerr ( error, rslabel )
+        implicit integer (a-z)
+c
+c  prnerr:  print errors,  variable error has the error number
+c
+c  negative errors are generated internally, positive errors come
+c  from I/O system.
+c
+        integer errorsp(12,8),  errorsn(12,28)
+c
+        data errorsp / 24hNon-Existent Device Name,
+     +                 24hDevice Write-Protected  ,
+     +                 24hBad Open Attribute      ,
+     +                 24hIllegal Operation       ,
+     +                 24hOut of Table Space      ,
+     +                 24hRead Past End of File   ,
+     +                 24hLow-Level Device Error  ,
+     +                 24hInput/Output Error      /
+c
+	data errorsn / 24hBad Program File        ,
+     +                 24hCannot Allocate Memory  ,
+     +                 24hSubcommand Too Long     ,
+     +                 24hToo Many Subcommands    ,
+     +                 24hInvalid Command ?       ,
+     +                 24hBad Numeric Argument    ,
+     +                 24hToo Few Subcommands     ,
+     +                 24hWorkspace # not 0 to F  ,
+     +                 24hAddr1 must be > Addr2   ,
+     +                 24hAddress out of range    ,
+     +                 24hVDP Address Not Allowed ,
+     +                 24hSymbol File Wrong Type  ,
+     +                 24h> 100 Subprograms       ,
+     +                 24hNot a Symbol File       ,
+     +                 24hNo Symbol or Source File,
+     +		       24hDuplicate Main Program  ,
+     +                 24hWrong Name for Main     ,
+     +                 24hMissing Main Program    ,
+     +                 24hCan't Include/Include   ,
+     +		       24hSymbol Not Found        ,
+     +                 24hNo Task Loaded          ,
+     +                 24hBad Display Format (A/Z),
+     +                 24hBreakpoint Not Found    ,
+     +                 24hBreakpoint Already ON   ,
+     +                 24hMore Than 10 Breakpoints,
+     +                 24hNo Source for Module    ,
+     +		       24hCan't Continue Err/Stop ,
+     +                 24hIllegal Breakpoint Locat/
+c
+        ierr  =  error
+        if ( ierr .lt. -28 ) then
+          write ( rslabel, 9110 ) error
+        elseif ( ierr .lt. 0 ) then
+          ierr  = -ierr
+          write ( rslabel, 9100 ) error, (errorsn(i,ierr),i=1,12)
+        elseif ( error .lt. 9 ) then
+          write ( rslabel, 9100 ) ierr, (errorsp(i,ierr),i=1,12)
+        else
+          write ( rslabel, 9110 ) ierr
+        endif
+c
+9100    format ( ' Error ',i6,1x,12a2 )
+9110    format ( ' Error ',i6,' Unrecognized Error')
+        end
+        subroutine parsecm ( command, argc, argv, noarg, argsiz, error )
+        implicit integer (a-z)
+c
+c  parsecm : takes a command from the command parser, and parses a
+c            'c' style argument count (argc), and argument strings
+c            (argv).   The maximum number of command line arguments
+c            is in the noarg variable, and the maximum size of
+c            each argument string is in the argsiz variable.
+c
+c            Errors are returned in the Error variable.
+c            The number of arguments found is returned in argc.
+c
+        integer *1 command(81), argv(argsiz,noarg)
+c
+c  convert the command line to all upper case
+c
+	do 1000 i=2,81
+	  if ( command(i) .ge. 'a' .and. command(i) .le. 'z') then
+	    command(i) = ( command(i) - 'a' ) + 'A'
+	  endif
+1000	continue
+c
+c  blank the resulting output strings
+c
+        do 1010 i=1,argsiz              ! blank the resulting strings
+          do 1010 j=1,noarg
+            argv(i,j) = ' '
+1010    continue
+c
+        argc   = 0                      ! number of arguments
+	maxcom = command(1)		! # of characters in command
+	maxcom = maxcom + 1
+        comptr = 1                      ! command pointer
+c
+        do while ( comptr .lt. maxcom )
+          comptr = comptr + 1
+          if ( command(comptr) .ne. ' ' ) then
+            argc  = argc + 1
+            if ( argc .gt. noarg ) then
+              error = -4                ! too many subcommands
+              return
+            endif
+            argptr = 0
+            do while ( comptr.le.maxcom .and. command(comptr).ne.' ')
+              argptr = argptr + 1
+              if ( argptr .gt. argsiz ) then
+                error = -3              ! individual command too long
+                return
+              endif
+              argv(argptr,argc) = command(comptr)
+              comptr = comptr + 1
+            enddo
+          endif
+        enddo
+        end

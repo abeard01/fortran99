@@ -1,0 +1,305 @@
+	program fdebug
+	implicit integer(a-z)
+c
+c  fdebug  :  Really Spiffy 9640 Fortran Symbolic Debugger
+c
+c  This program is the FORTRAN Symbolic Debugger for MDOS.  It
+c  auto loads a FORTRAN program task, allows the user to load
+c  symbol and source information, enter breakpoints, do math,
+c  view the source files, and perform a number of other debugging
+c  chores.
+c
+c  Calling Sequence:
+c
+c      fdebug <fortran line arguments>
+c
+c  The debugger executes the following on call:
+c
+c    a. requests the FORTRAN task name
+c    b. loads in the fortran task specified into high ram
+c    c. goes to monitor mode waiting for the user to type something
+c
+c  Copyright 1989 by LGMA Products
+c
+c  Update History:
+c
+c     13-Feb-89    version 4.21   Add "trade" screen, via hints from Paul
+c				  Charlton.
+c     18-Dec-88    version 4.2    Initial Writing
+c
+c     11-Mar-89    version 4.3    Fix variable search in common routine.
+c
+c     31-Oct-89    version 4.43   Add code to check low cells on break
+c
+c     12-Nov-89    version 4.44   Fixed bugs with cells checked and modify
+c                                 logical.
+c
+c     25-Dec-89    version 4.45   Fixed fsupport routine, no longer detects
+c				  variables with names of "program" as start
+c				  of a new program module.
+c
+c     04-Jan-90    version 4.46   Corrected display of location when executing
+c				  error stop or normal stop in fdebug2.
+c
+c     31-Jan-90    version 4.47   Added check for full search on variable
+c                                 names.  Previous check was matching items
+c                                 like "ABC" for variable "ABCD".
+c
+c     05-Oct-90    version 4.48   Fixed breakpoint remove logic, reported
+c                                 Tom Wible.
+c
+c     19-may-91    version 5.00   Add support for non-fortran (e.g. TIC)
+c                                 programs.
+c
+c     19-jul-91    version 5.01   Correct -5 error at end of every command.
+c                                 Reduced check on "corrupted" locations.
+c
+	include 'DEBCOM'
+c
+c  Save current video mode, and force mode to 80 columns
+c
+	rslabel = 6			! label to read/write
+	call getmod ( scrmode )
+	if ( scrmode .ne. 1 ) call set80
+c
+	call char ( 31, z'0000000000000000' )
+	call gvidtb ( vidtbls )		! get video table start addresses
+c
+c  retrieve the first 1024 BYTES from MDOS.  This will be checked
+c  on any breakpoint; and the user warned if modified
+c
+	do 1000 i=1,512
+	  j = ( i - 1 ) * 2
+	  baseloc(i) = peek(j)
+1000	continue
+c
+c  get the current pattern table and color table and move to my
+c  copy of the stuff.  (note: only saving 1/2 of the pattern table,
+c  I just won't use the upper half)
+c
+	call lvmbr ( vidtbls(1), scrsvv, 670 )
+	call lvmbw ( z'01e870',  scrsvv, 670 )
+	call lvmbr ( vidtbls(2), scrsvv, 2048 )
+	call lvmbw ( z'01f000',  scrsvv, 2048 )
+c
+c  set up special vector and clear new screen image table
+c
+	call debscr
+c
+c  finally, call the savscr subroutine, which snapshots the user registers
+c  and establishes my own!
+c
+	call savscr
+c
+c  Close default printer device
+c
+	call close ( 9 )
+c
+c  Initialize some default items, such as x,y,z bias
+c
+	xbias = 0
+	ybias = 0
+	zbias = 0
+c
+c  Set NO FORTRAN task (til one is loaded )
+c
+	forttask = .FALSE.
+c
+c  Display Banner
+c
+	write ( rslabel, 9100 )
+c
+c  initialize the various arrays for the debugger
+c
+	call initmem
+c
+c  enter monitor, to allow user to examine the fortran program, or
+c  to load the symbol file, or do something spectacular
+c
+	call montop
+	write ( rslabel, 9110 )
+	call resscr
+c
+9100	format ( '1'/' LGMA All-Purpose Symbolic Debugger V5.01 (19JUL91)'/
+     +           ' Copyright 1990, 1991 by LGMA Products'/
+     +           ' Type ? for Help')
+9110	format ( ' Debugger Session Terminates')
+        end
+	subroutine montop
+	implicit integer (a-z)
+c
+c  montop : monitor command operation
+c
+c  This subroutine is called by the main fortran debugger.  It solicits
+c  a command from the user, parses the command, and calls the appropriate
+c  subroutine to handle the command.
+c
+	include 'DEBCOM/NOLIST'
+c
+	integer *1 yesno
+	integer *2 comtwo
+	equivalence ( comtwo, argv(1,1))
+c
+1000	continue
+	call printc ( .true. )		! enable ctrl/s, ctrl/q processing
+	error = 0
+	write ( rslabel, 9100 )
+	read  ( rslabel, 9110, end=1000, err=1000 )
+     +		(commarr(i),i=2,80)
+c
+c  find last used character (simulate comstr format)
+c
+	do 1010 j=2,80
+	  i = 82-j
+	  if ( commarr(i) .ne. ' ' ) goto 1020
+1010	continue
+	goto 1000
+c
+c  something was typed.  calculate end of array for the parse routine
+c
+1020	continue
+	i = i - 1
+c
+c  Got a command in commarr.  Parse out in up to five arguments
+c  (this logic is from the librarian).
+c
+	commarr(1) = i
+	call parsecm ( commarr, argc, argv, noargs, 30, error )
+	if ( ierror .ne. 0 ) then
+	  call prnerr ( error, rslabel )
+	  goto 1000
+	endif
+c
+c  arguments have been parsed into argv array.  Check first argument,
+c  branch to type
+c
+        error = 0
+	if      ( argv(1,1) .eq. 'H' ) then
+	  call hex
+	else if ( argv(1,1) .eq. 'L' ) then
+	  call loadsym
+	else if ( argv(1,1) .eq. 'P' ) then
+	  call status
+	else if ( argv(1,1) .eq. 'Q' ) then
+	  if ( .not. contflag ) return
+	  write ( rslabel, 9130 )
+	  read  ( rslabel, 9140, end=1000, err=1000 ) yesno
+	  if ( yesno .eq. 'Y' .or. yesno .eq. 'y' ) return
+	else if ( argv(1,1) .eq. '?' ) then
+	  write ( rslabel, 9120 )
+	else if ( argv(1,1) .eq. 'X' ) then
+	  call xbias
+	else if ( argv(1,1) .eq. 'Y' ) then
+	  call ybias
+	else if ( argv(1,1) .eq. 'Z' ) then
+	  call zbias
+	else if ( argv(1,1) .eq. 'T' ) then
+	  call trade
+	else if ( .not. progload ) then
+	  error = -21
+	else if ( argv(1,1) .eq. 'B' ) then
+	  call breakpt
+	else if ( argv(1,1) .eq. 'M' ) then
+	  call modify
+	else if ( argv(1,1) .eq. 'R' ) then
+	  call registers
+	else if ( argv(1,1) .eq. 'S' ) then
+	  call select
+	else if ( argv(1,1) .eq. 'W' ) then
+	  call workspace
+	else if ( argv(1,1) .eq. 'D' ) then
+	  call fdisass
+	else if ( argv(1,1) .eq. 'V' ) then
+	  call view
+	else if ( argv(1,1) .eq. 'G' ) then
+	  call go
+	else
+	  error = -5			! invalid command
+	endif
+	if ( error .ne. 0 ) call prnerr ( error, rslabel )
+	goto 1000
+9100	format ( '+]')
+9110	format ( 79a1 )
+9120	format ( ' Non-Symbolic Commands:'/
+     +           '    B - Enter/Remove/List Breakpoints   ',
+     +           '    D - Disassemble at Address'/
+     +           '    G - Go Program into Execution       ',
+     +           '    H - Hexadecimal Arithmetic'/
+     +           '    L - Load Task/Symbol/Debug          ',
+     +           '    M - Memory Inspect/Alter'/
+     +           '    Q - Quit Debugger                   ',
+     +           '    R - Register Inspect/Alter'/
+     +           '    T - Trade Screen                    ',
+     +           '    W - Workspace Inspect/Alter'/
+     +           '    X - Set X Bias                      ',
+     +           '    Y - Set Y Bias'/
+     +           '    Z - Set Z Bias'/
+     +           ' FORTRAN Symbolic Commands:'/
+     +           '    P - Paramater Display               ',
+     +           '    S - Select Module to Debug'/
+     +           '    V - View Source Module'/)
+9130	format ( '+Are You Sure (Y/N)? ')
+9140	format ( a1 )
+	end
+	subroutine trade
+	implicit integer(a-z)
+c
+c  trade : trade screen with user screen
+c
+	call resscr
+	status = 0
+	do while ( status .eq. 0 )
+	  call key ( 0, k, status )
+	enddo
+	call savscr
+	end
+	subroutine savscr
+	implicit integer(a-z)
+c
+c  savscr : save screen, and swap in new user screen
+c
+c  this subroutine is called to save the current screen registers, and
+c  set the debugger screen registers.
+c
+	include 'DEBCOM/NOLIST'
+c
+c  the following are the first 14 9938 video registers for 80 column
+c  mode, 26 lines/display, etc.
+c
+c  these registers map the screen image at >1e000, the color table
+c  at >1e870, the pattern fonts table at >1f000.   these VDP areas
+c  are generally not used by any current geneve program.
+c
+	integer *2 debreg(14)
+	data debreg / z'0004', z'0050', z'007b', z'00a7', z'003e',
+     +		      z'0038', z'0003', z'00f4', z'0088', z'0080',
+     +		      z'0007', z'0000', z'00f5', z'0000' /
+c
+c  save the first 13 video registers
+c
+	do 1000 i=0,13
+1000	call vrfr ( i, vregs(i+1) )
+c
+c  now write my special video registers
+c
+	do 1010 i=0,14
+	  if ( .not. ( (i.eq.5) .or. (i.eq.6) .or. (i.eq.11)))then
+	    call vwtr ( i, debreg(i+1))
+	  endif
+1010	continue
+c
+c  swap is complete.  return
+c
+	end
+	subroutine resscr
+	implicit integer(a-z)
+c
+c  resscr : restore the user screen image.   This is done by simply
+c	    remapping in the user video registers, a simple loop
+c	    operation.
+c
+	include 'DEBCOM/NOLIST'
+c
+	do 1000 i=0,13
+1000	call vwtr ( i, vregs(i+1) )
+	end

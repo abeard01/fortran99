@@ -1,0 +1,9 @@
+*
+*  fortran assembly parameters
+*
+GENEVE	EQU	0		; GENEVE (1) OR TI-99 (0)
+*
+*  Mappings (for gpl mode)
+*
+F2SADR	EQU     >0C06		; FORTRAN2 START (VDP RAM)
+FOR5ST	EQU     >F500		; FORTRAN5 START (CPU RAM)

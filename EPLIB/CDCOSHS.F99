@@ -1,0 +1,11 @@
+      COMPLEX*16 FUNCTION CDCOSH(X) ! COMPLEX*16 HYPERBOLIC COSINE
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    10-DEC-89   E.Clausen   Initial Version by Elmer Clausen
+C
+      COMPLEX*16 X,CDEXP
+      CDCOSH=(0.5D0,0.0D0)*(CDEXP(X)+CDEXP(-X))
+      END

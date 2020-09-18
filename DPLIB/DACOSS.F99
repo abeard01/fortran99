@@ -1,0 +1,11 @@
+      DOUBLE PRECISION FUNCTION DACOS(X)
+C
+C  DACOS: Double Precision Arc Cosine Function
+C
+C  Change History:
+C
+C  27-Dec-89    V4.3   Initial Release
+C
+      DOUBLE PRECISION DARCOS, X
+      DACOS = DARCOS(X)
+      END

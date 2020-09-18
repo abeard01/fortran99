@@ -1,0 +1,26 @@
+	double precision function dj$(d1,j2)
+c
+c  dj$: Double Precision Argument with Integer *4 Power
+c
+c  Copyright 1988 by LGMA Products
+c
+c  Change History:
+c
+c  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+c  17-July-89   v4.4   changes
+c
+	double precision d1
+	integer *4 j2
+c
+	i2 = j2			! get integer value
+	dj$ = 1.0d0
+	if ( i2 .eq. 0 ) return	! default value
+	if ( d1 .eq. 0.0d0 .and. i2 .lt. 0 ) then
+	  dj$ = 1.0d99
+	else
+	  j  = iabs(i2)
+	  do 4 k=1,j
+4	  dj$ = dj$ * d1
+	  if ( i2 .lt. 0 ) dj$ = 1.0d0 / dj$
+	endif
+	end

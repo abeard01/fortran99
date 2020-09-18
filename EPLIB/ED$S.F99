@@ -1,0 +1,21 @@
+      COMPLEX*16 FUNCTION ED$(E,D)
+C ED$: COMPLEX*16 ARGUMENT WITH REAL*8 EXPONENT
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    26-Nov-89   E.Clausen   Initial Version by Elmer Clausen
+C
+      REAL*8 D
+      COMPLEX*16 E,X,CDEXP,CDLOG
+      IF(E.EQ.(0.0D0,0.0D0))GO TO 1
+        X=D
+        ED$=CDEXP(X*CDLOG(E))
+      RETURN
+1     IF(D.GE.0.0D0)THEN
+        ED$=E
+      ELSE
+        ED$=(1.0D99,0.0D0)
+      ENDIF
+      END

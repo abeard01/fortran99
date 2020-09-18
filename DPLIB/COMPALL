@@ -1,0 +1,5 @@
+assign mob: sys:fortran/math
+assign li: sys:fortran/listings
+assign equates: sys:fortran/equates
+a99 -pc -omob:dint     -lli:dints      dints
+a99 -pc -omob:dmima1   -lli:dmima1s    dmima1s

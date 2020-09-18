@@ -1,0 +1,12 @@
+assign equates:  sys:fortran/equates
+assign listings: sys:fortran/glistings
+assign objects:  sys:fortran/gobjects
+assign errors:   sys:fortran/gerrors
+assign fortpar:  sys:fortran/equates/gplfortpar.eq9
+date >now
+crever
+a99 >errors:exctime -llistings:exctime -oobjects:obje exctime
+cd sys:fortran/gobjects
+loader >exctime.l99 exctime.c99
+type errors:exctime
+type exctime.l99

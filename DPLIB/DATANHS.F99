@@ -1,0 +1,19 @@
+      DOUBLE PRECISION FUNCTION DATANH(X)
+C
+C  DATANH: Double Precision Hyperbolic ARC Tangent Function
+C
+C  Copyright 1988 by LGMA Products
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      DOUBLE PRECISION X,DLOG
+C ERROR VALUE RETURN
+      IF(X.LE.-1.0D0)GO TO 1
+      IF(X.GE.1.0D0)GO TO 1
+      DATANH=0.5D0*DLOG((1.D0+X)/(1.D0-X))
+      GO TO 2
+1     DATANH=-1.0D127
+2     CONTINUE
+      END

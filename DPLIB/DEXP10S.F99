@@ -1,0 +1,14 @@
+      DOUBLE PRECISION FUNCTION DEXP10(X)
+C
+C  DEXP10: Double Precision Base 10 Exponential
+C
+C  Copyright 1988 by LGMA Products
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      DOUBLE PRECISION X,DEXP
+      DEXP10=DEXP(2.302585092994D0*X)
+      RETURN
+      END

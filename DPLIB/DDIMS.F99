@@ -1,0 +1,17 @@
+      DOUBLE PRECISION FUNCTION DDIM(X1,X2)
+C
+C  DDIM: Double Precision Positive Difference
+C
+C  Copyright 1988 by LGMA Products
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      DOUBLE PRECISION X1,X2
+      IF(X2-X1)1,2,2
+1     DDIM=X1-X2
+      GO TO 3
+2     DDIM=0.0D0
+3     RETURN
+      END

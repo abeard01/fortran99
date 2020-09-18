@@ -1,0 +1,15 @@
+C  Copyright 1988 by LGMA Products
+C
+       DOUBLE PRECISION FUNCTION DTANH(X)
+C
+C  DTANH: Double Precision HYPERBOLIC Tangent
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+       DOUBLE PRECISION X,DEXP,EPX,EMX
+       EPX=DEXP(X)
+       EMX=DEXP(-X)
+       DTANH=(EPX-EMX)/(EPX+EMX)
+       END

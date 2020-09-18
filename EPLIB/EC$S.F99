@@ -1,0 +1,20 @@
+      COMPLEX*16 FUNCTION EC$(E,C)
+C EC$: COMPLEX*16 ARGUMENT WITH COMPLEX EXPONENT
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    26-Nov-89   E.Clausen   Initial Version by Elmer Clausen
+C
+      COMPLEX C
+      COMPLEX*16 X,E,CDEXP,CDLOG
+      IF(E.EQ.(0.0D0,0.0D0))THEN
+        EC$=(0.0D0,0.0D0)
+      ELSEIF(C.EQ.(0.0,0.0))THEN
+        EC$=(1.0D0,0.0D0)
+      ELSE
+        X=C
+        EC$=CDEXP(X*CDLOG(E))
+      ENDIF
+      END

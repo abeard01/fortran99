@@ -1,0 +1,24 @@
+	double precision function dr$(d1,r2)
+c
+c  DR$: Double Precision Argument with Real Power
+c
+c  Copyright 1988 by LGMA Products
+c
+c  Change History:
+c
+c  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+c  17-July-89   v4.4   changes
+c
+	double precision d1,d2,dexp,dlog,dble
+c
+	d2 = dble(r2)
+	if ( d1 .le. 0.0d0 ) then
+	  dr$=1.0d99		! error value
+	else if ( d2 .eq. 2.0d0 ) then
+	  dr$ = d1 * d1
+	else if ( d2 .eq. 3.0d0 ) then
+	  dr$ = d1 * d1 * d1
+	else
+	  dr$ = dexp ( d2 * dlog(d1))
+	endif
+	end

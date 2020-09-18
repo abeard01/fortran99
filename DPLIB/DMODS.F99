@@ -1,0 +1,13 @@
+      DOUBLE PRECISION FUNCTION DMOD(X1,X2)
+C
+C  DMOD: Double Precision MODULO of Two Arguments
+C
+C  Copyright 1988 by LGMA Products
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      DOUBLE PRECISION X1,X2,DINT
+      DMOD=X1-DINT(X1/X2)*X2
+      END

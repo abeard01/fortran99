@@ -1,0 +1,20 @@
+      COMPLEX*16 FUNCTION ER$(E,R)
+C ER$: COMPEX*16 ARGUMENT WITH REAL EXPONENT
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    26-Nov-89   E.Clausen   Initial Version by Elmer Clausen
+C
+      COMPLEX*16 E,X,CDEXP,CDLOG
+      IF(E.EQ.(0.0D0,0.0D0))GO TO 1
+        X=R
+        ER$=CDEXP(X*CDLOG(E))
+      RETURN
+1     IF(R.GE.0.0)THEN
+        ER$=E
+      ELSE
+        ER$=(1.0D99,0.0D0)
+      ENDIF
+      END

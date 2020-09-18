@@ -1,0 +1,11 @@
+      DOUBLE PRECISION FUNCTION DASIN(X)
+C
+C  DASIN: Double Precision ARC Sine Routine
+C
+C  Change History:
+C
+C  27-DEC-89    V4.4   Initial Release
+C
+      DOUBLE PRECISION DARSIN,X
+      DASIN = DARSIN ( X )
+      END

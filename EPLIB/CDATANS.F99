@@ -1,0 +1,25 @@
+      COMPLEX*16 FUNCTION CDATAN(X) ! COMPLEX*16 ARC TANGENT
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    10-DEC-89   E.Clausen   Initial Version by Elmer Clausen
+C
+      COMPLEX*16 X,DCMPLX
+      REAL*8 A,AS,B,C,D,DIMAG,DATAN2,DLOG
+      A=X                       ! REAL PART OF X
+      B=DIMAG(X)                ! IMAG PART OF X
+      AS=A*A
+      A=0.5D0*DATAN2(2.0D0*A,(1.0D0-AS-B*B))
+      C=AS+(B+1.0D0)*(B+1.0D0)
+      D=AS+(B-1.0D0)*(B-1.0D0)
+      IF(C.EQ.0.0D0)THEN
+         B=-1.D99           ! LOG(0) ERROR VALUE
+      ELSE IF(D.EQ.0.0D0)THEN
+         B=1.D99            ! LOG(1/0) ERROR VALUE
+      ELSE
+         B=0.25D0*DLOG(C/D)
+      ENDIF
+      CDATAN=DCMPLX(A,B)
+      END

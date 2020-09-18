@@ -1,0 +1,14 @@
+      DOUBLE PRECISION FUNCTION DEXP2(X)
+C
+C  DEXP2: Double Precision Binary Exponential
+C
+C  Copyright 1988 by LGMA Products
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      DOUBLE PRECISION X,DEXP
+      DEXP2=DEXP(0.6931471805599D0*X)
+      RETURN
+      END

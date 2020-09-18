@@ -1,0 +1,6 @@
+assign equates:  sys:fortran/equates
+assign listings: sys:fortran/listings
+assign errors:   sys:fortran/errors
+assign FORTPAR: sys:fortran/equates/GPLFORTPAR.EQ9
+
+a99 >errors:editsub  -pc -oobje -llistings:editsub  editsub

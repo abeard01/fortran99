@@ -1,0 +1,25 @@
+      DOUBLE PRECISION FUNCTION DARSIN(X)
+C
+C  DARSIN: Double Precision ARC Sine Routine
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      DOUBLE PRECISION X,X2,DATAN,DSQRT
+      IF(X)6,5,6
+C ZERO ARGUMENT VALUE
+5     DARSIN=0.0D0
+      GO TO 4
+6     X2=X*X
+      IF(X2-1.0D0)1,2,3
+C BAD ARGUMENT VALUE
+3     DARSIN=1.0D127
+      GO TO 4
+C SPECIAL VALUES
+2     DARSIN=1.570796326795D0
+      IF(X.LT.0.0D0)DARSIN=-DARSIN
+      GO TO 4
+1     DARSIN=DATAN(X/(DSQRT(1.0D0-X2)))
+4     CONTINUE
+      END

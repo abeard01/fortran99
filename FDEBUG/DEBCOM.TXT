@@ -1,0 +1,66 @@
+c
+c  debcom :  common for fortran symbolic debugger
+c
+c	command    :   initial command array
+c	ffile      :   task file name loaded
+c	memimg	   :   large memory image array & memory save
+c	  pc       :   program counter save
+c	  sr       :   status register save
+c	  wsp      :   workspace pointer
+c	  wsps	   :   workspace save (16 words)
+c	  memsave  :   memory save area
+c	commarr	   :   command array (entered commands)
+c	argv	   :   argument vectors
+c	argc	   :   count of number of arguments
+c	noargs	   :   maximum number of arguments (10)
+c	error	   :   error flag
+c       buf        :   right hand of instruction disassembly
+c	bufptr     :   pointer to buf
+c	s,ts       :   source register
+c       d,td       :   destination register
+c	address1,2 :   starting, ending arguments
+c	vdpflag    :   using VDP memory or not
+c       recptr     :   # of words gobbled
+c	symload	   :   address where symbol file loaded
+c	sector     :   image of a sector
+c	srfilea    :   source file begin pointer to source file
+c	srfilee    :   source file end pointer to source file
+c	syfilea	   :   symbol file begin pointer to symbol file
+c	syfilel	   :   symbol file end pointer to symbol file
+c	srfilen	   :   source file names
+c	sfile	   :   include fortran file name loaded
+c	work       :   a small array to bring in pieces of symbol file
+c       memmap     :   my memory map
+c	selsrcm    :   current selected source module, 0 to n.
+c       rslabel    :   current label for debug (usually 6, the screen)
+c       scrmode    :   screen mode on entry
+c       vdpsavm    :   memory save for vdp memory (must be filler at end
+c		       of common for cpmbr to work right)
+c       progload   :   whether a program (task) is loaded or not
+c	maxbrk     :   maximum number of breakpoints allowed (10)
+c	breaks     :   breakpoint list, location
+c	brkval	   :   breakpoint list, value
+c	caddress   :   the address of where a current symbol packet is located
+c	forttask   :   whether this is a fortran task (true) or not (false)
+c       
+c
+c
+c  debcom :  common for fortran symbolic debugger
+c
+	integer *1 ffile(30), argv(30,10), commarr(80),
+     +		   buf(30), sector(256), srfilen(9,100), srline(80),
+     +             cmline(80), sfile(40), work(20), memmap(32),
+     +             savmem(96), vdpsavm(4096)
+	integer *2 error, argc, bufptr, s, ts, d, td, pc, sr, wsp,
+     +             wsps(16), noargs, selsrcm, syfilel(100), symloc,
+     +             breaks(10), brkval(10), maxbrk, scrmode, rslabel
+	logical *2 vdpflag, progload
+	integer *4 address1, address2, srfilea(100), symload,
+     +		   srfilee(100), syfilea(100), caddress
+c
+	equivalence (work(3), symloc)
+c
+     +	       sector, srfilen, srfilea, nosource, symload,
+     +         srline, cmline, noargs, caddress, work, selsrcm,
+     +         savmem
+

@@ -1,0 +1,16 @@
+      COMPLEX*16 FUNCTION CDEXP(X) ! COMPLEX*16 EXPONENTIAL
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    26-Nov-89   E.Clausen   Initial Version by Elmer Clausen
+C
+      COMPLEX*16 X,DCMPLX
+      REAL*8 A,B,DIMAG,DEXP,DSIGN,DCOS,DSIN
+      A=X                      ! REAL PART OF X
+      B=DIMAG(X)               ! IMAG PART OF X
+         IF(DABS(A).GT.230.D0)A=DSIGN(230.D0,A) ! EXP ARG LIMIT
+         A=DEXP(A)
+         CDEXP=DCMPLX(A*DCOS(B),A*DSIN(B))
+      END

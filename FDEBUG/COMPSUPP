@@ -1,0 +1,7 @@
+assign equates: sys:fortran/equates
+assign FORTPAR: sys:fortran/equates/MDOSFORTPAR.EQ9
+tasm -m +l fsupport.s
+tasm -m +l fscreen.s
+tasm -m +l break.s
+delete DL
+FLIB ADD /ODL /CLIBBUILD

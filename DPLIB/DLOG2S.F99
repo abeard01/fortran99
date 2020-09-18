@@ -1,0 +1,13 @@
+      DOUBLE PRECISION FUNCTION DLOG2(X)
+C
+C  DLOG2: Double Precision BINARY logorithm function
+C
+C  Copyright 1988 by LGMA Products
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      DOUBLE PRECISION X,DLOG10
+      DLOG2=3.321928094888D0*DLOG10(X)
+      END

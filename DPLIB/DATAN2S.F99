@@ -1,0 +1,26 @@
+      DOUBLE PRECISION FUNCTION DATAN2(Y,X)
+C
+C  DATAN2: Double Precision 4 Quadrant ARCTAN Function
+C
+C  Copyright 1988 by LGMA Products
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      IMPLICIT DOUBLE PRECISION (A-Z)
+      IF(X)1,2,3
+2     IF(Y)4,5,6
+4     DATAN2=-1.570796326795D0
+      RETURN
+5     DATAN2=0
+      RETURN
+6     DATAN2=1.570796326795D0
+      RETURN
+3     DATAN2=DATAN(Y/X)
+      RETURN
+1     IF(Y)7,7,8
+7     DATAN2=DATAN(Y/X)-3.141592653590D0
+      RETURN
+8     DATAN2=DATAN(Y/X)+3.141592653590D0
+      END

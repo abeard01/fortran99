@@ -1,0 +1,14 @@
+      REAL*8 FUNCTION CDABS(X) ! COMPLEX*16 ABSOLUTE VALUE
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    26-Nov-89   E.Clausen   Initial Version by Elmer Clausen
+C
+      COMPLEX*16 X
+      REAL*8 A,DIMAG,DSQRT
+      A=X               ! REAL PART OF X
+      CDABS=DIMAG(X)    ! IMAG PART OF X
+      CDABS=DSQRT(A*A+CDABS*CDABS) ! MAGNITUDE OF X
+      END

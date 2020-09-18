@@ -1,0 +1,19 @@
+      COMPLEX*16 FUNCTION CDASIN(X) ! COMPLEX*16 ARC SINE
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    10-DEC-89   E.Clausen   Initial Version by Elmer Clausen
+C
+      COMPLEX*16 X,DCMPLX
+      REAL*8 A,B,C,D,DIMAG,DSQRT,DLOG,DABS,DARSIN
+      A=X                ! REAL PART OF X
+      B=DIMAG(X)         ! IMAG PART OF X
+      C=0.5D0*DSQRT((A+1.0D0)*(A+1.0D0)+B*B)
+      D=0.5D0*DSQRT((A-1.0D0)*(A-1.0D0)+B*B)
+      A=C+D
+      A=DLOG(A+DSQRT(DABS(A*A-1.0D0))) ! AVOID DSQRT ROUNDOFF
+      IF(B.LT.0.D0)A=-A
+      CDASIN=DCMPLX(DARSIN(C-D),A)
+      END

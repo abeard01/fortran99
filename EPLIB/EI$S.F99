@@ -1,0 +1,24 @@
+      COMPLEX*16 FUNCTION EI$(E1,I2)
+C EI$: COMPLEX*16 ARGUMENT WITH INTEGER EXPONENT
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    26-Nov-89   E.Clausen   Initial Version by Elmer Clausen
+C
+      COMPLEX*16 E1
+      IF(E1.EQ.(0.0D0,0.0D0))GO TO 1
+      EI$=(1.0D0,0.0D0)        ! ASSUME RESULT
+      IF(I2.EQ.0) RETURN       ! DONE IF EXPONENT = 0
+        J=IABS(I2)             ! GET ABSOLUTE EXPONENT
+        DO 4 K=1,J
+4       EI$=EI$*E1             ! COMPUTE RESULT
+        IF(I2.LT.0)EI$=(1.D0,0.D0)/EI$
+      RETURN
+1     IF(I2.GE.0)THEN
+         EI$=E1
+      ELSE
+         EI$=(1.0E99,0.0D0)    ! ERROR RESULT
+      ENDIF
+      END

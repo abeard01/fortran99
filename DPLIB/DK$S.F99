@@ -1,0 +1,26 @@
+	double precision function dk$(d1,k2)
+c
+c  dk$: Double Precision Argument with Integer *1 Power
+c
+c  Copyright 1988 by LGMA Products
+c
+c  Change History:
+c
+c  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+c  17-July-89   v4.4   changes
+c
+	double precision d1
+	integer *1 k2
+c
+	i2 = k2			! get integer value
+	dk$ = 1.0d0
+	if ( i2 .eq. 0 ) return	! default value
+	if ( d1 .eq. 0.0d0 .and. i2 .lt. 0 ) then
+	  dk$ = 1.0d99
+	else
+	  j  = iabs(i2)
+	  do 4 k=1,j
+4	  dk$ = dk$ * d1
+	  if ( i2 .lt. 0 ) dk$ = 1.0d0 / dk$
+	endif
+	end

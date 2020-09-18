@@ -1,0 +1,9 @@
+      COMPLEX*16 FUNCTION CDTAN(X) ! COMPLEX*16 TANGENT
+      COMPLEX*16 X,Y,CDSIN,CDCOS
+      Y=CDCOS(X)              ! DENOMINATOR
+      IF(Y.EQ.(0.0D0,0.0D0))THEN
+         CDTAN=(1.0D99,0.0D0) ! ERROR VALUE
+      ELSE
+         CDTAN=CDSIN(X)/Y     ! TAN=SIN/COS
+      ENDIF
+      END

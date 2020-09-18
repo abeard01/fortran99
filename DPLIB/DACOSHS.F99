@@ -1,0 +1,20 @@
+      DOUBLE PRECISION FUNCTION DACOSH(X)
+      DOUBLE PRECISION X,DLOG,DSQRT,DABS
+C
+C  DACOSH:  Double Precision Hyperbolic Cosine
+C
+C  Copyright 1988 by LGMA Products
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      IF(DABS(X)-1.0D0)1,2,3
+C ERROR VALUE RETURN
+1     DACOSH=1.0D127
+      GOTO 4
+2     DACOSH=0.0D0
+      GOTO 4
+3     DACOSH=DLOG(X+DSQRT(X*X-1.0D0))
+4     CONTINUE
+      END

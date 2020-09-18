@@ -1,0 +1,92 @@
+*
+*  Video Library
+*
+*
+*  Update History:
+*
+*    V1.0	30-Nov-87	A.L.Beard -  Initial Release
+*    V1.06      15-Aug-88       A.L.Beard -  Updated for MDOS 1.06
+*    V1.08      09-SEP-88       A.L.Beard -  Changed names of VCHAR and
+*					     HCHAR to VCHARW and HCHARW
+*    V1.14+     09-FEB-89       A.L.Beard -  Changed for 1.14 video XOP 6
+*					     modifications.
+*
+VIDXOP	EQU	6		; VIDEO LIBRARY XOP NUMBER
+*
+*  Graphics Modes:
+*
+*                                   mode          size        color  sprite
+*                                ------------  ------------  ------ -------
+TEXT1	EQU	0		; TEXT 1      :  40x26      :   2  :  N
+TEXT2	EQU	1		; TEXT 2      :  80x26      :   2  :  N
+MULTIC	EQU	2		; MULTICOLOR  :  64x48      :  16  :  1
+GRAPH1	EQU	3		; GRAPHIC 1   :  32x24      :  16  :  1
+GRAPH2	EQU	4		; GRAPHIC 2   :  32x24      :  16  :  1
+GRAPH3	EQU	5		; GRAPHIC 3   :  256dx212d  :  16  :  2
+GRAPH4	EQU	6		; GRAPHIC 4   :  512dx212d  :  16  :  2
+GRAPH5	EQU	7		; GRAPHIC 5   :  512dx212d  :   4  :  2
+GRAPH6	EQU	8		; GRAPHIC 6   :  512dx212d  :  16  :  2
+GRAPH7	EQU	9		; GRAPHIC 7   :  256dx212d  :  32  :  2
+*
+*  Opcodes:
+*
+SETVID	EQU	>00		; SetVideoMode
+GETVID	EQU	>01		; GetVideoMode
+SETCUR	EQU	>02		; SetCurPos
+GETCUR	EQU	>03		; GetCurPos
+SETDIS	EQU	>04		; SetDisPage
+GETDIS	EQU	>05		; GetDisPage
+SCRWUP	EQU	>06		; ScrollWinUp
+SCRWDN	EQU	>07		; ScrollWinDown
+SCRWLE	EQU	>08		; ScrollWinLeft
+SCRWRI	EQU	>09		; ScrollWinRight
+CCOLOR  EQU     >0A             ; CALL COLOR                    | 0.95
+*CALLSC	EQU     >0A		; CallScreen			| 1.14+
+GETCCO	EQU	>0B		; GCharColor			| 1.06
+SETBOR	EQU	>0C		; SetBorderColor
+SETCOP	EQU	>0D		; SetColPallette
+SETPIC	EQU	>0E		; SetPixelColor
+GETPIC	EQU	>0F		; GetPixelColor
+SETVTC	EQU	>10		; SetVectorColor
+COLSRC	EQU	>11		; ColorSRCH
+HBLMOV	EQU	>12		; HBlockMove
+HBLCOP	EQU	>13		; HBlockCopy
+LBLMOV	EQU	>14		; LBlockMove
+LBLCOP	EQU	>15		; LBlockCopy
+BSCRUP	EQU	>16		; BScrollUP
+BSCRDN	EQU	>17		; BScrollDown
+BSCRLE	EQU	>18		; BScrollLeft
+BSCRRI	EQU	>19		; BScrollRight
+SPRDEF	EQU	>1A		; SpriteDef
+SPRDEL	EQU	>1B		; SpriteDel
+SPRLOC	EQU	>1C		; SpriteLoc
+SPRMOT	EQU	>1D		; SpriteMotion
+SPRCOL	EQU	>1E		; SpriteColor
+SPRPAT	EQU	>1F		; SpritePattern
+SPRMAG	EQU	>20		; SpriteMagnify
+SPRPOS	EQU	>21		; SpritePosition
+SPRCOI	EQU	>22		; SpriteCoincindence
+SPRPAD	EQU	>23		; SpritePatDefGet		| 1.06
+CHAPAD	EQU	>24		; CharPatDefGet			| 1.06
+SETTWI	EQU     >25		; SetTextWindow			| 1.06
+GETTWI	EQU	>26		; GetTextWindow			| 1.06
+WRITET	EQU	>27		; WriteTTY
+RESTCH	EQU	>28		; RestoreCharacters		| 1.06
+SETTCO	EQU	>29		; SetTextColor			| 1.06
+WRICHS	EQU	>2A		; WriteCharString		| 1.06
+PRISCR	EQU	>2B		; PrintScreen			| 1.06
+HCHCOL	EQU	>2C		; HCharColor			| 1.06
+VCHCOL	EQU	>2D		; VCharColor			| 1.06
+HCHARW	EQU	>2E		; HChar				| 1.06
+VCHARW	EQU	>2F		; VChar				| 1.06
+SETMOU	EQU	>30		; SetMouse			| 1.06
+GETMOU	EQU	>31		; GetMouse			| 1.06
+GETMOR	EQU	>32		; GetMouseRel			| 1.06
+MAKSOU	EQU	>33		; MakeSound			| 1.06
+SNDSTA	EQU	>34		; SoundStatus			| 1.06
+VVWTR	EQU     >35		; VDP Write Register		| 1.14+
+VVRFR	EQU     >36		; VDP Read Registers		| 1.14+
+GETVTB	EQU	>37		; Get Video Tables		| 1.14+
+GETPAR	EQU	>38		; Get Pallette Registers	| 1.14+
+SETEDG	EQU     >3A		; Set Edge Color		| 0.95h
+*

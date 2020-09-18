@@ -1,0 +1,11 @@
+      COMPLEX*16 FUNCTION CDATNH(X) ! COMPLEX*16 HYPERBOLIC ARC TANGENT
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    10-DEC-89   E.Clausen   Initial Version by Elmer Clausen
+C
+      COMPLEX*16 X,CDATAN
+      CDATNH=(0.0D0,-1.0D0)*CDATAN((0.0D0,1.0D0)*X)
+      END

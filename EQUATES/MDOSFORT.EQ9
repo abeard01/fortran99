@@ -1,0 +1,9 @@
+*
+*  fortran assembly parameters
+*
+GENEVE	EQU	1		; GENEVE (1) OR TI-99 (0)
+*
+*  Mappings (for MDOS)
+*
+FOR5ST	EQU	>8A00		; FORTRAN5 START (CPU RAM)
+USEIOB	EQU	>F140		; USER I/O BUFFER (AT EXECUTION TIME)

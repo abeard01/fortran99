@@ -1,0 +1,14 @@
+      COMPLEX*16 FUNCTION CDLOG(X) ! COMPLEX*16 LOGARITHM
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    26-Nov-89   E.Clausen   Initial Version by Elmer Clausen
+C
+      COMPLEX*16 X,DCMPLX
+      REAL*8 A,B,DIMAG,DLOG,DSQRT,DATAN2
+      A=X                      ! REAL PART OF X
+      B=DIMAG(X)               ! IMAG PART OF X
+         CDLOG=DCMPLX(DLOG(DSQRT(A*A+B*B)),DATAN2(B,A))
+      END

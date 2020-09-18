@@ -1,0 +1,26 @@
+      COMPLEX*16 FUNCTION EJ$(E1,J2)
+C EJ$: COMPLEX*16 ARGUMENT WITH INTEGER*4 EXPONENT
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    26-Nov-89   E.Clausen   Initial Version by Elmer Clausen
+C    03-Dec-89   A.Beard     Fix Compare, fix from Elmer
+C
+      COMPLEX*16 E1
+      INTEGER*4 J2
+      REAL*8 A
+      A=J2
+        EJ$=(1.D99,0.0D0)
+      IF(E1.EQ.(0.0D0,0.0D0))GO TO 1
+      IF(DABS(A).GT.32766.D0)RETURN   ! J TOO LARGE FOR DO LOOP
+      I2=J2                     ! GET INTEGER
+          def     lsyms
+  93 013E   00AA             def     lasthead
+  94 013E   00AC             def     strtab
+  95 013E   00AE             def     lc_static
+  96 013E   00B0             def     lc_auto
+  97 013E   00B2             def     bodyptr
+  98 013E   00B4             def     global_flag
+  99 013E   00B6

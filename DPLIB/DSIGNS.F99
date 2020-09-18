@@ -1,0 +1,19 @@
+      DOUBLE PRECISION FUNCTION DSIGN(X1,X2)
+C
+C  DSIGN: Double Precision Transfer of Sign
+C
+C  Copyright 1988 by LGMA Products
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      DOUBLE PRECISION X1,X2,X
+C ABSLOUTE VALUE
+      X=DABS(X1)
+      IF(X2)1,2,2
+1     DSIGN=-X
+      GO TO 3
+2     DSIGN=X
+3     CONTINUE
+      END

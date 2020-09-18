@@ -1,0 +1,9 @@
+assign equates:  sys:fortran/equates
+assign listings: sys:fortran/listings
+assign objects:  sys:fortran/nonmath
+assign errors:   sys:fortran/errors
+assign fortpar:  sys:fortran/equates/mdosfortpar.eq9
+crever
+a99 >errors:exctime -llistings:exctime -oobjects:obje -pc exctime
+type errors:exctime
+

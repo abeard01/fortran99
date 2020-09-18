@@ -1,0 +1,29 @@
+c
+c  debcom :  common for fortran symbolic debugger
+c
+	integer *1 ffile(30), argv(30,10), commarr(80),
+     +		   buf(30), sector(256), srfilen(9,100), srline(80),
+     +             cmline(80), sfile(40), work(20), memmap(32),
+     +             savmem(128), scrsvv(2048)
+	integer *2 error, argc, bufptr, s, ts, d, td, pc, sr, wsp,
+     +             wsps(16), noargs, selsrcm, syfilel(100), symloc,
+     +             breaks(10), brkval(10), maxbrk, scrmode, rslabel,
+     +		   vregs(48), baseloc(512)
+	logical *2 vdpflag, progload, contflag, forttask
+	integer *4 address1, address2, srfilea(100), symload,
+     +		   srfilee(100), syfilea(100), caddress, xbias,
+     +             ybias, zbias, vidtbls(6)
+c
+	equivalence (work(3), symloc)
+c
+c  note : scrsvv must be last in table for cpmbr to work
+c
+	common wsps, wsp, pc, sr, savmem,
+     +         error, argc, argv, commarr, buf, bufptr,
+     +         s, ts, d, td, address1, address2, recptr, vdpflag,
+     +	       sector, srfilen, srfilea, nosource, symload,
+     +         srline, cmline, noargs, caddress, work, selsrcm,
+     +	       sfile, ffile, memmap, srfilee, syfilea, syfilel,
+     +         progload, breaks, brkval, maxbrk, scrmode, rslabel,
+     +         xbias, ybias, baseloc, zbias, contflag, forttask, vidtbls,
+     +         vregs, scrsvv

@@ -1,0 +1,1004 @@
+	program editor
+	implicit integer(a-z)
+c
+c  This program is the full screen editor for the 99 FORTRAN system
+c
+c  Update History:
+c
+c   v3.0:  June 03, 1987
+c	   o Added "PRINT" function to main menu
+c	   o Centered STATS
+c
+c   V4.4:  August 30, 1989:    New GPL Version.  # records changed to
+c                              1300 (was 1000).
+c
+c  Copyright 1989 by LGMA Products
+c
+	include 'HDS1.EDITOR.EDITCOM'
+c
+c  Setup & Initialization
+c
+	version = 4.41		! version number
+	call getmod ( mode )
+c				if not in 80 column mode, set 40
+	if ( mode .ne. 1 ) call set40
+	call getmod ( mode )
+c
+	call files(1)		! only open 1 disk file (to get vdp space)
+	call initial		! initialize workspace
+c
+	do 100 i=1,32		! clear the input file name
+	  infile(i) = ' '
+100	continue
+c
+	do while ( .true. )	! display main menu
+	  call close ( 1 )
+	  write ( 6, 9100 ) version
+c
+	  status = 0		! solicit option to execute
+	  do while ( status .eq. 0 )
+	    call key ( 0, keyc, status )
+	  enddo
+c
+	  keyc = iand ( keyc, z'007f' )
+c
+c  if fctn/back, or number 7, then exit.  If change flag is set, ask
+c  confirmation before exiting.
+c
+	  if ( keyc .eq. z'000f' .or. keyc. eq. z'0037' ) then
+	    if ( changed ) then
+	      call confirm
+	      if ( doit ) call exit
+	    else
+	      call exit
+	    endif
+	  elseif ( keyc .eq. z'0031' ) then
+	    call load
+	  elseif ( keyc .eq. z'0032' ) then
+	    call edit
+	  elseif ( keyc .eq. z'0033' ) then
+	    call save
+	  elseif ( keyc .eq. z'0034' ) then
+	    call purge
+	  elseif ( keyc .eq. z'0035' ) then
+	    call stats
+	  elseif ( keyc .eq. z'0036' ) then
+	    call printf
+	  endif
+	enddo
+c
+9100	format ( '1', M1.12, '99 Editor ',F4.2,
+     1		      M4.5,  'Press:',
+     2		      M6.7, '1 To Load Program',
+     3		      M8.7, '2    Edit Program',
+     4		     M10.7, '3    Save Program',
+     5		     M12.7, '4    Purge Workspace',
+     6		     M14.7, '5    Display Statistics',
+     7		     M16.7, '6    Print Program',
+     8               m18.7, '7    Exit')
+	end
+	subroutine load
+	implicit integer(a-z)
+c
+c  This subroutine loads a file from the disk into the working buffer.
+c
+	include 'HDS1.EDITOR.EDITCOM/NOLIST'
+c
+	logical endit
+c
+c  Get the file name to load
+c
+1001	continue
+	write ( 6, 9100 )
+c
+c  Read the file name
+c
+	read  ( 6, 9110, err=1030, end=1030, iostat=errst )
+     1           len, infile
+c
+c  if not blank file name, then
+c
+	if ( len .ne. 0 ) then
+c
+c  Open the file for input
+c
+	  call open ( 1, infile, 2, 0, 1, 0, 80, errst )
+c
+c  if error, call error handler and exit
+c
+	  if ( errst .ne. 0 ) goto 1005
+c
+c  if no error, read file into internal array
+c
+	 call initial
+	 do 1000 i=1,maxlinks
+	   read ( 1, 9120, end=1010, err=1020, iostat=errst) inbuf
+c
+c  Pack the string and strip funny characters
+c
+	   call pack ( inbuf, outbuf )
+c
+c  allocate room in memory
+c
+	   call alloca ( outbuf, offset(i) )
+	   if ( errst .ne. 0 ) goto 1005
+1000	 continue
+c
+c  Memory overflow
+c
+	  errst = memovf
+1005	  continue
+c
+c  Other type error encountered
+c
+	  call errorpr
+1010	  continue
+c
+c  Set used, avail pointers
+c
+	  i = i - 1
+	  if ( i .gt. 0 ) then
+	    used = 1
+	    links(i) = 0
+	    avail    = 0
+	    if ( i .lt. maxlinks ) avail = i + 1
+	  endif
+	endif
+	return
+c
+c  Error on read, report error
+c
+1020	continue
+	call errorpr
+c
+c  Error on read from CRT, redo or back
+c
+1030	continue
+c
+9100	format ( '+', M20.2, 'File to load?', M21.2 )
+9110	format ( q, 32a1 )
+9120	format ( 80a1 )
+	end
+	subroutine save
+	implicit integer(a-z)
+c
+c  Save the workspace to a disk file.
+c
+	include 'HDS1.EDITOR.EDITCOM/NOLIST'
+c
+c  Get the file name to save
+c
+1001	continue
+	write ( 6, 9100 ) infile
+	write ( 6, 9100 )
+	read  ( 6, 9110, err=1030, end=1030, iostat=errst )
+     1		len, oufile
+c
+c  move any non-blank characters to the input file name.
+c
+	if ( len .ne. 0 ) then
+	  do 1002 i=1,len
+	    infile(i) = oufile(i)
+1002	  continue
+	endif
+c
+	call open ( 1, infile, 1, 0, 1, 0, 80, errst )
+c
+c  No error, write workspace to disk file
+c
+	if ( errst .ne. 0 ) then
+	  call errorpr
+	else
+	  starts = used
+	  do while ( starts .ne. 0 )
+	    noffse = offset(starts)
+	    call unpack ( noffse, inbuf )
+	    write ( 1, 9120, err=1020, iostat=errst) inbuf
+	    starts = links(starts)
+	  enddo
+	  changed = .false.		! written ok, set workspace unchanged
+	endif
+1030	continue
+	return
+c
+1020	continue
+	call errorpr
+c
+9100	format ( '+', M20.2, 'File to save?', M21.2, 40a1, m21.2 )
+9110	format ( q, 32a1 )
+9120	format ( 80a1 )
+	end
+	subroutine purge
+	implicit integer(a-z)
+c
+c  Purge the internal workspace
+c
+	include 'HDS1.EDITOR.EDITCOM/NOLIST'
+c
+c  Request validiation
+c
+	call confirm
+	if ( doit ) then		! if confirmed, do it
+	  write ( 6, 9100 )
+	  call initial
+	endif
+9100	format ( '+', m22.2, 'Purge in Progress')
+	end
+	subroutine printf
+	implicit integer(a-z)
+c
+c  PRINTF - Print a File on the designated printer.  Handles 
+c	    headers (file name), page numbering, and line
+c	    numbering.
+c
+	include 'HDS1.EDITOR.EDITCOM/NOLIST'
+c
+	prtdof  = peek(z'20a0')		! offset to printer name
+	prtdop  = peek(z'209c')		! printer label
+	maxlin  = peek(z'2036')		! # lines per page
+	do 1000 i=1,26
+	  pfile(i) = peekk(prtdof)
+	  prtdof   = prtdof + 1
+1000	continue
+	write ( 6, 9100 ) pfile
+	read  ( 6, 9110, end=1100, err=1100 ) len, ofile
+c
+	if ( len .ne. 0 ) then
+	  do 1001 i=1,len
+	    pfile(i) = ofile(i)
+1001	  continue
+	endif
+c
+	call open ( 2, pfile, 1, 0, 1, 0, 96, errst )
+c
+	if ( errst .eq. 0 ) then
+c
+c  No error, write workspace to printer
+c
+	  irec   = 0		! record counter
+	  starts = used
+	  write ( 6, 9120 )
+	  nolines = 9999	! # of lines on page
+	  nopage  = 0		! # of pages
+	  do while ( starts .ne. 0 )
+	    nolines = nolines + 1
+	    if ( nolines .gt. maxlin ) then
+	      nopage = nopage + 1
+	      write ( 2, 9140, err=1020, iostat=errst )
+     +			infile, nopage
+	      nolines = 2
+	    endif
+	    irec = irec + 1
+	    noffse = offset(starts)
+	    call unpack (noffse, inbuf)
+	    write ( 2, 9130, err=1020, iostat=errst)
+     +			irec, inbuf
+	    call key ( 0, keyc, status )
+	    if ( status .ne. 0 ) goto 1100
+	    starts = links(starts)
+	  enddo
+	else
+1020	  continue
+	  call errorpr
+	endif
+1100	continue
+	call close ( 2 )
+	call wait
+c
+9100	format ( '+',M20.2,'Enter Printer Name:',M21.2,26a1,M21.2)
+9110	format ( q, 26a1 )
+9120	format ( '+',M23.2,'Printing, Hit any key to abort')
+9130	format ( i6,'. ',80a1 )
+9140	format ( '1  99 FORTRAN File: ', 32a1, 15X, 'Page',i5 / )
+	end
+	subroutine confirm
+	implicit integer(a-z)
+c
+c  This subroutine requests confirmation from the user.
+c
+	include 'HDS1.EDITOR.EDITCOM/NOLIST'
+c
+	doit = .false.
+	write ( 6, 9100 )
+c
+	status = 0
+	do while ( status .eq. 0 )
+	  call key ( 0, keyc, status )
+	enddo
+c
+	keyc = iand(keyc,z'007f')
+	if ( (keyc .eq. 89) .or. (keyc .eq. 121)) doit=.true.
+c
+9100	format ( '+', m20.2, 'Are you sure (Y/N)?' )
+	end
+	subroutine errorpr
+	implicit integer(a-z)
+c
+c  Display the error message based on ERRORST on the screen
+c
+	include 'HDS1.EDITOR.EDITCOM/NOLIST'
+c
+	integer *1 errtxt(18,9)
+c
+	DATA ERRTXT /
+     1	18HBad Device Name     ,
+     2	18HDevice Write Protd  ,
+     3	18HBad Open Attribute  ,
+     4	18HIllegal Operation   ,
+     5	18HOut of BufF Space   ,
+     6	18HRead Past End/File  ,
+     7	18HDevice Error        ,
+     8	18HFile Error          ,
+     9	18HMemory Overflow      /
+c
+c  display error message to user and return
+c
+	if ( errst .lt. 1 .or. errst .gt. 9 ) then
+	  write ( 6, 9100 ) errst
+	else
+	  write ( 6, 9110 ) errst, (errtxt(i,errst),i=1,18)
+	endif
+	call wait
+c
+9100	format ( '0*Unknown Error* ',I4)
+9110	format ( '0*Error* ',I4,/,3X,18a1)
+	end
+	subroutine edit
+	implicit integer(a-z)
+c
+c  This subroutine handles full screen editing
+c
+	include 'HDS1.EDITOR.EDITCOM/NOLIST'
+c
+c  Local Declarations:
+c
+	logical *2 foundrow, newscren
+	logical *2 firstime
+	integer *2 blaline(3)
+c
+	data blockcur / 30 /
+	data blaline  / 3, z'd000', 0 /
+c
+c  Define block cursor
+c
+	firstime = .true.
+	call char ( blockcur, z'3c3c3c3c3c3c3c3c' )
+c
+c  Initialize starting line number, cursor, etc.
+c
+	start  = used
+	screen = 1
+c
+c  Initialize screen change array
+c
+	do 100 i=1,maxrow
+	  chgflag(i) = .false.
+	  chgnumb(i) = 0
+100	continue
+c
+c  Format Screen
+c
+1000	continue
+	starts = start
+	row    = 1
+	col    = 1
+	newscren = .true.
+	oldscren = screen
+1010	continue
+	if ( newscren ) then
+	  call update ( oldscren )
+	  j = start
+	  foundrow = .false.
+	  do 1015 i=1,maxrow
+	    chgnumb(i) = j
+	    if ( (.not. foundrow) .and. (j .eq. starts)) then
+	      row = i
+	      foundrow = .true.
+	    endif
+	    if ( j .ne. 0 ) j = links(j)
+1015	  continue
+	  if ( .not. foundrow ) then
+	    starts = used
+	    row    = 1
+	    col    = 1
+	  endif
+	  call dispsc ( start, screen, links, offset, inbuf, outbuf )
+	  oldscren = screen
+	  newscren = .false.
+	endif
+c
+c  Now start cursor control loop
+c
+1020	continue
+	if ( firstime ) then	  ! if 1st time, delay a second
+	  call delay ( 3 )
+	  firstime = .false.
+	endif
+	call getkey ( row, col, keyc )
+c
+c  Process special character, if one entered
+c
+c		TAB  ROLUP DELcH INScH  QUIT  REdo DELLN  LcUR
+	goto (  1200, 1500, 2000, 2500, 3000, 3500, 4000, 4500,
+     1	        5000, 5500, 6000, 6500, 7000, 7500, 8000 ), keyc
+c		RcUR  DcUR ROLDN ENTER NXScR       EScAPE
+c
+c  Not a special character, save character in buffer
+c
+	if ( starts .ne. 0 ) then
+	  call hchar ( row, col, keyc )
+	  chgflag(row) = .true.
+	  changed      = .true.
+	endif
+	goto 5000
+c
+c  Special handlers
+c
+c  1 - TAB
+c
+1200	continue
+	if ( col .lt. 7 .and. screen .eq. 1 ) then
+	  col = 7
+	  goto 1010
+	endif
+	goto 7000
+c
+c  2 - ROLUP
+c
+1500	continue
+	do 1510 i=1,24
+	if ( starts .NE. 0 ) then
+	  start  = links(start)
+	  starts = links(starts)
+	endif
+	newscren = .true.
+1510	continue
+	goto 1010
+c
+c  3 - Delete character
+c
+2000	continue
+	shiftd = -1
+	goto 2510
+c
+c  4 - Insert character
+c
+2500	continue
+	shiftd = 1
+2510	continue
+	if ( starts .NE. 0 ) then
+	  call update ( screen )		! update screen
+	  call unpack ( offset(starts), inbuf )	! unpack current line	
+	  charoff = ((screen-1)*max2colu)+col	! Determine offset to char
+	  call shift ( inbuf, charoff, shiftd )	! shift line
+	  call pack  ( inbuf, outbuf )		! pack record
+	  call updater (outbuf,offset(starts))	! update record
+	endif
+	changed  = .true.
+	newscren = .true.
+	goto 1010
+c
+c  5 - QUIT
+c
+3000	continue
+	call quit
+c
+c  6 - INSERT LINE
+c
+3500	continue
+	call update ( oldscren )
+	call findlast ( starts, lastrec )
+	if ( avail .ne. 0 ) then
+	  newscren = .true.
+	  if ( lastrec .ne. 0 ) then
+	    tavail = avail
+	    links(lastrec) = avail
+	    avail = links(avail)
+	    links(tavail) = starts
+	    starts = tavail
+	    if ( row .eq. 1 ) then
+	      start = starts
+	    endif
+	  else
+	    used = avail
+	    avail = links(avail)
+	    links(used) = starts
+	    starts = used
+	    start  = starts
+	  endif
+c
+c  create blank line of length 1 word
+c
+	  call alloca ( blaline, offset(starts) )
+	endif
+	changed = .true.
+	goto 1010
+c
+c  7 - DELETE Line
+c
+4000	continue
+	if ( starts .ne. 0 ) then
+	  call update ( screen )
+	  call findlast ( starts, lastrec )
+	  nextrec = links(starts)
+	  if ( lastrec .ne. 0 ) then
+ 	    links(starts) = avail
+	    avail = starts
+	    links(lastrec) = nextrec
+	  else
+	    links(starts) = avail
+	    avail = starts
+	    used  = nextrec
+	    start = nextrec
+	  endif
+	  call freere ( offset(starts) )     ! make sure not stuck on
+	  if ( row .eq. 1 ) start = nextrec  ! deleted line
+	    starts = nextrec
+	    newscren = .true.
+	  endif
+	  changed = .true.
+	  goto 1010
+c
+c  8 - Left cursor
+c
+4500	continue
+	col = col - 1
+	if ( col .le. 0 ) then
+	  if ( screen .gt. 1 ) then
+	    screen   = screen - 1
+	    newscren = .true.
+	    col      = max2colu
+	  else
+	    col      = 1
+	  endif
+	endif
+	goto 1010
+c
+c  9 - Right cursor
+c
+5000	continue
+	col = col + 1
+	if ( col .gt. maxcolum ) then
+	  if ( screen .lt. maxscren ) then
+	    col = max2colu+1
+	    screen = screen + 1
+	    newscren = .true.
+	  else
+	    col = maxcolum
+	  endif
+	endif
+	goto 1010
+c
+c 10 - down cursor
+c
+5500	continue
+	if ( starts .ne. 0 ) then
+	  if ( row .eq. maxrow ) then
+	    start  = links(start)
+	    starts = links(starts)
+	    newscren = .true.
+	  else
+	    row = row + 1
+	    starts = links(starts)
+	  endif
+	endif
+	if ( starts .eq. 0 ) goto 3500
+	goto 1010
+c
+c 11 - Up cursor
+c
+6000	continue
+	if ( row .eq. 1 ) then
+	  call findlast ( start, laststrt )
+	  if ( laststrt .ne. 0 ) then
+	    call findlast ( starts, starts )
+	    start = laststrt
+	    newscren = .true.
+	  endif
+	else
+	  call findlast ( starts, laststrt )
+	  if ( laststrt .ne. 0 ) then
+	    row = row - 1
+	    starts = laststrt
+ 	  endif
+	endif
+	goto 1010
+c
+c 12 - Roll down
+c
+6500	continue
+	Nstart  = used
+	thisrec = used
+	I = 0
+	if ( start .ne. 0 ) then
+	  do while ( start .ne. thisrec )
+	    if ( I .eq. 24 ) then
+	      nstart  = links(nstart)
+	    else
+	      I = I + 1
+	    endif
+	    thisrec = links(thisrec)
+	  enddo
+	  start    = nstart
+	  starts   = nstart
+	  row      = 1
+	  newscren = .true.
+	endif
+	goto 1010
+c
+c 13 - ENTER
+c
+7000	continue
+	col = 1
+	if ( screen .ne. 1 ) then
+	  newscren = .true.
+	  screen = 1
+	endif
+	goto 5500
+c
+c 14 - Next screen
+c
+7500	continue
+	if ( screen .lt. maxscren )  then
+	  screen = screen + 1
+	else
+	  screen = 1
+	endif
+	newscren = .true.
+	goto 1010
+c
+c 15 - Escape
+c
+8000	continue
+	call update ( screen )
+	end
+	subroutine findlast ( thisrec, lastrec )
+	implicit integer(A-Z)
+c
+c  This subroutine finds the last record number
+c  based on the given record number.
+c
+       include 'HDS1.EDITOR.EDITCOM/NOLIST'
+c
+c  Setup for search
+c
+       lstrec = 0
+       start   = used
+c
+c  do until end of used chain, or requested record found.
+c
+       do while (( start .ne. 0 ) .and. (start .ne. thisrec) )
+         lstrec = start
+         start  = links(start)
+       enddo
+c
+c  Return the last record found previous to this record
+c
+       lastrec = lstrec
+       end
+       subroutine update ( screen )
+       implicit integer (A-Z)
+c
+c  This routine is called to update the text records in accordance
+c  with the current screen contents.
+c
+c  Lines which have been changed are marked via the chgflag array.  
+c  chgnumb array points to the record numbers for each line.
+c
+	include 'HDS1.EDITOR.EDITCOM/NOLIST'
+c
+c  Search for a changed line
+c
+	do 1000 i=1,maxrow
+	  if ( chgflag(i) ) then
+	    changed    = .true.		! something has changed
+	    chgflag(i) = .false.	! Reset line changed flag
+	    koffse = chgnumb(i)		! get line number of changed line
+	    noffse = offset(koffse)	! get offset to line packet
+c
+	    call unpack ( noffse, inbuf )
+ 	    vdpoffs = (i-1) * maxcolum
+ 	    recoffs = ((screen-1) * max2colu) +1
+	    call movefr ( vdpoffs, inbuf(recoffs), max2colu )
+	    call pack ( inbuf, outbuf )
+	    call updater ( outbuf, offset(koffse) )
+	  endif
+1000	continue
+	end
+	subroutine updater ( outbuf, noffse )
+	implicit integer(A-Z)
+c
+c  This routine is called to update a single record.  It is
+c  passed a compressed record (outbuf), and a RAM offset which
+c  contains the old record in compressed format.
+c
+	integer *2 outbuf(42)
+c
+c  Get old, new packet sizes
+c
+	call movefr ( noffse, pacsiz1, 1 )
+	pacsiz2 = outbuf(1)
+c
+c    if old record size is .le. to new, just replace old record
+c
+	if ( pacsiz1 .eq. pacsiz2 ) then
+	  call moveto ( noffse, outbuf, pacsiz1 )
+c
+c  else, new is different than old.  Free old record and create new record    
+c
+	else
+	  call freere ( noffse )
+	  call alloca ( outbuf, noffse )
+	endif
+ 	end
+	subroutine stats
+	implicit integer(A-Z)
+c
+c  This subroutine displays statistics about the working buffer.
+c
+	include 'HDS1.EDITOR.EDITCOM/NOLIST'
+c
+c  Local Declarations:
+c
+	integer *4 rsize, nsize
+c
+c  Display header, working version:
+c
+	write ( 6, 9100 ) version
+c
+c  count # of records in file
+c
+	start = used
+	nrecs = 0
+	rsize = 0
+	do while ( start .ne. 0 )
+	  nrecs = nrecs + 1
+ 	  call movefr ( offset(start), pacsiz, 1 )
+ 	  rsize  = rsize + pacsiz
+	  start = links(start)
+	enddo
+c
+	if ( nrecs .ne. 0 ) then
+	  rsize = (rsize * 2) / nrecs
+	else
+	  rsize = 0
+	endif
+c
+c  calculate amount of memory remaining
+c
+	hcount = 0			! hole count
+	navail = havail			! 1st available memory hole
+	nsize  = 0			! total size
+	do while ( navail .ne. 0 )
+	  call movefr ( navail, holes, 2 )
+	  hcount = hcount + 1		! bump hole count
+	  nsize  = nsize  + holes(2)	! bump total memory avail size
+	  navail = holes(1)		! chain to next hole
+	enddo
+	nsize = nsize * 2		! compute bytes from words
+c
+c  Estimate number of records left based on
+c  the average record size and memory remaining.
+c
+	estrec = nsize / rsize		! free space left / ave rec size
+	estref = maxlinks - nrecs	! left in chain
+	if ( estrec .le. 0 .or. estrec .gt. estref ) then
+	  estrec = estref
+	endif
+c
+	write ( 6, 9110 ) nrecs, rsize, nsize, estrec, infile
+	call wait
+9100	format ( '1',5x,'99 Editor Version ', f4.2)
+9110	format ( '0 Number of records:',i7, /,
+     +           '0 Ave. record size:',i8,' bytes'/
+     +           '0 Free bytes left:',i9 /
+     +           '0 Records left:',i12,/,
+     +		 '0 File loaded:',/,6X,40a1,//)
+	end
+	subroutine initial
+	implicit integer(A-Z)
+c
+c  This subroutine is called when the internal workarea is to
+c  be re-initialized.
+c
+	include 'HDS1.EDITOR.EDITCOM/NOLIST'
+c
+c  Pointers to RAM free areas
+c
+	DATA logend / z'a006' /
+	DATA datstr / z'a008' /
+c
+c  Pointers to VDP free area #1
+c
+	DATA vdpstr / z'0f00' /
+	DATA vdpend / z'202c' /
+c
+c  Pointers to mini-memory free area (may not exist)
+c
+	DATA mod1str / z'7000' /
+	DATA mod1siz / z'07FE' /
+c
+	DATA mod2str / z'6000' /
+	DATA mod2siz / z'0ffe' /
+c
+        maxlinks = 1250
+c
+	do 1000 I=1,maxlinks
+	  links(I) = I+1
+1000	continue
+c
+c  Set last thread to zero, and set avail, used pointers
+c
+	links(maxlinks) = 0
+	used  = 0
+	avail = 1
+c
+	vdatstr = peek(datstr)
+	vlogend = peek(logend)
+	vsparsi	= ( ( vdatstr - vlogend ) /2) - 2
+c
+c  holes are constructed as follows:
+c
+c      havail -->  NEXT LINK --> NEXT LINK -->         0
+c                  HOLE SIZE     HOLE SIZE     HOLE SIZE
+c
+c  Hole sizes are in words.
+c
+c  if mini-memory here, start first hole there.  else, start the first hole
+c  in cPU RAM free area (between logic end and data area start).
+c
+	memmodel = peek('20A8'X)	! GET MEMORY MODEL #
+c
+c					SUPERSPAcE cARTRIDGE
+	if ( memmodel .eq. 2 ) then
+	  havail   = mod2str +2		! FIRST MEMORY - IN SUPERSPAcE
+	  holes(1) = vlogend
+	  holes(2) = mod2siz
+	  call moveto ( havail, holes, 2 )
+c
+	  holes(1) = vdpstr		! SEcOND MEMORY - IN SPARE cPU AREA
+	  holes(2) = vsparsi
+	  call moveto ( vlogend, holes, 2)
+c					MINI-MEMORY
+	else if ( memmodel .eq. 1 ) then
+	  havail   = mod1str + 2	! FIRST MEMORY - IN MINI-MEM
+	  holes(1) = vlogend
+	  holes(2) = mod1siz
+	  call moveto ( havail, holes, 2 )
+c
+	  holes(1) = vdpstr		! SEcOND MEMORY - IN SPARE cPU AREA
+	  holes(2) = vsparsi
+	  call moveto ( vlogend, holes, 2 )
+c					! EDITOR/ASSEMBLER 32K MEM
+	else
+	  havail  =  peek(logend)	! FIRST MEMORY - IN SPARE cPU AREA
+	  holes(1) = vdpstr
+	  holes(2) = vsparsi
+	  call moveto ( havail, holes, 2 )
+	endif
+c
+c  Now that cpu ram areas are made up, setup vdp ram areas.
+c
+c  Free area is character set end & debugger start
+c
+	holes(1) = 0
+	holes(2) = (peek(vdpend) - holes(2) )  / 2
+	call moveto ( vdpstr, holes, 2 )
+c
+c  initialize misc. common constants
+c
+	memovf   = 9		! Memory Overflow Error
+	maxscren = 3		! Maximum screen number
+c
+	call getmod ( mode )	! GET cURRENT screen mode
+	if ( mode .eq. 0 ) then
+	  maxscren = 3		! Maximum screen number
+	  maxcolum = 40		! Maximum column number
+	  max2colu = 20		! Maximum column number/2
+	else
+	  maxscren = 1		! Maximum screen number
+	  maxcolum = 80		! Maximum column number
+	  max2colu = 40		! Maximum column number /2
+	endif
+c
+	maxrow   = 24		! Maximum number of rows
+c
+	changed  = .false.	! workspace has not been changed
+c
+	end
+	subroutine alloca ( jnbuf, noffse )
+	implicit integer(A-Z)
+c
+c  This subroutine allocates memory space in the
+c  free RAM areas available. It is given a packed AScII string
+c  of characters, with the first word of the string
+c  representing the word length of the string.
+c
+c  allocate searches the available hole pool to find
+c  a large enough space to contain the record.  if
+c  no hole is found, an error is returned (Memory Overflow).
+c
+	include 'HDS1.EDITOR.EDITCOM/NOLIST'
+c
+c  Local Declarations:
+c
+	integer *2 jnbuf(42)
+	logical found
+c
+c  Attempt to find a hole in hole pool.
+c
+	errst = 0			! Error status
+	lasth = 0			! Last hole
+	thish = havail			! This hole
+	found = .false.			! found or not
+	do while ( .not. found )
+	  if ( thish .eq. 0 ) then
+	    errst = memovf
+	    found = .true.
+	  else
+c				Get a hole header
+	   call movefr ( thish, holes, 2 )
+c				if hole < requested size
+	   if ( holes(2) .lt. jnbuf(1)) then
+c				Advance to next hole
+	     lasth = thish
+	     thish = holes(1)
+c				Will fit here
+	   else
+	     found = .true.
+c				noffse is record start
+	     noffse = thish
+c				if <8 words in hole, then
+	     K = holes(2) - jnbuf(1)
+             if ( K .lt. 8 ) then
+c				Use entire hole
+	       jnbuf(1) = holes(2)
+c				Eliminate hole
+	       if ( lasth .eq. 0 ) then
+		 havail = holes(1)
+	       else
+		 call moveto ( lasth, holes, 1 )
+	       endif
+c				Hole bigger than wanted +8
+	     else
+c				compute new hole start
+	       loffse   = thish + (jnbuf(1)*2)
+c				compute new hole size
+	       holes(2) = holes(2) - jnbuf(1)
+c				create new hole header
+	       call moveto ( loffse, holes, 2 )
+c				if first hole, then
+	        if ( lasth .eq. 0 ) then
+c				update havail w/new offset
+		  havail = loffse
+c				Otherwise, update last hole
+                else
+		  call movefr ( lasth, holes, 1 )
+		  holes(1) = loffse
+		  call moveto ( lasth, holes, 1 )
+	        endif
+	      endif
+c				Move record to new area
+	      call moveto ( noffse, jnbuf, jnbuf(1) )
+	    endif
+	  endif
+	enddo
+	end
+	subroutine freere ( noffse )
+	implicit integer(A-Z)
+c
+c  This subroutine is passed an offset into the free
+c  area, and releases the record by creating a new
+c  hole in the record buffer.
+c
+	include 'HDS1.EDITOR.EDITCOM/NOLIST'
+c
+	errst = 0
+c                             Get record size
+	call movefr ( noffse, holes(2), 1 )
+c                             create new hole header
+	holes(1) = havail
+	havail   = noffse
+c                             Move new hole to avail list
+	call moveto ( noffse, holes(1), 2 )
+	end

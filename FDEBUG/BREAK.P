@@ -1,0 +1,394 @@
+9640 and 99/4A Assembler
+                                                    Page 0001
+0001                         TITL  'GOUSER - BREAKPOINT INTERFACE ROUTINE'
+0002                         IDT   'GOUSER'
+0003                 *
+0004                 *  GOUSER - This routine is called when the user wants to execute
+0005                 *           the user program.  The calling sequence is:
+0006                 *
+0007                 *               call breakh ( wsp )
+0008                 *
+0009                 *           where "wsp" is a nineteen element array that contains
+0010                 *           the following information:
+0011                 *
+0012                 *               1 PC   -  Program Counter
+0013                 *               2 SR   -  Status Register
+0014                 *               3 WSP  -  Workspace Pointer
+0015                 *               4 WS   -  16 Workspace Registers (@>f000)
+0016                 *
+0017                 *           The subroutine maps in the low & high memory breakpoint
+0018                 *           handlers, and then "swaps" memory with the user program
+0019                 *           (moves debugger to pages 8-15, moves application to pages
+0020                 *           0-7) and then starts user program at given PC.
+0021                 *
+0022                 *           On breakpoint, an XOP is executed that causes the user
+0023                 *           application & debugger to again be swapped, and then
+0024                 *           executes the debugger.
+0025                 *
+0026                 *  17-June-1991  A.L.Beard  Rewrite to avoid use of high memory >fd00
+0027                 *                           to >ffff.
+0028                 *
+0029                 *  Now uses locations >4c to >
+0030                 *
+0031                 *  Equates:
+0032                 *
+0033                         UNL
+9640 and 99/4A Assembler
+GOUSER - BREAKPOINT INTERFACE ROUTINE               Page 0002
+0076                 *
+0077                 *  Def/Ref's:
+0078                 *
+0079 0000   000A             DEF  BREAKH
+0080 0000   0000             DEF  INITBR
+0081                 *
+0082                 *  Equates:
+0083                 *
+0084 0000   0003     XOPNUM  EQU  3                  WHICH XOP I AM USING (3)
+0085 0000   004C     XOPLOC  EQU  4*XOPNUM+>40       XOP LOCATION, WHERE XOP IS
+0086                 *XOPREG EQU  >F0A0              WHERE THE BREAKPOINT WORKSPACE IS
+0087 0000   00B4     XOPREG  EQU  >00B4              HOLE IN LOW MEMORY FOR WORKSPACE
+0088 0000   E000     HIGHME  EQU  >E000              HIGH MEMORY HANDLER START ADDRESS
+0089 0000   F000     USRWSP  EQU  >F000              WHERE THE DEBUGGER WORKSPACE IS
+0090                 *
+0091                 *  INITBR - FOR COMPATIBILITY (UNUSED)
+0092                 *
+0093 0000   0000     INITBR  EQU  $
+0094 0000   FFFE             DATA -2                 2 ARGUMENTS
+0095 0002   0060'            DATA TEMPS
+0096 0004   C0E0             MOV  @TEMPS,R3          RESTORE R3
+0096 0006   0060'     
+0097 0008   045B             B    *R11               ; RETURN
+0098                 *
+0099 0000   000A     BREAKH  EQU  $
+0100 000A   FFFF             DATA -1                 1 ARGUMENT
+0101 000C   0060'            DATA TEMPS
+0102                 *
+0103 000E   0300             LIMI 0
+0103 0010   0000      
+0104                 *
+0105                 *  MOVE IN LOW MEMORY HANDLER
+0106                 *
+0107 0012   0200             LI   R0,STARTL
+0107 0014   0072'     
+0108 0016   0201             LI   R1,XOPLOC
+0108 0018   004C      
+0109 001A   0202             LI   R2,LOWSIZ
+0109 001C   0016      
+0110 001E   06A0             BL   @MOVMEM
+0110 0020   006A'     
+0111                 *
+0112                 *  GET MEMORY MAP
+0113                 *
+0114 0022   0200             LI   R0,GETMAP
+0114 0024   0004      
+0115 0026   0201             LI   R1,MEMMAP
+0115 0028   0062      
+0116 002A   0202             LI   R2,16              ONLY GET 16 PAGES
+0116 002C   0010      
+0117 002E   2C20             XOP  @DMEMXP,0
+0117 0030   0068'     
+0118                 *
+0119                 *  MOVE IN HIGH MEMORY HANDLER
+0120                 *
+0121 0032   D820             MOVB @MEMMAP+8,@MMRREG+7
+0121 0034   006A      
+0121 0036   F117      
+0122 0038   0200             LI   R0,STARTH
+0122 003A   0088'     
+0123 003C   0201             LI   R1,HIGHME
+0123 003E   E000      
+0124 0040   0202             LI   R2,HIGSIZ
+0124 0042   01BA      
+0125 0044   06A0             BL   @MOVMEM
+0125 0046   006A'     
+0126                 *
+0127                 *  BRANCH TO THE HIGH MEMORY BREAKPOINT HANDLER
+0128                 *
+0129 0048   0204             LI   R4,HIGHME          HIGH MEMORY HANDLER START (@>E000)
+0129 004A   E000      
+0130 004C   06A0             BL   @GOUSR1            DO IT
+0130 004E   E000      
+0131                 *                               MAP IN MY NORMAL PAGE 7
+0132 0050   D820             MOVB @MEMMAP+7,@MMRREG+7
+9640 and 99/4A Assembler
+GOUSER - BREAKPOINT INTERFACE ROUTINE               Page 0003
+0132 0052   0069      
+0132 0054   F117      
+0133 0056   C0E0             MOV  @TEMPS,R3
+0133 0058   0060'     
+0134 005A   C2E0             MOV  @TEMPS+2,R11
+0134 005C   0062'     
+0135 005E   045B             B    *R11               ; RETURN
+0136                 *
+0137                 *  DATA AREA
+0138                 *
+0139 0060   0000     TEMPS   BSS  4
+0140 0064   0000     AREGIS  BSS  2                  REGISTER ARRAY (19 ELEMENTS)
+0141 0066   0000             BSS  2                  DUMMY (FOR INITBR DUMMY)
+0142                 *
+0143 0068   0007     DMEMXP  DATA MEMXOP             MEMORY XOP NUMBER
+0144                 *
+0145                 *  MOVMEM - MOVE MEMORY ROUTINE
+0146                 *
+0147                 *               R0 - HAS MOVE "FROM" ADDRESS
+0148                 *               R1 - HAS MOVE "TO"   ADDRESS
+0149                 *               R2 - HAS # OF BYTES TO MOVE
+0150                 *
+0151 0000   006A     MOVMEM  EQU  $
+0152 006A   CC70             MOV  *R0+,*R1+
+0153 006C   0642             DECT R2
+0154 006E   16FD             JNE  MOVMEM
+0155 0070   045B             B    *R11
+0156                 *=======================================================================
+0157                 *  LOW MEMORY BREAKPOINT HANDLER START
+0158                 *
+0159 0000   0072     STARTL  EQU  $
+0160 0072   00B4             DATA XOPREG
+0161 0074   0050             DATA LOWHAN
+0162 0000   0050     LOWHAN  EQU  $-STARTL+XOPLOC
+0163 0076   D820             MOVB @MEMMAP+8,@MMRREG+7
+0163 0078   006A      
+0163 007A   F117      
+0164 007C   0460             B    @GOUSR4
+0164 007E   E030      
+0165                 *
+0166 0000   005A     GOUSR3  EQU  $-STARTL+XOPLOC
+0167                 *                               ; MAP IN MY NORMAL PAGE 7
+0168 0080   D820             MOVB @MEMMAP+7,@MMRREG+7
+0168 0082   0069      
+0168 0084   F117      
+0169 0086   0380             RTWP                    ; GO TO USER PROGRAM
+0170                 *
+0171 0000   0016     LOWSIZ  EQU  $-STARTL
+0172 0000   0062     MEMMAP  EQU  $-STARTL+XOPLOC
+0173                 *
+0174                 *  LOW MEMORY BREAKPOINT HANDLER END
+0175                 *=======================================================================
+0176                 *
+0177                 *  HIGH MEMORY BREAKPOINT HANDLER START
+0178                 *
+0179 0000   0088     STARTH  EQU  $
+0180 0000   E000     GOUSR1  EQU  $-STARTH+HIGHME
+0181 0088   0300             LIMI 0
+0181 008A   0000      
+0182 008C   02E0             LWPI XOPREG             ; LOAD MY WORKSPACE POINTER
+0182 008E   00B4      
+0183 0090   0204             LI   R4,HIGHME          ; POINTER TO MY START
+0183 0092   E000      
+0184                 *
+0185                 *  COPY IN USER WSP, PC + SR INTO MY REGISTER AREA 
+0186                 *
+0187 0094   C160             MOV  @AREGIS,R5         ; GET POINTER TO IT
+0187 0096   0064'     
+0188 0098   C375             MOV  *R5+,R13
+0189 009A   C3B5             MOV  *R5+,R14
+0190 009C   C3F5             MOV  *R5+,R15
+0191                 *
+0192 009E   0201             LI   R1,SAVDEB          ; REGISTER SAVE AREA
+0192 00A0   E13A      
+0193 00A2   0202             LI   R2,>80             ; MOVE 80 BYTES
+9640 and 99/4A Assembler
+GOUSER - BREAKPOINT INTERFACE ROUTINE               Page 0004
+0193 00A4   0080      
+0194                 *
+0195 0000   00A6     GOUSR2  EQU  $
+0196 00A6   CC75             MOV  *R5+,*R1+
+0197 00A8   0642             DECT R2
+0198 00AA   16FD             JNE  GOUSR2
+0199                 *
+0200                 *  NOW SWAP USER TASK & DEBUGGER
+0201                 *
+0202 00AC   06A0             BL   @TABSWP            ; SWAP IT
+0202 00AE   E05C      
+0203 00B0   0300             LIMI 2                  ; ENABLE INTERRUPTS
+0203 00B2   0002      
+0204 00B4   0460             B    @GOUSR3            ; GO DO USER TASK
+0204 00B6   005A      
+0205                 *
+0206                 *  GOUSR4 - EXECUTE THE RETURN FROM THE BREAKPOINT.  I MUST SWAP
+0207                 *           BACK IN THE DEBUGGER, SAVE THE SPACE FROM >F000 TO >F07F,
+0208                 *           AND RECALL THE USER TASK
+0209                 *
+0210 0000   E030     GOUSR4  EQU  $-STARTH+HIGHME
+0211 00B8   0300             LIMI 0                  ; DISABLE INTERRUPTS
+0211 00BA   0000      
+0212 00BC   06A0             BL   @TABSWP            ; SWAP THE SPACES
+0212 00BE   E05C      
+0213                 *
+0214 00C0   C160             MOV  @AREGIS,R5         ; USER REGISTER POINTER
+0214 00C2   0064'     
+0215 00C4   064E             DECT R14                ; ADJUST PC (TAKE INTO ACCOUNT XOP)
+0216 00C6   CD4D             MOV  R13,*R5+
+0217 00C8   CD4E             MOV  R14,*R5+
+0218 00CA   CD4F             MOV  R15,*R5+
+0219 00CC   0201             LI   R1,SAVDEB
+0219 00CE   E13A      
+0220 00D0   0202             LI   R2,>80
+0220 00D2   0080      
+0221                 *
+0222 0000   00D4     GOUSR5  EQU  $
+0223 00D4   CD71             MOV  *R1+,*R5+
+0224 00D6   0642             DECT  R2
+0225 00D8   16FD             JNE   GOUSR5
+0226                 *
+0227                 *  SET POINTER TO USER WORKSPACE, & RETURN
+0228                 *
+0229 00DA   02E0             LWPI  USRWSP
+0229 00DC   F000      
+0230 00DE   0300             LIMI  2
+0230 00E0   0002      
+0231 00E2   045B             B     *R11
+0232                 *
+0233                 *  SWAP USER TASK & DEBUGGER
+0234                 *
+0235 0000   E05C     TABSWP  EQU  $-STARTH+HIGHME
+0236 00E4   C28B             MOV  R11,R10
+0237 00E6   0205             LI   R5,TABLE           ; TABLE OF ADDRESSES TO SWAP
+0237 00E8   E0BA      
+0238 0000   00EA     TABLOP  EQU  $
+0239 00EA   C035             MOV  *R5+,R0            ; START ADDRESS TO SWAP
+0240 00EC   130F             JEQ  TABEND
+0241 00EE   C075             MOV  *R5+,R1            ; END ADDRESS TO SWAP
+0242 00F0   C0B5             MOV  *R5+,R2            ; # OF BYTES TO SWAP
+0243 00F2   C1B5             MOV  *R5+,R6            ; START PAGE TO POKE
+0244 00F4   C1F5             MOV  *R5+,R7            ; PAGE NUMBER TO POKE
+0245 00F6   D9A7             MOVB @MEMMAP(R7),@MMRREG(R6)
+0245 00F8   0062      
+0245 00FA   F110      
+0246 00FC   C1B5             MOV  *R5+,R6            ; START PAGE TO POKE
+0247 00FE   C1F5             MOV  *R5+,R7            ; PAGE NUMBER TO POKE
+0248 0100   D9A7             MOVB @MEMMAP(R7),@MMRREG(R6)
+0248 0102   0062      
+0248 0104   F110      
+0249 0106   06A0             BL   @SWAPME
+0249 0108   E0AE      
+0250 010A   10EF             JMP  TABLOP
+0251                 *
+9640 and 99/4A Assembler
+GOUSER - BREAKPOINT INTERFACE ROUTINE               Page 0005
+0252 0000   010C     TABEND  EQU  $
+0253 010C   C820             MOV  @MEMMAP,@MMRREG    ; RESTORE MAP REGISTERS
+0253 010E   0062      
+0253 0110   F110      
+0254 0112   C820             MOV  @MEMMAP+2,@MMRREG+2
+0254 0114   0064      
+0254 0116   F112      
+0255 0118   C820             MOV  @MEMMAP+4,@MMRREG+4
+0255 011A   0066      
+0255 011C   F114      
+0256 011E   D820             MOVB @MEMMAP+6,@MMRREG+6
+0256 0120   0068      
+0256 0122   F116      
+0257                 *
+0258                 *  SWAP THE USER SPACE
+0259                 * 
+0260 0124   0200             LI   R0,>F000           ; SAVE FROM >F000 TO >F07F
+0260 0126   F000      
+0261 0128   0201             LI   R1,SAVDEB
+0261 012A   E13A      
+0262 012C   0202             LI   R2,>80
+0262 012E   0080      
+0263 0130   06A0             BL   @SWAPME
+0263 0132   E0AE      
+0264 0134   045A             B    *R10
+0265                 *
+0266                 *  SWAPME - SWAP MEMORY CONTENTS
+0267                 *
+0268 0000   E0AE     SWAPME  EQU  $-STARTH+HIGHME
+0269 0000   0136     SWAPM1  EQU  $
+0270 0136   C190             MOV  *R0,R6             ; GET 1ST WORD TO SWAP
+0271 0138   CC11             MOV  *R1,*R0+
+0272 013A   CC46             MOV  R6,*R1+
+0273 013C   0642             DECT R2
+0274 013E   16FB             JNE  SWAPM1
+0275 0140   045B             B    *R11
+0276                 *
+0277                 *  THE FOLLOWING TABLE IS USED TO CONTROL THE SWAPPING OF MEMORY.
+0278                 *  EACH ENTRY DEFINES:
+0279                 *
+0280                 *       A. MOVE "FROM" ADDRESS
+0281                 *       B. MOVE "TO"   ADDRESS
+0282                 *       C. NUMBER OF BYTES TO MOVE
+0283                 *       D. PAGE NUMBER TO MAP "MOVE FROM" PAGE INTO
+0284                 *       E. PAGE NUMBER TO MAP "MOVE FROM" PAGE FROM
+0285                 *       F. PAGE NUMBER TO MAP "MOVE TO"   PAGE INTO
+0286                 *       G. PAGE NUMBER TO MAP "MOVE TO"   PAGE FROM
+0287                 *
+0288                 *  TABLE IS TERMINATED BY ZERO "MOVE FROM" ADDRESS
+0289                 *
+0290 0000   E0BA     TABLE   EQU  $-STARTH+HIGHME
+0291 0142   0400             DATA >0400,>2400,>1C00,0,0,1,8
+0291 0144   2400      
+0291 0146   1C00      
+0291 0148   0000      
+0291 014A   0000      
+0291 014C   0001      
+0291 014E   0008      
+0292 0150   2000             DATA >2000,>4000,>2000,1,1,2,9
+0292 0152   4000      
+0292 0154   2000      
+0292 0156   0001      
+0292 0158   0001      
+0292 015A   0002      
+0292 015C   0009      
+0293 015E   4000             DATA >4000,>2000,>2000,2,2,1,10
+0293 0160   2000      
+0293 0162   2000      
+0293 0164   0002      
+0293 0166   0002      
+0293 0168   0001      
+0293 016A   000A      
+0294 016C   6000             DATA >6000,>2000,>2000,3,3,1,11
+0294 016E   2000      
+0294 0170   2000      
+9640 and 99/4A Assembler
+GOUSER - BREAKPOINT INTERFACE ROUTINE               Page 0006
+0294 0172   0003      
+0294 0174   0003      
+0294 0176   0001      
+0294 0178   000B      
+0295 017A   8000             DATA >8000,>2000,>2000,4,4,1,12
+0295 017C   2000      
+0295 017E   2000      
+0295 0180   0004      
+0295 0182   0004      
+0295 0184   0001      
+0295 0186   000C      
+0296 0188   A000             DATA >A000,>2000,>2000,5,5,1,13
+0296 018A   2000      
+0296 018C   2000      
+0296 018E   0005      
+0296 0190   0005      
+0296 0192   0001      
+0296 0194   000D      
+0297 0196   C000             DATA >C000,>2000,>2000,6,6,1,14
+0297 0198   2000      
+0297 019A   2000      
+0297 019C   0006      
+0297 019E   0006      
+0297 01A0   0001      
+0297 01A2   000E      
+0298 01A4   2000             DATA >2000,>4000,>1000,1,7,2,15
+0298 01A6   4000      
+0298 01A8   1000      
+0298 01AA   0001      
+0298 01AC   0007      
+0298 01AE   0002      
+0298 01B0   000F      
+0299 01B2   3140             DATA >3140,>5140,>0EC0,1,7,2,15
+0299 01B4   5140      
+0299 01B6   0EC0      
+0299 01B8   0001      
+0299 01BA   0007      
+0299 01BC   0002      
+0299 01BE   000F      
+0300 01C0   0000             DATA 0
+0301                 *
+0302 0000   E13A     SAVDEB  EQU  $-STARTH+HIGHME
+0303 01C2   0000             BSS  >80
+0304 0000   01BA     HIGSIZ  EQU  $-STARTH
+0305                 
+0306                 *
+0307                 *  END HIGH MEMORY BREAKPOINT HANDLER
+0308                 *=======================================================================
+0309                         END

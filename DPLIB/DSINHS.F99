@@ -1,0 +1,13 @@
+       DOUBLE PRECISION FUNCTION DSINH(X)
+C
+C  DSINH: Double Precision HYPERBOLIC Sine Function
+C
+C  Copyright 1988 by LGMA Products
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+       DOUBLE PRECISION X,DEXP
+       DSINH=0.5D0*(DEXP(X)-DEXP(-X))
+       END

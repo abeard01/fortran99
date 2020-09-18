@@ -1,0 +1,33 @@
+      DOUBLE PRECISION FUNCTION DLGAMA(X)
+      DOUBLE PRECISION X,Y,F,Z,DLOG
+C
+C  Copyright 1988 by LGMA Products
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      IF(X)1,1,2
+C BAD VALUE RETURN
+1     DLGAMA=-1.0D127
+      RETURN
+2     F=0.0D0
+C DO NOT CHANGE INPUT ARGUMENT
+3     Y=X
+7     IF(Y.GE.7.0D0)GO TO 6
+      F=1.0D0
+      Z=Y-1.0D0
+4     Z=Z+1.0D0
+      IF(Z.GE.7.0D0)GO TO 5
+      Y=Z
+      F=F*Z
+      GO TO 4
+5     Y=Y+1.0D0
+      F=-DLOG(F)
+      GO TO 7
+6     Z=1.0D0/(Y*Y)
+      DLGAMA=F+(Y-0.5D0)*DLOG(Y)-Y+0.9189385332047D0
+     * +(((-0.595238095238D-3
+     * *Z+0.793650793651D-3)*Z-0.2777777777778D-2)*Z+
+     * 0.8333333333333D-1)/Y
+      END

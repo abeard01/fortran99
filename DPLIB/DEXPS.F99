@@ -1,0 +1,58 @@
+      DOUBLE PRECISION FUNCTION DEXP(X)
+C
+C  DEXP: Double Precision Natural Exponential
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C  22-July-90   V3.1   Minor update from Elmer, revise routine for
+C                      very small X.
+C
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+C AN EQUIVALENCE IS USED TO POKE EXPONENT INTO DEXP
+      EQUIVALENCE (DEXP,J)
+      IF(DABS(X)-1.0D-11)2,1,2
+1     DEXP=1.D0
+      RETURN
+2     IF(X-290.D0)4,3,3
+C OVERFLOW VALUE
+3     DEXP=1.D70
+      RETURN
+4     IF(X+290.D0)5,6,6
+C UNDERFLOW VALUE
+5     DEXP=0.D0
+      RETURN
+6     Y=X
+      IF(Y.LT.0.D0)Y=-Y
+C Y=ABS(X)/LN(10)
+      Y=Y*0.4342944819033D0
+C SET INITIAL VALUES
+      NA=1
+      NB=0
+      DEXP=1.D0
+7     Y=Y-2.D0
+      IF(Y)8,9,9
+9     NA=NA+1
+      IF(Y)8,12,7
+12    NA=NA-1
+      GO TO 10
+8     Y=Y+1.D0
+      IF(Y)20,20,21
+20    NB=NB+1
+      IF(Y)8,10,21
+21    Y=1.D0-Y
+C 10**(-Y)
+      DEXP=1.D0/((((((0.3841371884410D-2*Y+0.4072185163780D-1)*Y+
+     * 0.2156667506608D0)*Y+0.6773085498992D0)*Y+
+     * 0.1224736817181D1)*Y+0.9999999999995D0)/(((((
+     * -0.1214762419424D-2*Y+0.1895127965219D-1)*Y-
+     * 0.1318575788370D0)*Y+0.5081968716541D0)*Y-
+     * 0.10778482759237D1)*Y+1.D0))
+10    IF(NB)11,11,22
+22    DEXP=DEXP*0.1D0
+C DEXP=DEXP*100^NA
+11    J=J+256*NA
+C IF X<0 INVERT
+      IF(X.LT.0.D0)DEXP=1.D0/DEXP
+      RETURN
+      END

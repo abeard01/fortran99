@@ -1,0 +1,11 @@
+      COMPLEX*16 FUNCTION CDASNH(X) ! COMPLEX*16 HYPERBOLIC ARC SINE
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    10-DEC-89   E.Clausen   Initial Version by Elmer Clausen
+C
+      COMPLEX*16 X,CDASIN
+      CDASNH=(0.0D0,-1.0D0)*CDASIN((0.0D0,1.0D0)*X)
+      END

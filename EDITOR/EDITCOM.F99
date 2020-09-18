@@ -1,0 +1,17 @@
+c
+c  Common Declarations for 99 FORTRAN EDITOR:
+c
+c  Copyright 1989 by LGMA Products
+c
+	logical *2 chgflag(24), doit, changed
+	real    *4 version
+	integer *2 links(1250), offset(1250), holes(2), chgnumb(24)
+	integer *1 infile(32), pfile(26), oufile(32), inbuf(80), 
+     +             outbuf(84), ofile(26)
+c
+	common used, avail, maxlinks, havail, holes, infile,
+     +         links, offset, inbuf, outbuf, chgflag, chgnumb,
+     +         memovf, doit, errst, maxscren, maxcolum, max2colu,
+     +         maxrow, pfile, version, mode, oufile, changed,
+     +         ofile
+c
