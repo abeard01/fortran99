@@ -1,0 +1,104 @@
+	TITL 'CHECK FOR SUBSCRIPT PROPER USAGE'
+	IDT  'CHECK'
+*
+*  CHECK  :  CHECK FOR PROPER SUBSCRIPT USAGE, WHEN SC OPTION IS TURNED
+*	     ON.
+*
+*  THIS VERSION OPERATES PROPERLY WITH BOTH MDOS AND GPL VERSIONS.
+*
+*  Update History:
+*
+*    09-Dec-1988   Version 4.1   Initial Creation
+*    19-Jul-1989   Version 4.4   Changed FORTPAR reference
+*
+*  Copyright 1989 by LGMA Products
+*
+	DEF  ADDCH$		ADD CHECK
+	DEF  SUBCH$		SUBTRACT CHECK
+	DEF  NUMBC$		NUMBER CHECK
+*
+*  EQUATES:
+*
+	COPY "FORTPAR:"
+	UNL
+	COPY "EQUATES:FORTEX.EQ9"
+	LIST
+*
+*
+*  Array subscript checking is performed when the program has
+*  been compiled in the subscript checking mode (SC option).
+*  The checking is done by calling the following routine at
+*  one of three entry points depending on the array involved:
+*
+*  LOCAL ARRAY:
+*
+*	BL   @SUBCH$
+*	DATA ARRAY		ARRAY START ADDRESS
+*	DATA ARRAYS		WORD SIZE OF ARRAY
+*
+*  NON-ADJUSTABLE ARRAY:
+*
+*	(R5 HAS ELEM WD DISP WITHIN ARRAY)
+*	BL   @NUMBC$
+*	DATA ARRAYS		ARRAY SIZE
+*
+*  ADJUSTABLE DUMMY ARRAY:
+*
+*	(R5 HAS ELEM WD DISP WITHIN ARRAY)
+*	BL   @ADDCH$
+*	DATA ARRAYS		ARRAY SIZE
+*
+*
+*  If the check fails, then the error routine is called
+*  and the program is forced to use the first element of
+*  the array.
+*
+SUBCH$	EQU  $
+	MOV  *R11+,R1		GET BASE ADDRESS OF ARRAY
+	MOV  *R11+,R7		GET BYTE SIZE OF ARRAY
+	MOV  R5,R6		SAVE INDEX
+	S    R1,R5		INDEX = INDEX - BASE
+	JLT  SCK1		BRIF <0 (ERROR)
+	C    R5,R7
+	JLT  SCK3		BRIF <MAX+1 (OK)
+SCK1	EQU  $
+	MOV  R5,R6		SET INDEX (FOR ERROR)
+	MOV  R1,R5		SET INDEX (RETURN TO USER)
+*
+*  ERROR ON SUBSCRIPT.  DISPLAY ERROR AND VALUE.
+*
+SCK2	EQU  $
+	MOV  R6,R5		FOR DISPLAY
+	SRA  R5,1		INDEX = INDEX/2 + 1
+	INC  R5			(FOR DISPLAY)
+	BLWP *R10
+	DATA ERROR
+	TEXT 'SC'		SUBSCRIPTING ERROR
+*
+SCK3	EQU  $
+	MOV  R6,R5
+	B    *R11		RETURN
+*
+ADDCH$	EQU  $
+	MOV  *R11+,R7		GET ADRL OF ARRAY SIZE
+	MOV  *R7,R7		GET ARRAY SIZE (IN WORDS)
+	SLA  R7,1		 *2
+	MOV  R5,R6		SAVE INDEX FOR RETURN
+	JLT  SCK4		BRIF <0, ERROR
+	C    R6,R7
+	JLT  SCK3		BRIF <MAX+1 (OK)
+	JMP  SCK4
+*
+NUMBC$	EQU  $
+	MOV  *R14+,R7		GET SIZE OF ARRAY (WORDS)
+	SLA  R7,1
+	MOV  R5,R6		SAVE INDEX
+	JLT  SCK4		BRIF <0, ERROR
+	C    R5,R7
+	JLT  SCK3		BRIF <MAX+1 (OK)
+*
+SCK4	EQU  $
+	CLR  R5	  		RETURN 1ST ELEMENT FOR USER
+	CLR  R1	  		CLEAR BASE ADDRESS (NONE)
+	JMP  SCK2		& DISPLAY ERROR.
+	END

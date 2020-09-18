@@ -1,0 +1,11 @@
+      REAL FUNCTION ASIN(X)
+C
+C  ARSIN:  Single Precision ARC sine 
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      DOUBLE PRECISION DARSIN,DBLE
+      ASIN=SNGL(DARSIN(DBLE(X)))
+      END

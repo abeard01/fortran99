@@ -1,0 +1,54 @@
+	TITL 'FORTRAN STOP OR STOP WITH NUMBER'
+	IDT  'STOP$'
+*
+*  STOP$  :  RETURN TO MDOS
+*
+*  THIS VERSION OPERATES PROPERLY WITH BOTH MDOS AND GPL VERSIONS.
+*
+*  Update History:
+*
+*    09-Dec-1988   Version 4.1   Initial Creation
+*    22-May-1989   Version 4.4   Updated for new FORTRAN Equates file
+*    19-Jul-1989   Version 4.41  Changed FORTPAR reference
+*    28-Oct-1989   Version 4.42  Changed 99 FORTRAN Stop Message
+*    04-JAN-1990   VERSION 4.43  Save return in R12 for debug display
+*
+*  Copyright 1989 by LGMA Products
+*
+	DEF  STOP$		STOP ENTRY
+*
+*  EQUATES:
+*
+	COPY "FORTPAR:"
+	UNL
+	COPY "EQUATES:FORTEX.EQ9"
+	COPY "EQUATES:FORTIO.EQ9"
+	LIST
+*
+STOP$	EQU  $
+	MOV  R11,R12		SAVE RETURN FOR DEBUG DISPLAY
+	BLWP *R10		START I/O TRANSFER
+	DATA STARTI
+	DATA >9800
+	DATA CRTOP
+	DATA STOPMS		STOP MESSAGE FORMAT
+*
+	BLWP *R10
+	DATA STOPIO
+	IF   GENEVE
+	B    @RMENU$(R10)
+	ELSE
+	BLWP @CWAIT$
+	B    @CMENU$		& RETURN
+	ENDIF
+*
+*  STOP MESSAGE:
+*
+STOPMS	EQU  $
+	IFEQ GENEVE
+	TEXT "(' * 99 FORTRAN Stop')"
+	ELSE
+	TEXT "(' * 9640 FORTRAN Stop')"
+	ENDIF
+	EVEN
+	END

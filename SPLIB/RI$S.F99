@@ -1,0 +1,20 @@
+	real function ri$(r1,i2)
+c
+c  RI$:  Single Precision Argument with Integer Exponent
+c
+c  Change History:
+c
+c  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+c  17-Jul-89    v4.4   changes
+c
+	ri$ = 1.0		! assume result
+	if ( i2 .eq. 0 ) return	! done if exponent = 0
+	if ( r1 .eq. 0.0 .and. i2 .lt. 0 ) then
+	  ri$ = 1.0e99		! error result
+	else
+	  j = iabs(i2)		! get absolute exponent
+	  do 4 k=1,j
+4	  ri$ = ri$ * r1	! compute result
+	  if ( i2 .lt. 0 ) ri$ = 1.0 / ri$
+	endif
+	end

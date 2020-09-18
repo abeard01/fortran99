@@ -1,0 +1,22 @@
+	real function rr$(r1,r2)
+c
+c  rr$:  Single Precision Argument with Single Precision Exponent
+c
+c  Change History:
+c
+c  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+c  17-July-89   v4.4   add cases for **2 & **3
+c
+	double precision d1,d2,dexp,dlog,dble
+	d1 = dble(r1)
+	d2 = dble(r2)
+	if ( d1 .le. 0.0d0 ) then
+	  rr$ = 1.0e99
+	else if ( d2 .eq. 2.0d0 ) then
+	  rr$ = d1 * d1
+	else if ( d2 .eq. 3.0d0 ) then
+	  rr$ = d1 * d1 * d1
+	else
+	  rr$ = dexp(d2*dlog(d1))
+	endif
+	end

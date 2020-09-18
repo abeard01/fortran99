@@ -1,0 +1,15 @@
+      REAL FUNCTION COTAN(X)
+C
+C  COTAN:  Single Precision Co-tangent 
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      IF(X)2,1,2
+C DIVIDE BY ZERO RETURN VALUE
+1     COTAN=1.0E127
+      GO TO 3
+2     COTAN=1.0E0/ATAN(X)
+3     RETURN
+      END

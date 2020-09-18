@@ -1,0 +1,11 @@
+      REAL FUNCTION EXP10(X)
+C
+C  EXP10:  Single Precision Base 10 exponential
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      DOUBLE PRECISION DEXP,DBLE
+      EXP10=SNGL(DEXP(2.302585092994D0*DBLE(X)))
+      END

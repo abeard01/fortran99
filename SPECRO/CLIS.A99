@@ -1,0 +1,138 @@
+	TITL    'EXECUTE CLI ROUTINE'
+	IDT     'CLI'
+*
+*  CLI -  This routine calls the MDOS CLI from a FORTRAN program.
+*
+	DEF   CLI
+*
+* R0  Address of NULL Terminated Command String
+*
+* R0  Returns Zero if OK, >FFFF if Error
+* R1  Destroyed
+* R2  Destroyed
+*
+* >F060->F080 Used
+*
+GENEVE	EQU  1
+	UNL
+	COPY "EQUATES:FORTEX.EQ9"
+	LIST
+
+CLI	EQU  $
+	DATA -1			1 ARGUMENT
+	DATA TEMPS
+*
+*  MAKE SURE THAT I AM NOT RUNNING ON PAGE 7, IF SO, ABORT
+*
+	LI   R0,CLI		GET START ADDRESS OF ROUTINE
+	ANDI R0,>E000		MASK WITH PAGE 7 ADDRESS
+	CI   R0,>E000
+	JNE  CLIP7O		BRIF NOT RUNNING ON PAGE 7
+*
+	BLWP *R10		ELSE, GENERATE ERROR
+	DATA ERROR
+	TEXT 'P7'		PAGE 7 ERROR
+	JMP  CLIRTN
+*
+CLIP7O	EQU  $
+	LI   R0,>F040		FIRST, SAVE >F040 TO >F07F
+	LI   R1,REGSAV
+	LI   R2,32
+CLIP7P	EQU  $
+	MOV  *R0+,*R1+		SAVE IT
+	DECT R2
+	JNE  CLIP7P
+*
+	MOV  @TEMPS+4,R0	GET "MOVE FROM" ADDRESS
+	MOVB @>F117,@EXECP7	Save page 7
+	MOVB @H13,@>F117	Map in page >13
+	LI   R1,>F208		Start of command buffer
+	MOVB @H00,*R1+		Start with a zero
+
+EXEC1	EQU  $
+	MOVB @EXECP7,@>F117	GET MY PAGE 7 BACK
+	MOVB *R0+,R2		GET BYTE
+	MOVB @H13,@>F117	MAP IN PAGE >13
+	MOVB R2,*R1+
+	JNE  EXEC1
+*
+
+	MOVB @H20,@-1(R1)	Yes, Add a space
+	MOVB @H00,*R1		Add a NULL
+
+	MOV  @>F110,@>F200	Save memory map
+	MOV  @>F112,@>F202	Ditto
+	MOV  @>F114,@>F204	Ditto
+	MOV  @>F116,@>F206	Ditto
+
+	LI   R0,EXEC4		Start of routine
+	LI   R2,>F300		Destination
+EXEC2	MOV  *R0+,*R2+		Move a word
+	CI   R0,EXEC7		Done?
+	JLE  EXEC2		No, Move another
+
+	BLWP @EXEC3		Yes, Execute command
+	MOVB @EXECP7,@>F117	Restore page 7
+*
+	LI   R0,REGSAV		RESTORE >F040 TO >F07F
+	LI   R1,>F040
+	LI   R2,32
+CLIP7Q	EQU  $
+	MOV  *R0+,*R1+		MOVE A WORD
+	DECT R2
+	JNE  CLIP7Q		BRIF MORE
+*
+CLIRTN	EQU  $
+	MOV  @TEMPS,R3		RESTORE BASE
+	MOV  @TEMPS+2,R11	RESTORE RETURN
+	B    *R11
+
+
+EXEC3	DATA >F160,>F300	Subroutine vector
+
+EXEC4	LIMI 0			No interrupts
+	CLR  R0			Page zero
+	MOV  R0,@>F110		Map system header at >2000
+	MOVB @>1B03,@>F110	Map in CLI header at >0000
+	LI   R0,>ECEC		Special flag
+	C    @>0402,R0		MDOS 1.14 or higher?
+	JNE  EXEC6		No, Return
+
+	MOV  @>0404,R3		Get vector address
+	MOV  @>0114,@>F110	Map in CLI
+	MOV  @>0116,@>F112	Ditto
+	MOV  @>0118,@>F114	Ditto
+	MOVB @>011A,@>F116	Ditto
+	LI   R0,>FE00		State byte
+	MOVB R0,@>0102		Put CLI on hold
+	LI   R1,>F209		Start of command
+	MOV  @2(R13),R2		End of command
+	BLWP *R3		Execute command
+
+	MOVB @>F200,@>F111	Map in our header @>2000
+	LI   R1,>211C		Environment table
+EXEC5	MOV  @>E000(R1),*R1+	Save a word
+	CI   R1,>2400		Done yet?
+	JL   EXEC5		No, Keep saving
+
+	MOV  @>F200,@>F110	Restore memory map
+	MOV  @>F202,@>F112	Ditto
+	MOV  @>F204,@>F114	Ditto
+	MOVB @>F206,@>F116	Ditto
+	CLR  *R13		No errors
+	RTWP			Return
+
+EXEC6	MOV  @>F200,@>F110	Restore pages 0 and 1
+	SETO *R13		Indicate error
+EXEC7	RTWP			Return
+*
+TEMPS	BSS  6			4 SCRATCH + ARG
+
+H00	BYTE >00		NULL
+H13	BYTE >13		Exec page
+H20	BYTE >20		Space character
+
+EXECP7	BYTE 0			Saved page for EXEC routine
+	EVEN
+REGSAV	BSS  32			SAVE FOR >F040 TO >F07F
+	END

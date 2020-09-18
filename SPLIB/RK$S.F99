@@ -1,0 +1,23 @@
+	real function rk$(r1,k2)
+c
+c  RK$:  Single Precision Argument with Integer *1 Exponent
+c
+c  Change History:
+c
+c  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+c  17-Jul-89    v4.4   changes
+c
+	integer *1 k2
+c
+	i2 = k2
+	rk$ = 1.0		! assume result
+	if ( i2 .eq. 0 ) return	! done if exponent = 0
+	if ( r1 .eq. 0.0 .and. i2 .lt. 0 ) then
+	  rk$ = 1.0e99		! error result
+	else
+	  j = iabs(i2)		! get absolute exponent
+	  do 4 k=1,j
+4	  rk$ = rk$ * r1	! compute result
+	  if ( i2 .lt. 0 ) rk$ = 1.0 / rk$
+	endif
+	end

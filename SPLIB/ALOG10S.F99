@@ -1,0 +1,11 @@
+      REAL FUNCTION ALOG10(X)
+      DOUBLE PRECISION DLOG10,DBLE
+C
+C  ALOG10:  Single Precision Base 10 Logorithm
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      ALOG10=SNGL(DLOG10(DBLE(X)))
+      END

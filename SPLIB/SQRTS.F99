@@ -1,0 +1,11 @@
+      REAL FUNCTION SQRT(X)
+C
+C  SQRT:  Single Precision Square Root Function
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      DOUBLE PRECISION DSQRT,DBLE
+      SQRT=SNGL(DSQRT(DBLE(X)))
+      END

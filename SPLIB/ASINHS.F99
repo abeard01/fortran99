@@ -1,0 +1,11 @@
+      REAL FUNCTION ASINH(X)
+C
+C  ASINH:  Single Precision Hyperbolic Sine Function
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      DOUBLE PRECISION DASINH,DBLE
+      ASINH=SNGL(DASINH(DBLE(X)))
+      END

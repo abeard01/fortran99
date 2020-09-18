@@ -1,0 +1,11 @@
+      REAL FUNCTION SIN(X)
+C
+C  SIN:  Single Precision SINE function
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      DOUBLE PRECISION DSIN,DBLE
+      SIN=SNGL(DSIN(DBLE(X)))
+      END

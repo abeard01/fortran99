@@ -1,0 +1,11 @@
+      REAL FUNCTION ALOG(X)
+      DOUBLE PRECISION DLOG10,DBLE
+C
+C  ALOG:  Single Precision Natural Logorithm Function
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      ALOG=SNGL(2.302585092994D0*DLOG10(DBLE(X)))
+      END

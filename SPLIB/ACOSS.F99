@@ -1,0 +1,11 @@
+      REAL FUNCTION ACOS(X)
+C
+C  ACOS: Single Precision Arc Cosine algorithm
+C
+C  Change History:
+C
+C  26-Dec-89    V4.4   Initial Release (suggested by Elmer)
+C
+      DOUBLE PRECISION DARCOS,DBLE
+      ACOS=SNGL(DARCOS(DBLE(X)))
+      END

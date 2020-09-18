@@ -1,0 +1,6 @@
+assign mob: sys:fortran/math
+assign li:  sys:fortran/listings
+assign equates: sys:fortran/equates
+a99 -pc -omob:aint     -lli:aints      aints
+a99 -pc -omob:amima0   -lli:amima0s    amima0s
+a99 -pc -omob:amima1   -lli:amima1s    amima1s

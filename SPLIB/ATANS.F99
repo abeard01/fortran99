@@ -1,0 +1,11 @@
+      REAL FUNCTION ATAN(X)
+C
+C  ATAN:  Single Precision ARC Tangent Function
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      DOUBLE PRECISION DATAN,DBLE
+      ATAN=SNGL(DATAN(DBLE(X)))
+      END

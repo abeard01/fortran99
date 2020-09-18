@@ -1,0 +1,84 @@
+	TITL  'AINT - Return D.P. INTEGER PART'
+	IDT   'AINT'
+*
+*  AINT:  Double Precision Truncation Function AINT(X)
+*	  Returns S.P. INT for S.P. Argument
+*
+*  Revision History:
+*
+*  31-Jun-1987  A.Beard   Routine from Elmer Clausen.  Modified slightly
+*			  to improve efficiency.
+*
+*  09-Sep-1988  A.Beard   MDOS version
+*
+*
+	DEF  AINT
+*
+AINT	EQU  $
+	DATA -1			1 ARGUMENT
+	DATA BASEAD		TEMP DATA AREA
+	MOV  @X,R1		ADDRESS OF ARGUMENT X
+	MOV  *R1+,R5		GET VALUE
+	MOV  *R1,R6
+	CLR  R7
+	CLR  R8
+	CLR  R1
+	C    R5,R1		X = 0 ?
+	JEQ  EXIT		BRIF YES, I'M DONE
+	MOV  R5,R0		GET FIRST WORD
+	ABS  R0
+	SWPB R0			>MAKE EXPONENT
+	MOVB R1,R0		>     WORD
+	AI   R0,-63		EXPONENT + 1
+	JGT  D2			EXPONENT < 0, BRIF NO
+	MOV  R1,R5		  FAC=0
+	JMP  EXIT
+D2	EQU  $
+	STWP R2			DETERMINE ADDRESS OF R6
+	AI   R2,12
+	DEC  R0
+	JEQ  E0			EXPONENT = 0
+*
+	INC  R2
+	DEC  R0
+	JEQ  E1			EXPONENT = 1
+*
+	INC  R2
+	DEC  R0
+	JEQ  E2			EXPONENT = 2
+*
+	INC  R2
+	DEC  R0	
+	JEQ  E3			EXPONENT = 3
+*
+	INC  R2
+	DEC  R0
+	JEQ  E4			EXPONENT = 4
+*
+	INC  R2
+	DEC  R0
+	JEQ  E5			EXPONENT = 5
+	JMP  EXIT
+*
+E0	EQU  $
+	MOVB R1,*R2+
+E1	EQU  $			>
+	MOVB R1,*R2+		>
+E2	EQU  $			>  POKE ZERO
+	MOVB R1,*R2+		>  INTO TRAILING
+E3	EQU  $			>  BYTES
+	MOVB R1,*R2+		>
+E4	EQU  $			>
+	MOVB R1,*R2+		>
+E5	EQU  $			>
+	MOVB R1,*R2		>
+EXIT	EQU  $
+	MOV  @BASEAD,R3		RESTORE BASE
+	MOV  R5,R5		SET STATUS OF COMPARE
+	B    *R11		AND RETURN
+*
+BASEAD	BSS  2			CALLER'S BASE ADDRESS
+RETUAD  BSS  2			RETURN ADDRESS
+X	BSS  2			ARGUMENT ADDRESS
+*
+	END

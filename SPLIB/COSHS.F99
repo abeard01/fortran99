@@ -1,0 +1,11 @@
+      REAL FUNCTION COSH(X)
+C
+C  COSH:  Single Precision Hyperbolic Cosine
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      DOUBLE PRECISION DCOSH,DBLE
+      COSH=SNGL(DCOSH(DBLE(X)))
+      END

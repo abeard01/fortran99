@@ -1,0 +1,67 @@
+       TITL 'Single Precision MAXIMUM routine'
+       IDT  'AMAMI0'
+****************************************************
+* AMAX0 FORTRAN FUNCTION IN ASSY , 10 MAX ARGS
+****************************************************
+*
+*  Change History:
+*
+*  07-August-87   Version 3.0    Version from Elmer Clausen.  Various
+*			         changes made to streamline & reduce
+*				 code requirements.  Title and IDNT
+*				 added.  Added call to CIF to reduce
+*				 code requirements.
+*
+*  09-Sept-1988   Version 4.0    MDOS compatibility.
+*
+	DEF  AMAX0
+	DEF  AMIN0
+*
+	REF  IACVT$		CONVERT INTEGER TO FLOATING POINT
+*
+AMIN0	EQU  $
+	DATA -10		10 ARGUMENTS
+	DATA BASEAD		BASE ADDRESS
+	SETO R4			TAKE MINIMUM FLAG
+	JMP  ACONT
+*
+AMAX0	EQU  $
+	DATA -10		10 ARGUMENTS
+	DATA BASEAD		TEMP DATA ADDRESS
+	CLR  R4			TAKE MAXIMUM FLAG
+ACONT	EQU  $
+	LI   R0,9		1 + 9 ARGUMENTS
+	LI   R1,IVAL		TABLE ADDRESS (INTEGER ARGS)
+	MOV  *R1+,R5		FIRST DATA ADDRESS
+	MOV  *R5,R5		STARTING VALUE
+L1	EQU  $
+	MOV  *R1+,R2		NEXT VALUE ADDRESS
+	JEQ  EXIT		IF LAST, EXIT
+	MOV  *R2+,R2		PRESENT VALUE MAXIMUM?
+	MOV  R4,R4		GET SENSE OF COMPARE
+	JEQ  L1MAX
+	C    R5,R2		DOING MIN0
+	JLT  L2
+	MOV  R2,R5
+	JMP  L2
+L1MAX	EQU  $
+	C    R5,R2		DOING MAX0
+	JGT  L2			IF YES, CONTINUE
+	MOV  R2,R5		NEW MAXIMUM VALUE
+L2	EQU  $
+	DEC  R0			LAST TEST VALUE?
+	JNE  L1			BRIF NO, TRY AGAIN
+*
+* MAXIMUM INTEGER VALUE NOW IN R5.  CONVERT TO F.P. BEFORE RETURNING
+*
+EXIT	EQU  $
+	BL   @IACVT$		CONVERT TO SINGLE PRECISION
+	MOV  @BASEAD,R3		RESTORE BASE
+	MOV  @RETUAD,R11	RESTORE RETURN
+	MOV  R5,R5		SET STATUS
+	B    *R11		AND RETURN
+*
+BASEAD	BSS 2			TEMP DATA ADDRESS
+RETUAD	BSS 2			RETURN ADDRESS
+IVAL	BSS 20			10 ADDRESSES OF ARGUMENTS
+	END

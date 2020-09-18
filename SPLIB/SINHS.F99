@@ -1,0 +1,11 @@
+      REAL FUNCTION SINH(X)
+C
+C  SINH:  Single Precision Hyperbolic Sine Function
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      DOUBLE PRECISION DSINH,DBLE
+      SINH=SNGL(DSINH(DBLE(X)))
+      END

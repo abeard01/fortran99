@@ -1,0 +1,13 @@
+      REAL FUNCTION AMOD(X1,X2)
+C
+C  AMOD:  Single Precision Modulo Function
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      DOUBLE PRECISION DBLE,DINT,D1,D2
+      D1=DBLE(X1)
+      D2=DBLE(X2)
+      AMOD=SNGL(D1-DINT(D1/D2)*D2)
+      END

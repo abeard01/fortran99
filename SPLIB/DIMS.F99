@@ -1,0 +1,14 @@
+      REAL FUNCTION  DIM(X1,X2)
+C
+C  DIM:  Single Precision Positive Difference Function
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      IF(X2-X1)1,2,2
+1     DIM=X1-X2
+      GO TO 3
+2     DIM=0.0
+3     CONTINUE
+      END

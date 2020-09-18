@@ -1,0 +1,11 @@
+      REAL FUNCTION EXP(X)
+C
+C  EXP:  Single Precision Natural Exponential 
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      DOUBLE PRECISION DEXP,DBLE
+      EXP=SNGL(DEXP(DBLE(X)))
+      END

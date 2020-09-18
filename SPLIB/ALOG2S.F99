@@ -1,0 +1,11 @@
+      REAL FUNCTION ALOG2(X)
+      DOUBLE PRECISION DLOG10,DBLE
+C
+C  ALOG2:  Single Precision Binary Logorithm Function
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      ALOG2=SNGL(3.321928094888D0*DLOG10(DBLE(X)))
+      END

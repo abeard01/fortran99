@@ -1,0 +1,11 @@
+      REAL FUNCTION EXP2(X)
+C
+C  EXP2:  Single Precision Binary Exponential Function
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      DOUBLE PRECISION DEXP,DBLE
+      EXP2=SNGL(DEXP(0.6931471805599D0*DBLE(X)))
+      END

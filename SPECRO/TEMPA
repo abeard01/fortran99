@@ -1,0 +1,5 @@
+assign ob: fast:fortran/nonmath
+assign li: fast:fortran/listings
+assign equates: fast:fortran/equates
+assign FORTPAR: fast:fortran/equates/mdosfortpar.eq9
+a99 -pc -oob:cli     -lli:cli       clis

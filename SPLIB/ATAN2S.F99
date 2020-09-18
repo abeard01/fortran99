@@ -1,0 +1,11 @@
+      REAL FUNCTION ATAN2(Y,X)
+C
+C  ATAN2:  4 QUADRANT ARCTAN FUNCTION OF (Y,X)
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      DOUBLE PRECISION DATAN2,DBLE
+      ATAN2=SNGL(DATAN2(DBLE(Y),DBLE(X)))
+      END

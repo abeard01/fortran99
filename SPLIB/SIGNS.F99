@@ -1,0 +1,16 @@
+      REAL FUNCTION SIGN(X1,X2)
+C
+C  SIGN:  Single Precision Transfer of Sign
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+C ABSOLUTE VALUE
+      X=ABS(X1)
+      IF(X2)1,2,2
+1     SIGN=-X
+      GO TO 3
+2     SIGN=X
+3     CONTINUE
+      END

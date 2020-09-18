@@ -1,0 +1,20 @@
+	real function rd$(r1,d2)
+c
+c  RD$:  Single Precision Argument with Double Precision Exponent
+c
+c  Change History:
+c
+c  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+c  17-July-89   v4.4   add cases for **2 & **3
+c
+	double precision d2,dexp,dlog,dble
+	if ( r1 .le. 0.0 ) then
+	  rd$ = 1.0e99
+	else if ( d2 .eq. 2.0d0 ) then
+	  rd$ = r1 * r1
+	else if ( d2 .eq. 3.0d0 ) then
+	  rd$ = r1 * r1 * r1
+	else
+	  rd$ = dexp(d2*dlog(dble(r1)))
+	endif
+	end

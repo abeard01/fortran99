@@ -1,0 +1,11 @@
+      REAL FUNCTION ACOSH(X)
+C
+C  ACOSH:  Single Precision Hyperbolic Cosine
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      DOUBLE PRECISION DACOSH,DBLE
+      ACOSH=SNGL(DACOSH(DBLE(X)))
+      END

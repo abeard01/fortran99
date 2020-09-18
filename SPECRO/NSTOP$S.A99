@@ -1,0 +1,60 @@
+	TITL 'FORTRAN STOP OR STOP WITH NUMBER'
+	IDT  'NSTOP$'
+*
+*  NSTOP$  :  RETURN TO MDOS
+*
+*  THIS VERSION OPERATES PROPERLY WITH BOTH MDOS AND GPL VERSIONS.
+*
+*  Update History:
+*
+*    09-Dec-1988   Version 4.1   Initial Creation
+*    22-May-1989   Version 4.4   Updated for new FORTRAN Equates file
+*    19-Jul-1989   Version 4.41  Changed FORTPAR reference
+*    28-Oct-1989   Version 4.42  Fixed integer print
+*    04-Jan-1990   Version 4.43  Save return for DEBUG display
+*
+*  Copyright 1989 by LGMA Products
+*
+	DEF  NSTOP$		NUMBERED STOP ENTRY
+*
+*  EQUATES:
+*
+	COPY "FORTPAR:"
+	UNL
+	COPY "EQUATES:FORTEX.EQ9"
+	COPY "EQUATES:FORTIO.EQ9"
+	LIST
+*
+NSTOP$	EQU  $
+	MOV  R11,R12		SAVE RETURN FOR DEBUG DISPLAY
+	BLWP *R10		START I/O TRANSFER
+	DATA STARTI
+	DATA >9800
+	DATA CRTOP
+	DATA STOPMS		STOP MESSAGE FORMAT
+*
+	MOV  *R11+,@STOPVA	STOP VALUE
+	BLWP *R10
+	DATA SCLRIO+>0000	SCALAR I/O (+ integer *2 variable index)
+	DATA STOPVA		STOP VALUE
+*
+	BLWP *R10
+	DATA STOPIO
+	IF   GENEVE
+	B    @RMENU$(R10)
+	ELSE
+	BLWP @CWAIT$
+	B    @CMENU$
+	ENDIF
+*
+*  STOP MESSAGE:
+*
+STOPMS	EQU  $
+	IFEQ GENEVE
+	TEXT "(' * 99 FORTRAN Stop',I6)"
+	ELSE
+	TEXT "(' * 9640 FORTRAN Stop',I6)"
+	ENDIF
+	EVEN
+STOPVA	BSS  2
+	END

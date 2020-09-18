@@ -1,0 +1,11 @@
+      REAL FUNCTION TANH(X)
+C
+C  TANH:  Single Precision Hyperbolic Tangent
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      DOUBLE PRECISION DTANH,DBLE
+      TANH=SNGL(DTANH(DBLE(X)))
+      END

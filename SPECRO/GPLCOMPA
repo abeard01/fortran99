@@ -1,0 +1,25 @@
+assign ob: fast:fortran/gnonmath
+assign li: fast:fortran/glistings
+assign equates: fast:fortran/equates
+assign FORTPAR: fast:fortran/equates/gplfortpar.eq9
+a99 -pc -oob:amath$  -lli:amath$s   amath$s
+a99 -pc -oob:call$   -lli:call$s    call$s
+a99 -pc -oob:ccvtf$  -lli:ccvtf$s   ccvtf$s
+a99 -pc -oob:ccvti$  -lli:ccvti$s   ccvti$s
+a99 -pc -oob:ccvtj$  -lli:ccvtj$s   ccvtj$s
+a99 -pc -oob:cdiv$   -lli:cdiv$s    cdiv$s
+a99 -pc -oob:cmisc$  -lli:cmisc$s   cmisc$s
+a99 -pc -oob:check$  -lli:check$s   check$s
+a99 -pc -oob:cgtex$  -lli:cgtex$s   cgtex$s
+a99 -pc -oob:cmath$  -lli:cmath$s   cmath$s
+a99 -pc -oob:cmul$   -lli:cmul$s    cmul$s
+a99 -pc -oob:cddiv$  -lli:cddiv$s   cddiv$s
+a99 -pc -oob:dmath$  -lli:dmath$s   dmath$s
+a99 -pc -oob:cdmath$ -lli:cdmath$s  cdmath$s
+a99 -pc -oob:cdmul$  -lli:cdmul$s   cdmul$s
+a99 -pc -oob:fcif$   -lli:fcif$s    fcif$s
+a99 -pc -oob:fcfi$   -lli:fcfi$s    fcfi$s
+a99 -pc -oob:jmath$  -lli:jmath$s   jmath$s
+a99 -pc -oob:nstop$  -lli:nstop$s   nstop$s
+a99 -pc -oob:pause$  -lli:pause$s   pause$s
+a99 -pc -oob:stop$   -lli:stop$s    stop$s
