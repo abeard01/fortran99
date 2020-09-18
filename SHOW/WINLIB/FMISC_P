@@ -1,0 +1,110 @@
+9640 and 99/4A Assembler
+                                                    Page 0001
+0001                         TITL   'FORTRAN INTERTASK COMMUNICATION SUPPORT ROUTINES'
+0002                         IDT    'FMISC'
+0003                 **
+0004                 ** call  awaken   ( pagezero )
+0005                 **   wakes the child task
+0006                 **
+0007                 ** call  sleep    ( pagezero )
+0008                 **   puts the child task to sleep
+0009                 **
+0010                 ** call forbid   ()
+0011                 **   forbid multi-tasking
+0012                 **
+0013                 ** call allow    ()
+0014                 **   allow  multi-tasking
+0015                 **
+0016                 ** integer function identt ( dummy )
+0017                 **   Returns the page number of the parent task (from >e8 in page0)
+0018                 **
+0019                 ** (c) Copyright 1993 by LGMA Products
+0020                 **
+0021 0000   002A             DEF  FORBID             ; FORBID TASK FROM RUNNING
+0022 0000   0040             DEF  ALLOW              ; ALLOW TASK TO RUN
+0023 0000   0018             DEF  IDENTT             ; IDENTIFY THE PARENT TASK
+0024 0000   0000             DEF  IDENTP             ; IDENTIFY MY PAGE ZERO TASK
+0025                 **
+0026                         UNL
+0068                 *
+0069                 *  PAGE ZERO TASK EQUATES AND OTHERS
+0070                 *
+0071 0000   00E8     COTASK  EQU  >00E8              ; PARENT TASK PAGE NUMBER
+0072 0000   0102     STATE   EQU  >0102              ; COMMAND PROCESS STATE
+0073 0000   0103     SLICE   EQU  >0103              ; SET SLICE OF LIFE
+0074 0000   0104     PNAME   EQU  >0104              ; NAME OF THIS TASK
+0075 0000   0008     PLENGTH EQU  8                  ; # CHARS IN TASK NAME
+9640 and 99/4A Assembler
+FORTRAN INTERTASK COMMUNICATION SUPPORT ROUTINES    Page 0002
+0076 0000   F110     MMRREG  EQU  >F110              ; MEMORY MAP REGISTERS
+0077                 *
+0078                 ** PROCESS STATES
+0079                 *
+0080 0000   0000     ACTIVE  EQU  >0000              ; ACTIVE TASK PROCESS STATE
+0081 0000   FD00     SLEEPY  EQU  >FD00              ; TASK IS ASLEEP
+0082 0000   FE00     LOCKMU  EQU  >FE00              ; LOCKED MULTITASKING
+0083                 **
+0084                 ** IDENTIFYPAGE - IDENTIFY MY PAGE ZERO NUMBER
+0085                 **
+0086                 IDENTP
+0087 0000   0000             DATA 0
+0088 0002   0056'            DATA BASEAD             ; TEMPS AREA
+0089 0004   04C8             CLR  R8
+0090 0006   D220             MOVB @MMRREG,R8         ; GET MY PAGE ZERO NUMBER
+0090 0008   F110      
+0091 000A   06C8             SWPB R8
+0092 000C   C0E0             MOV  @BASEAD,R3
+0092 000E   0056'     
+0093 0010   C2E0             MOV  @RETUAD,R11
+0093 0012   0058'     
+0094 0014   C148             MOV  R8,R5
+0095 0016   045B             B    *R11
+0096                 *
+0097                 ** IDENTIFYPARENT - IDENTIFY THE PARENT TASK PAGE 0 ADDRESS
+0098                 **
+0099                 IDENTT
+0100 0018   FFFF             DATA -1                 ; ONE DUMMY ARGUMENT
+0101 001A   0056'            DATA BASEAD
+0102 001C   C0E0             MOV  @BASEAD,R3
+0102 001E   0056'     
+0103 0020   C2E0             MOV  @RETUAD,R11
+0103 0022   0058'     
+0104 0024   C160             MOV  @COTASK,R5         ; GET COTASK ID
+0104 0026   00E8      
+0105 0028   045B             B    *R11
+0106                 **
+0107                 ** FORBID - FORBID MULTI-TASKING
+0108                 **
+0109                 FORBID
+0110 002A   0000             DATA 0
+0111 002C   0056'            DATA BASEAD
+0112 002E   0200             LI   R0,LOCKMU          ; LOCK MULTI-TASKING
+0112 0030   FE00      
+0113 0032   D800             MOVB R0,@STATE
+0113 0034   0102      
+0114 0036   C0E0             MOV  @BASEAD,R3
+0114 0038   0056'     
+0115 003A   C2E0             MOV  @RETUAD,R11
+0115 003C   0058'     
+0116 003E   045B             B    *R11
+0117                 **
+0118                 ** ALLOW  - ALLOW MULTI-TASKING
+0119                 **
+0120                 ALLOW
+0121 0040   0000             DATA 0
+0122 0042   0056'            DATA BASEAD
+0123 0044   0200             LI   R0,ACTIVE
+0123 0046   0000      
+0124 0048   D800             MOVB R0,@STATE          ; ALLOW MULTI-TASKING
+0124 004A   0102      
+0125 004C   C0E0             MOV  @BASEAD,R3
+0125 004E   0056'     
+0126 0050   C2E0             MOV  @RETUAD,R11
+0126 0052   0058'     
+0127 0054   045B             B    *R11
+0128                 *
+0129 0056   0000     BASEAD  BSS  2
+0130 0058   0000     RETUAD  BSS  2
+0131 005A   0000     ARG1    BSS  2
+0132                 *
+0133                         END

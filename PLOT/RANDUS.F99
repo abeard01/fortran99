@@ -1,0 +1,17 @@
+      INTEGER*4 IX
+      REAL*8 Y
+      IX=12345
+      DO 1 I=1,20
+      CALL RANDU(IX,Y)
+1     WRITE(9,1000)IX,Y
+1000  FORMAT(1X,I15,F15.7)
+      END
+      SUBROUTINE RANDU(IX,Y)
+      INTEGER*4 IX
+      REAL*8 Y
+      IX=IX*65539
+      IF(IX)5,6,6
+    5 IX=IX+2147483647+1
+    6 Y=IX
+      Y=Y*0.4656613D-9
+      END

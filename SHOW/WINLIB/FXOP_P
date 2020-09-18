@@ -1,0 +1,81 @@
+9640 and 99/4A Assembler
+                                                    Page 0001
+0001                         TITL  'XOP - Call a user defined XOP '
+0002                         IDT   'XOPR'
+0003                 *
+0004                 *  XOP - Calls a User Defined XOP from C
+0005                 *
+0006                 *  Calling Sequence:
+0007                 *
+0008                 *          result = xop ( xop#, register_list )
+0009                 *
+0010                 *  where:
+0011                 *
+0012                 *          xop#              -  is the xop number to call
+0013                 *          register_list     -  is pointer to an 8 word array that
+0014                 *                               contains registers 0 to 7.
+0015                 *
+0016                 *  returns the register list 0-7; and r8 contains the return status
+0017                 *  as follows:
+0018                 *
+0019                 *         r8 = 0;           jeq return
+0020                 *         r8 = 1;           jne return
+0021                 *
+0022                 *
+0023 0000   0000             DEF  XOP
+0024                 *
+0025 0000   0000     XOP     EQU  $
+0026 0000   FFFE             DATA -2                         ; 2 ARGUMENTS
+0027 0002   004E'            DATA BASEAD
+0028                 *
+0029 0004   C220             MOV  @ARG2,R8                   ; GET 2ND ARGUMENT POINTER
+0029 0006   0054'     
+0030 0008   C038             MOV  *R8+,R0
+0031 000A   C078             MOV  *R8+,R1
+0032 000C   C0B8             MOV  *R8+,R2
+0033 000E   C0F8             MOV  *R8+,R3
+0034 0010   C138             MOV  *R8+,R4
+0035 0012   C178             MOV  *R8+,R5
+0036 0014   C1B8             MOV  *R8+,R6
+0037 0016   C1F8             MOV  *R8+,R7                    ; GET 8 REGISTERS
+0038                 *
+0039 0018   C220             MOV  @ARG1,R8                   ; GET XOP # TO EXECUTE
+0039 001A   0052'     
+0040 001C   C818             MOV  *R8,@DEFXOP                ; SAVE XOP #
+0040 001E   004C'     
+0041                 *
+0042 0020   2C20             XOP  @DEFXOP,0          ; PERFORM XOP
+0042 0022   004C'     
+0043 0024   04C9             CLR  R9                 ; ASSUME NORMAL RETURN
+0044 0026   1302             JEQ  DEFRET             ; OK
+0045 0028   0209             LI   R9,1
+0045 002A   0001      
+0046                 *
+0047                 *  SAVE RESULTS
+0048                 *
+0049 0000   002C     DEFRET  EQU  $
+0050 002C   C220             MOV  @ARG2,R8                   ; GET REGISTERS
+0050 002E   0054'     
+0051 0030   CE00             MOV  R0,*R8+
+0052 0032   CE01             MOV  R1,*R8+
+0053 0034   CE02             MOV  R2,*R8+
+0054 0036   CE03             MOV  R3,*R8+
+0055 0038   CE04             MOV  R4,*R8+
+0056 003A   CE05             MOV  R5,*R8+
+0057 003C   CE06             MOV  R6,*R8+
+0058 003E   CE07             MOV  R7,*R8+
+0059 0040   C0E0             MOV  @BASEAD,R3
+0059 0042   004E'     
+0060 0044   C2E0             MOV  @RETUAD,R11
+0060 0046   0050'     
+0061 0048   C149             MOV  R9,R5
+0062 004A   045B             B    *R11
+0063                 *
+0064 004C   0000     DEFXOP  DATA 0                   ; XOP NUMBER
+0065 004E   0000     BASEAD  DATA 0
+0066 0050   0000     RETUAD  DATA 0
+0067 0052   0000     ARG1    DATA 0
+9640 and 99/4A Assembler
+XOP - Call a user defined XOP                       Page 0002
+0068 0054   0000     ARG2    DATA 0
+0069                         END

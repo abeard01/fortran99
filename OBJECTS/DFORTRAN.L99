@@ -1,0 +1,58 @@
+
+TI-99/4A & 9640 Loader Version 2.11 (24-Jul-1990)
+Copyright 1990 by LGMA Products
+> OPTION F,>0400
+> INCLUDE OBJ1.X99
+Processing module FORT1   , start 400, size 2704
+> INCLUDE OBJ3.X99
+Processing module FORT3   , start 2B04, size 2530
+> INCLUDE OBJ4.X99
+Processing module FORT4   , start 5034, size 97A
+> INCLUDE OBJ2.X99
+Processing module FORT2   , start 59AE, size 1C9A
+> INCLUDE OBJ7.X99
+Processing module VERS    , start 7648, size 30
+> INCLUDE OBJD.X99
+Processing module DEBUG   , start 7678, size B04
+> INCLUDE OBJ6.X99
+Processing module FORT6   , start 817C, size 78A
+> SAVE sys:fortran/execute/d9640,FORT1,F6EADR,>3E00
+Creating OUTPUT file sys:fortran/execute/d9640
+Creating OUTPUT file sys:fortran/execute/d9641
+Creating OUTPUT file sys:fortran/execute/d9642
+> END
+Symbol File (DEF entries)
+ Total Entries = 32
+    1  FORT1                            D  400
+    2  SC1PAB                           D  10B2
+    3  SC2PAB                           D  10CA
+    4  FOPT                             D  8FDA
+    5  IOABOR                           D  14DC
+    6  P1RETN                           D  129A
+    7  ILIST                            D  A84
+    8  CIO$                             D  818C
+    9  CSCRO$                           D  817C
+   10  CMDST$                           D  8194
+   11  FOPFIL                           D  527C
+   12  INIT$                            D  8184
+   13  CSCRI$                           D  8180
+   14  ENDL3                            D  8D2C
+   15  CTSCR$                           D  8188
+   16  FORT2                            D  59AE
+   17  FORT3                            D  2B04
+   18  CMENU$                           D  8360
+   19  DEBUG$                           D  7678
+   20  VERSNO                           D  764A
+   21  COPFI$                           D  8190
+   22  FIOC                             D  5280
+   23  KMBARS                           D  FFE1
+   24  GETWOR                           D  344C
+   25  GETWO2                           D  3410
+   26  PFXCTO                           D  8CFC
+   27  PEEPHO                           D  50BC
+   28  F4EADR                           D  59AE
+   29  FORT2E                           D  7648
+   30  FORT7E                           D  7678
+   31  CWAIT$                           D  8198
+   32  F6EADR                           D  8906
+ NO Unresolved references

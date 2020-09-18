@@ -1,0 +1,9 @@
+assign errors:   fast:fortran/errors
+assign listings: fast:fortran/listings
+assign objects:  fast:fortran/objects
+assign equates:  fast:fortran/equates
+date >now
+crever
+assign fortpar: sys:fortran/equates/mdosfortpar.eq9
+a99 >errors:fortran3 -oobjects:obj3 -llistings:fortran3 -pc fortran3
+date >end

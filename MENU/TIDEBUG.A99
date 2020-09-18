@@ -1,0 +1,1839 @@
+       TITL '*** TIBUG DEBUGGER FOR ASSEMBLER***'
+       IDT  'DEBUGGER'
+*----------------------------
+*      STAND ALONE DEBUGGER FOR THE EDITOR/ASSEMBLER
+*      MODIFIED TO OUTPUT TO THE HOME COMPUTER SCREEN
+*      MONITOR DEFINITIONS
+*      TI99/4  VERSION
+*  2-WORD BREAKPOINTS, FOR USE WITHOUT XOP
+*----------------------------
+	DEF  START
+	DEF  SEND
+START	EQU  $
+	B    @DEBUG
+       TEXT '(C) COPYRIGHT 1981 BY TEXAS INSTRUMENTS, INC.'
+ASRFLG EQU  0
+       EVEN
+MREGS  BSS  32 WORKSPACES
+IREGS  BSS  32 ASCII READ AND WRITE WORKSPACES
+XREGS  BSS  32 OTHER I/O WORKSPACES
+BPBUFF BSS  64
+BUFEND EQU  $
+       BSS  4
+VREGS  BSS  32 VDP ROUTINES WORKSPACE
+SCROS  BSS  2  SCREEN OFFSET FOR BASIC
+SADDR  BSS  2  VDP SCREEN ADDRESS
+SWIDTH BSS  2  VDP SCREEN WIDTH
+INTER  BSS  2  SAVE INTERRUPT LEVEL
+TSCROS DATA 0  TEMP SCROS
+TSADDR DATA 0  TEMP SADDR
+TWIDTH DATA 0  TEMP SCREEN WIDTH
+BPXOP  DATA 0
+LINB   DATA 0
+LIND   DATA 0
+CPUBUF BSS  40 STORAGE FOR VDP ROUTINES
+BUFLEN EQU  $-MREGS/2  LENGTH OF BUFFER TO INITILIZE
+VSCREN BSS  40*24 TEMP SCREEN BUFFER
+VSCEND EQU  $
+TRACE  EQU  >13C0 SINGLE STEP CRU BIT
+RX     EQU  MREGS+>2A  X BIAS      IREGS   R5
+RY     EQU  MREGS+>2C  Y BIAS      IREGS   R6
+RZ     EQU  MREGS+>2E  Z BIAS      IREGS   R7
+ASR    EQU  MREGS+>30  ASR FLAG    IREGS   R8
+TFLAG  EQU  MREGS+>32  TFLAGLAG    IREGS   R9
+BPOINT EQU  MREGS+>34  BREAKPOINT BUFFER POINTER  IREGS   R10
+DUMPFG EQU  MREGS+>36  DUMP FLAG   IREGS   R11
+MREGS4 EQU  MREGS+4
+MREGWP EQU  MREGS+26
+MREG1A EQU  MREGS+>1A
+MREG32 EQU  MREGS+32
+       PAGE
+VDPWA  EQU  >8C02 VDP WRITE ADDRESS
+VRD    EQU  >8800-VDPWA           VDP READ DATA
+VWD    EQU  >8C00-VDPWA           VDP WRITE DATA
+VRS    EQU  >8802-VDPWA           VDP READ STATUS
+GROMRD EQU  >9800 GROM DATA READ AND WRITE LOCATION
+GWD    EQU  >9C00-GROMRD
+GWA    EQU  >9C02-GROMRD GROM ADDRESS READ AND WRITE LOCATION
+GFLAG1 EQU  MREGS+74  GROM FLAG #1  XREGS   R5  MSBy
+GFLAG2 EQU  MREGS+76  GROM FLAG #2  XREGS   R6  MSBy
+VFLAG1 EQU  MREGS+75  VDP  FLAG #1  XREGS   R5  LSBy
+VFLAG2 EQU  MREGS+77  VDP  FLAG #2  XREGS   R6  LSBy
+BPFLG  EQU  MREGS+78  FLAG TO LOAD BP VECTORS
+GREG   EQU  9
+VREG   EQU  10
+GREGL  EQU  2*GREG+XREGS
+VREGL  EQU  2*VREG+XREGS
+VDPRD  EQU  >8800
+VDPRS  EQU  >8802
+VDPWD  EQU  >8C00
+ESCAP  EQU  >0A00 SHIFT 'X'
+XOPVEC EQU  >44   XOP 1
+XOPVAL DATA >FFD8 XOP 1 WS
+XOP1   DATA >2C40 XOP 1 INSTRUCTION
+TEXTM  DATA 0     FLAG FOR TEXT MODE
+SAVEWS BSS  32    SAVE GPLWS HERE
+SRSAVE DATA 0     SAVE GPLR11 FOR KEYSCAN ROUTINE
+RSAVE  EQU >83D8
+       PAGE
+* * * * * * * * * * * * * * * * * * * * * *
+*                                         *
+*           COMMAND SEARCH                *
+*                                         *
+* * * * * * * * * * * * * * * * * * * * * *
+VALUE  EQU  0
+TCHAR  EQU  1
+MINUS  EQU  1  HEX
+OPOINT EQU  1  I/O
+STARTA EQU  2
+BUFFER EQU  2  I/O
+STOPA  EQU  3
+MPY1   EQU  3  HEX
+OCOUNT EQU  3  I/O
+BITCNT EQU  3  CRU
+KEY    EQU  4
+MPY2   EQU  4  HEX
+BIAS   EQU  4  I/O
+NCOUNT EQU  4
+COUNT  EQU  5
+MDIV1  EQU  5  HEX
+ICOUNT EQU  6
+MDIV2  EQU  6  HEX
+CHAR   EQU  7
+ZEROFG EQU  7  HEX
+WORDFG EQU  7  CRU
+POINT  EQU  8
+XEC    EQU  8  CRU
+REG    EQU  9
+TEMP   EQU  10
+CRUBAS EQU  12
+GPOINT EQU  12 I/O
+WP     EQU  13
+PC     EQU  14
+       PAGE
+WARM   BLWP @LOADV       WARM START ENTRY POINT
+       NOP
+READ   DATA VREGS,READ1  READ ASCII VECTOR
+LOADV  DATA MREGS,LOAD   ENTRY VECTOR
+WRIT   DATA VREGS,WRIT1  WRITE ASCII VECTOR
+MESG   DATA XREGS,MESG1  MESSAGE OUTPUT VECTOR
+RHEX   DATA XREGS,RHEX1  HEX INPUT VECTOR
+WHX1   DATA XREGS,WHX1A  HEX OUTPUT (ONE CHARACTER) VECTOR
+WHEX   DATA XREGS,WHEXA  HEX OUTPUT (FOUR CHARACTERS) VECTOR
+ECHO1  B    @ECHO   ECHO CHARACTER VECTOR
+INITL  B    @LD     COLD START ENTRY
+BPNT   B    @BPXOP        BREAKPOINT ENTRY
+WHX2   DATA XREGS,WHX2A   HEX OUTPUT (TWO CHARACTERS)
+GETFR  DATA XREGS,GETFRA  GET DATA FROM 'FROM' LOCATION
+GETTO  DATA XREGS,GETTOA  GET DATA FROM 'TO' LOCATION
+PUTFR  DATA XREGS,PUTFRA  PUT DATA TO 'FROM' LOCATION
+PUTTO  DATA XREGS,PUTTOA  PUT DATA TO 'TO' LOCATION
+THREE  DATA >3
+*
+       PAGE
+MONTOP EQU $
+MON010 LWPI MREGS   OUTPUT PROMPT
+       LIMI 0
+       LI   VALUE,PROMPT
+       BLWP @MESG
+       CLR  STARTA
+       CLR  STOPA
+       CLR  KEY
+       CLR  COUNT
+       CLR  ICOUNT
+       CLR  @VFLAG1-1
+       CLR  @VFLAG2-1
+       CLR  @GFLAG1
+       CLR  @GFLAG2
+       BL   @ECHO    GET CHARACTER
+       MOV  VALUE,CHAR   SAVE CHARACTER
+       LI   VALUE,SPACE1 OUTPUT SPACE
+       BLWP @MESG
+       LI   POINT,TABLE1-3  LOAD POINTER
+SRCH   AI   POINT,3
+       MOV  *POINT,TEMP     NO MATCH FOUND?
+       JEQ  ERR4  ERROR
+       CB   *POINT+,CHAR    MATCH?
+       JNE  SRCH  NO, JUMP BACK
+       MOVB *POINT+,ICOUNT  GET NUMBER OF ENTRIES
+       MOV  *POINT,POINT    GET BRANCH ADDRESS
+       SWPB ICOUNT ALIGN COUNT
+       LI   REG,MREGS4      LOAD REGISTER POINTER
+       INC  ICOUNT          ALIGN COUNT
+INLOOP DEC  ICOUNT          DONE?
+       JNE  HEXIN NO, WAIT FOR NEXT INPUT
+CEXIT  B    *POINT         BRANCH TO ROUTINE
+HEXIN  BLWP @RHEX HEX INPUT
+       DATA NULL,ERR2
+       MOV  VALUE,*REG+       LOAD REGISTER
+CNT    INC  COUNT
+       CI   TCHAR,>0D00  END OF INPUT
+       JEQ  CEXIT   BRANCH TO ENTRY POINT
+       JMP INLOOP   WAIT FOR INPUT
+       PAGE
+NULL   INCT REG
+       CI   TCHAR,>0D00  NO INPUT?
+       JEQ  CEXIT   YES, BRANCH TO ENTRY POINT
+       CI   TCHAR,>2D00
+       JEQ  CEXIT   YES, BRANCH TO ENTRY POINT
+       JMP  CNT
+*
+*           ERROR ROUTINES
+*
+ERR2   LI   VALUE,INVTER INVALID TERMINATION
+       JMP  OUT
+ERR4   LI   VALUE,INVINS INVALID INSTRUCTION
+OUT    BLWP @MESG
+       B    @MONTOP
+       TITL '*** COMMAND TABLE ***'
+       PAGE
+TABLE1 TEXT 'M'   MEMORY INSPECT/CHANGE
+       BYTE 2     2 POSSIBLE INPUTS
+       DATA M     ENTRY POINT
+       TEXT 'W'   USER STATUS INSPECT/CHANGE
+       BYTE 1
+       DATA W
+       TEXT 'E'   EXECUTE
+       BYTE 1
+       DATA E
+       TEXT 'B'   BREAKPOINT
+       BYTE 1
+       DATA B
+       TEXT 'S'   SINGLE STEP
+       BYTE 1
+       DATA S
+       TEXT '.'   DECIMAL TO HEX CONVERSION
+       BYTE 0
+       DATA DH
+       TEXT '>'   HEX TO DECIMAL CONVERSION
+       BYTE 1
+       DATA HD
+       TEXT 'T'   SWAP SCREEN
+       BYTE 0
+       DATA T
+       TEXT 'H'   HEX ARITHMETIC
+       BYTE 2
+       DATA H
+       TEXT 'C'   CRU INSPECT/CHANGE
+       BYTE 2
+       DATA C
+       TEXT 'R'   USER WORDSPACE INSPECT/CHANGE
+       BYTE 0
+       DATA R
+       TEXT 'F'   FIND BYTE/WORD
+       BYTE 3
+       DATA F
+       TEXT 'G'   GROM BASE CHANGE
+       BYTE 0
+       DATA GBAS
+       TEXT 'X'   CHANGE X BIAS
+       BYTE 0
+       DATA X
+       TEXT 'Y'   CHANGE Y BIAS
+       BYTE 0
+       DATA Y
+       TEXT 'Z'   CHANGE Z BIAS
+       BYTE 0
+       DATA Z
+       PAGE
+       TEXT 'N'   MOVE BLOCK
+       BYTE 3
+       DATA N
+       TEXT 'P'   COMPARE BLOCKS
+       BYTE 3
+       DATA CMP
+       TEXT 'K'   FIND BUFFER ERROR
+       BYTE 3
+       DATA K
+       TEXT 'I'   INSPECT SCREEN ADDRESS
+       BYTE 0
+       DATA I
+       TEXT 'Q'   QUIT DEBUGGER
+       BYTE 1
+       DATA BSTART
+       TEXT 'U'   CHANGE SCREEN BIAS COMMAND
+       BYTE  0
+       DATA  U
+       TEXT 'A'   OUTPUT ASCII
+       BYTE 1
+       DATA A
+       TEXT 'V'   VDP BASE CHANGE
+       BYTE 0
+       DATA VBAS
+       BYTE 5,0   SHIFT Q
+       DATA Q
+       DATA 0
+*
+*
+FF     DATA >FFFF
+VEC1   DATA MREGS
+*
+Q      LWPI GPLWS
+       LIMI 2
+       BLWP @>0000
+       TITL '*** MESSAGES ***'
+       PAGE
+* * * * * * * * * * * * * * * * * * * * * *
+*                 MESSAGES                *
+* * * * * * * * * * * * * * * * * * * * * *
+CRLF   BYTE >D,>A,0                  CARRIAGE RETURN/LINE FEED
+EQUSGN BYTE >3D,0
+SPACE7 TEXT '   '
+SPACE4 TEXT '  '
+SPACE2 TEXT ' '
+SPACE1 TEXT ' '
+       BYTE 0
+BPMESG EQU  $
+       TEXT 'CURRENT BREAKPOINTS='
+       BYTE 0
+BPMSG  BYTE >D,>A
+       TEXT 'B  '
+       BYTE 0
+VR     TEXT 'R'
+       BYTE 0
+WS     BYTE >D,>A,'W','=',0,>D,>A,'P','=',0    W=,P=,S=
+       BYTE >D,>A,'S','=',0
+PROMPT BYTE >D,>A,>2E,0
+BANNER BYTE >D,>A
+       TEXT '*** 99/4 DEBUGGER ***'
+       BYTE 0
+BADBKP TEXT 'ILLEGAL CONSECUTIVE BREAKPOINT'
+       BYTE 0
+WARNBP TEXT ' BKPT USES 2 WORDS'
+       BYTE 0
+INVINS TEXT '  INVALID INSTRUCTION'
+       BYTE 0
+INVTER TEXT '  INVALID TERMINATION'
+       BYTE 0
+BPER1  BYTE >D,>A
+       TEXT ' BUFFER FULL'
+       BYTE 0
+BPER2  BYTE >D,>A
+       TEXT ' BP NOT FOUND'
+       BYTE 0
+MINUST TEXT '-'
+       BYTE 0
+HOE    BYTE >D,>A
+       TEXT 'H1='
+       BYTE 0
+HTE    TEXT '  H2='
+       BYTE 0
+HP     TEXT '  H1+H2='
+       BYTE 0
+HM     TEXT 'H1-H2='
+       BYTE 0
+HPROD  TEXT '  H1*H2='
+       BYTE 0
+HQUOT  TEXT 'H1/H2='
+       BYTE 0
+       PAGE
+HQUOT1 TEXT ' R '
+       BYTE 0
+MGBAS  TEXT 'GROM BASE =  '
+       BYTE 0
+MVBAS  TEXT 'VDP BASE =  '
+       BYTE 0
+SBIAS  TEXT 'SCREEN OFFSET ='
+       BYTE 0
+VDPSCN TEXT 'VDP SCREEN ADDR ='
+       BYTE 0
+VWIDTH TEXT 'WIDTH(>20 OR 28)='
+       BYTE 0
+DSKERR TEXT '  DISK ERROR'
+       BYTE 0
+       TITL 'SYSTEM INITIALIZATION'
+       PAGE
+* * * * * * * * * * * * * * * * * *
+*    SYSTEM INITIALIZATION        *
+* * * * * * * * * * * * * * * * * *
+GBASED DATA GROMRD  DEFAULT GROM BASE
+VBASED DATA VDPWA   DEFAULT VDP  BASE
+*
+INV    MOV  @LOADV,@>FFFC
+       MOV  @LOADV+2,@>FFFE  SET UP INTERRUPT VECTOR
+       STST POINT
+       ANDI POINT,>F      GET STATUS INTERRUPT LEVEL
+       MOV  POINT,@INTER
+       LIMI 0
+       LI   POINT,MREGS   INITIALIZE BUFFERS
+       LI   COUNT,BUFLEN
+CLRMR  CLR  *POINT+
+       DEC  COUNT
+       JGT  CLRMR
+       LWPI VREGS
+       LI   R7,LINBEG
+       LWPI MREGS
+       LI   POINT,ASRFLG
+       MOV  POINT,@ASR
+       SETO @DUMPFG
+       CLR  @BPFLG
+       MOV  @GBASED,@GREGL    SET UP DEFAULT GROM BASE ADDRESS
+       MOV  @VBASED,@VREGL    SET UP DEFAULT VDP BASE ADDRESS
+       MOV  @BINTBX,@>FFF8    SET UP A BRANCH TO BREAKPOINT
+       MOV  @BINTBX+2,@>FFFA  INITIALIZE.
+       C    @XOPVEC,@XOPVAL   CONSOLE SET UP FOR XOPS?
+       JEQ  XOPOK    YES, BPXOP FLAG = 0.
+       SETO @BPXOP   NO, USE 2 WORK BREAK POINTS!
+XOPOK  CLR  R0       SAVE SCREEN IN VSCREN
+       LI   R1,32
+H20    EQU  $-2
+       MOV  @TEXTM,R2  FIRST TIME THRU?
+       JEQ  INV20
+       LI   R1,40
+INV20  MOV  R1,@SWIDTH SCREEN WIDTH DEFAULT IS >20
+       MOV  R1,@TWIDTH
+       LI   R1,LINBEG
+       MOV  R2,R2
+       JEQ  INV30
+       LI   R1,23*40
+INV30  MOV  R1,@LINB   ADDRESS OF BOTTOM LINE
+       LI   R1,LINEND
+       MOV  R2,R2
+       JEQ  INV40
+       LI   R1,24*40
+INV40  MOV  R1,@LIND   ADDRESS OF END OF SCREEN
+       LI   R1,VSCREN
+       LI   R2,40*24
+       BL   @VAD       SET UP VDP ADDRESS
+       BL   @V2C02     MOVE VDP SCREEN TO CPU RAM
+AHEAD  LI   VALUE,BANNER
+       BLWP @MESG      OUTPUT BANNER
+       B    @MONTOP
+       TITL 'I/O SUBROUTINES'
+       PAGE
+*---------------------------
+*      I  INSPECT SCREEN ADDRESS AND SCREEN OFFSET
+*---------------------------
+I      EQU  $
+       LI   VALUE,CRLF
+       BLWP @MESG
+       LI   VALUE,VDPSCN
+       BLWP @MESG
+       MOV  @TSADDR,VALUE
+       BLWP @WHEX     UPDATE VDP SCREEN ADDRESS
+       LI   VALUE,SPACE4
+       BLWP @MESG
+       BLWP @RHEX
+       DATA I20,ERR4
+       CI   VALUE,>4000
+       JHE  BERR4
+       MOV  VALUE,@TSADDR
+I20
+       LI   VALUE,CRLF
+       BLWP @MESG
+       LI   VALUE,SBIAS
+       BLWP @MESG    UPDATE VDP BIAS
+       MOV  @TSCROS,VALUE
+       SWPB VALUE
+       BLWP @WHEX
+       LI   VALUE,SPACE4
+       BLWP @MESG
+       BLWP @RHEX
+       DATA I30,ERR4
+       CI   VALUE,>4000
+       JHE  BERR4
+       ANDI VALUE,>00F0
+       SWPB VALUE
+       MOV  VALUE,@TSCROS
+I30
+       LI   VALUE,CRLF  UPDATE SCREEN WIDTH
+       BLWP @MESG
+       LI   VALUE,VWIDTH
+       BLWP @MESG
+       MOV  @TWIDTH,VALUE
+       BLWP @WHEX
+       LI   VALUE,SPACE4
+       BLWP @MESG
+       BLWP @RHEX
+       DATA I40,ERR4
+       SETO @TEXTM
+       CI   VALUE,40     >20 OR >28 ARE ONLY LEGAL
+       JEQ  I35  VALUES
+       CLR  @TEXTM
+       CI   VALUE,32
+       JNE  BERR4
+I35    MOV  VALUE,@TWIDTH
+I40    B    @MONTOP
+BERR4  B    @ERR4
+*-------------------------------
+*      Q IS AN EXIT ROUTINE SHICH RESTORES THE USERS SCREEN
+*      THE POINTERS SCROS, AND SADDR.  IF PC = 0 THE THIS
+*      ROUTINE WILL BRANCH TO START.  START WILL BE DEFINED AS
+*      THE ENTRY POINT TO THE USERS PROGRAM.
+*-------------------------------
+MSTART TEXT 'START '
+MSTRTL EQU  $
+       EVEN
+BSTART
+       BL   @RGPLWS      RESTORE GPLWS
+       LI   R2,40*24
+       LI   R1,VSCREN    RESTORE USERS SCREEN
+       CLR  R0
+       BL   @VADW
+       BL   @C2V02
+       MOV  @TSADDR,@SADDR
+       MOV  @TSCROS,@SCROS
+       MOV  @TWIDTH,@SWIDTH
+       C    @SWIDTH,@H20      32 BYTES WIDE?
+       JNE  BST30
+       LI   R1,LINBEG
+       MOV  R1,@LINB
+       LI   R1,LINEND
+       MOV  R1,@LIND
+BST20  MOV  R14,R14
+       JNE  Q20
+       MOVB R14,@>837C        CLEAR STATUS
+       LWPI GPLWS
+       LIMI 2
+       B    @>70
+Q20    B    @RINTL     RESTORE INTERRUPT LEVEL.
+BST30  LI   R1,40*23
+       MOV  R1,@LINB
+       LI   R1,40*24
+       MOV  R1,@LIND
+       JMP  BST20
+       PAGE
+* * * * * * * * * * * * * * * * * * * * * * * * * * *
+*               OUTPUT MESSAGE                      *
+*      THIS SUBROUTINE OUTPUTS THE ASCII STRING     *
+*      STARTING AT THE MEMORY LOCATION POINTER TO   *
+*      BY THE USER REGISTER R0 AND TERMINATED WITH  *
+*      NULL (00) BYTE                               *
+*                                                   *
+*      CALL WITH:  BLWP @MESG                       *
+*                  (MESG = >F00C)                   *
+* * * * * * * * * * * * * * * * * * * * * * * * * * *
+MESG1  MOV  *WP,BUFFER        GET BUFFER POINTER
+MESG2  MOVB *BUFFER+,VALUE    GET CHARACTER
+       JEQ  EXIT       JUMP IF END CHARACTER
+       BLWP @WRIT  OUTPUT CHARACTER
+       JMP  MESG2
+EXIT   RTWP        RETURN
+       PAGE
+*--------------------------------------
+*           HEX INPUT
+*      THIS SUBROUTINE RETURNS A 4 DIGIT HEXADECIMAL
+*      CODE IN THE USER REGISTER R0.  HEX DIGITS
+*      ARE ENTERED THROUGH THE KEYBOARD.  THE
+*      SUBROUTINE ENDS WITH A TERMINATION CHARACTER
+*      OF EITHER A CARREAGE RETURN, COMMA, SPACE, OR
+*      A MINUS SIGN.  THE TERMINATION CHARACTER IS
+*      RETURNED IN THE MSBy OF USER REGISTER R1.
+*      THE LSBy OF R1 IS CLEARED.  UPON NORMAL
+*      COMPLETION OF THE SUBROUTINE, CONTROL WILL BE
+*      RETURNED TO THE FORMER PC PLUS 4.  IF NO HEX
+*      CHARACTERS ARE ENTERED BEFORE A TERMINATION
+*      CHARACTER, CONTROL IS RETURNED TO THE NULL ENTRY
+*      POINT.  IF AN INVALID CHARACTER IS ENTERED
+*      CONTROL IS RETURNED TO THE ERROR ENTRY POINT.
+*
+*      ENTERING AN X, Y, OR Z WILL ADD THE VALUE OF
+*      THE X, Y, OR Z BIAS TO THE FINAL HEX NUMBER.
+*
+*      IF A G IS ENTERED ONE OF THE GROM FLAGS WILL BE
+*      SET. IF THE USER R5 IS A 0, GFLAG1 WILL BE SET.
+*      IF THE REGISTER US NOT A 0, GFLAG2 WILL BE SET.
+*
+*      CALL WITH:  BLWP @RHEX
+*                  DATA NULL,ERROR
+*              (RHEX = >F010,)
+*-------------------------------------
+RHEX1  CLR  BIAS
+       CLR  OCOUNT
+       CLR  BUFFER
+       MOV  WP,OPOINT
+LOOP   BL   @ECHO  GET CHARACTER
+       CI   VALUE,>3000  MIN NUMERIC
+       JL   NOTHEX
+       CI   VALUE,>3900  MAX NUMERIC
+       JLE  GOTONE
+       CI   VALUE,>4100  MIN ALPHA
+       JL   NOTHEX
+       CI   VALUE,>4600  MAX ALPHA
+       JH   NOTHEX
+       AI   VALUE,>900 ALPHA ADJUST
+GOTONE SLA  VALUE,4    ISOLATE DIGIT
+       SRL  VALUE,12   WORD ALIGN
+       SLA  BUFFER,4
+       A    VALUE,BUFFER  ADD TO BUFFER
+INC    INC  OCOUNT
+       JMP  LOOP
+       PAGE
+NOTHEX CI   VALUE,>4700
+       JEQ  GROM
+       CI   VALUE,>5600
+       JEQ  VDPSET
+       CI   VALUE,>5800  X BIAS
+       JNE  J1           NO GO ON
+       A    @RX,BIAS
+       JMP  INC
+J1     CI   VALUE,>5900  Y BIAS
+       JNE  J2
+       A    @RY,BIAS
+       JMP  INC
+J2     CI   VALUE,>5A00  Z BIAS
+       JNE  J3
+       A    @RZ,BIAS
+       JMP  INC
+J3     CI   VALUE,>2000  SPACE
+       JEQ  SPCK
+       CI   VALUE,>2D00  MINUS
+       JEQ  SPCK
+       CI   VALUE,>0D00  RETURN
+       JEQ  SPCK
+       CI   VALUE,>2C00
+       JNE  ERR        NO, ERROR
+       LI   VALUE,2000 LOAD SPACE
+SPCK   A    BIAS,BUFFER
+       MOV  OCOUNT,OCOUNT NULL INPUT?
+       JEQ  NEXIT      YES, SKIP
+       MOV  BUFFER,*OPOINT+
+       MOV  VALUE,*OPOINT
+       INCT PC  BUMP PAST NULL POINTER
+       INCT PC  BUMP PAST ERROR POINTER
+       RTWP
+NEXIT  INCT OPOINT
+       MOV  VALUE,*R1+ RETURN TERMINATOR
+EXIT1  MOV  *PC,PC     GET POINTER
+       RTWP
+ERR    INCT PC  POINT TO ERROR POINTER
+       JMP  EXIT1
+       PAGE
+GROM   MOV  WP,GPOINT  GET MAIN PROGRAM WORKSPACE
+       AI   GPOINT,>A  ADD TO GET R5
+       MOV  *GPOINT,VALUE     GET VALUE OF R5 (COUNT)
+       JEQ  G1         COUNT = 0?  SET GFLAG1
+       DEC  VALUE      COUNT = 1?
+       JEQ  G2         SET GFLAG2
+       JMP  LOOP       IF NOT, RETURN
+G1     MOVB @FF,@GFLAG1       SEND FLAG
+       JMP  LOOP
+G2     MOVB @FF,@GFLAG2       SET FLAG
+       JMP  LOOP       RETURN
+VDPSET MOV  WP,GPOINT
+       AI   GPOINT,>A
+       MOV  *GPOINT,VALUE
+       JEQ  V1
+       DEC  VALUE
+       JEQ  V2
+       JMP  LOOP
+V1     MOVB @FF,@VFLAG1
+       JMP  LOOP
+V2     MOVB @FF,@VFLAG2
+       JMP  LOOP
+       PAGE
+*--------------------------------------
+*                     HEX OUTPUT
+*
+*      THESE SUBROUTINES OUTPUT EITHER 1 OR 4 HEX DIGITS
+*
+*      "WHX1" OUTPUTS 1 HEX DIGIT FROM THE LSNibble OF
+*      USER REGISTER R0.  THE REGISTER IS NOT CHANGED.
+*
+*      "WHEX" OUTPUTS THE ENTIRE REGISTER STARTING WITH
+*      THE MSNibble. THE REGISTER IS NOT CHANGED.
+*
+*      CALL WITH:  BLWP @WHX1        (ONE CHARACTER)
+*              (WHX1 = >F014)
+*
+*                  BLWP @WHEX        (FOUR CHARACTERS)
+*              (WHEX = >F018)
+*--------------------------------------
+WHX1A  MOV  *WP,BUFFER        ONE NYBBLE (LSN)
+       SLA  BUFFER,12  ALIGN NYBLE
+       LI   OCOUNT,1   SET COUNT FOR 1 DIGIT
+       JMP  ROOP
+WHX2A  LI   OCOUNT,2   TWO CHARACTERS (MSBy)
+       JMP  WHEX1
+WHEXA  LI   OCOUNT,4   SET COUNT FOR 4 DIGITS
+WHEX1  MOV  *WP,BUFFER
+WHEX2
+       LWPI GPLWS      KEY HIT?
+       BL   @SCAN
+       LWPI XREGS      RESTORE I/O WS
+       MOVB @STATUS,R0
+       JEQ  ROOP
+       CLR  OPOINT     YES, GET IT
+       MOVB @KEYCOD,OPOINT
+       BL   @KEYUP            WAIT FOR KEY RELEASE
+       CI   OPOINT,ESCAP      IS IT AN ESCAPE?
+       JEQ  ABORT      YES, ABORT
+       BL   @HOLD      PAUSE,WAIT FOR KEY-PRESS
+ROOP   MOV  BUFFER,VALUE
+       ANDI VALUE,>F000       ISOLATE NYBLE
+       SRL  VALUE,4    BYTE ALIGN
+       CI   VALUE,>900 NUMERIC
+       JLE  NUM        YES, SKIP
+       AI   VALUE,>700 ALPHA ADJUST
+NUM    AI   VALUE,>3000       CONVERT TO ASCII
+       BLWP @WRIT      OUTPUT CHARACTER
+       SRC  BUFFER,12  ALIGN NEXT NYBLE
+       DEC  OCOUNT
+       JNE  ROOP
+       RTWP
+ABORT  SBZ  18
+       B    @MONTOP
+*-------------------------------------------------------------------------
+*      WAIT FOR 2ND KEY PRESS
+*-------------------------------------------------------------------------
+HOLD   LWPI GPLWS
+HOLD01 BL   @SCAN GET KEY
+       MOVB @STATUS,R0
+       JEQ  HOLD01       WAIT FOR KEY
+       CLR  R0
+       MOVB @KEYCOD,R0
+       CI   R0,ESCAP
+       JNE  KEYUP
+       B    @MONTOP      ESCAPE
+***    WAIT FOR KEY RELEASE     ****
+KEYUP  LWPI GPLWS
+KUP01  BL   @SCAN KEY?
+       MOVB @STATUS,R0
+       JNE  KUP01
+       LWPI XREGS
+       RT
+*-------------------------------------
+*             ECHO A CHARACTER
+*      THIS SUBROUTINE CALLS BOTH READ AND WRIT.
+*      CALL WITH: BL @ECHO
+*              (ECHO = >F01C)
+*-------------------------------------
+ECHO   BLWP @READ
+       BLWP @WRIT
+       RT
+       PAGE
+*-------------------------------------
+*      READ A CHARACTER
+*      FROM 99/4 CONSOLE
+*      PLACE IT IN MSBY OF USER'S R0
+*      THE LSBY IS CLEARED
+*      CALL WITH:   BLWP  @READ
+*-------------------------------------
+GPLWS  EQU  >83E0   GPL W/S
+SCAN   EQU  >000E   ADDRESS OF CONSOLE SCAN ROUTINE
+STATUS EQU  >837C   ADDRESS OF KBD STATUS BYTE
+KEYCOD EQU  >8375   ADDRESS OF KEY CODE (INPUT)
+LINADR EQU  7       REGISTER 7
+LINBEG EQU  737
+LINEND EQU  768
+SPACES EQU  >2020
+SPACE  EQU  >2000
+EOT    EQU  >0000
+READ1  LWPI GPLWS   USE GPL W/S FOR SCAN
+SCANIT BL   @SCAN   CALL SCAN ROUTINE
+       MOVB @STATUS,R0
+       JEQ  SCANIT
+       LWPI VREGS   RESTORE I/O W/S
+       CLR  *WP
+       MOVB @KEYCOD,*WP
+       RTWP
+*--------------------------------
+*      WRITE A  CHARACTER TO 99/4 CONSOLE
+*      FROM MSBY OF USER'S R0.
+*      INTERPRET CR AS CR/LF
+*      IGNORE LF
+*      OUTPUT TO BOTTOM LINE,AND SCROLL UP.
+*      CALL BY:   BLWP  @WRIT
+*--------------------------------
+WRIT1  EQU  $
+       MOV  LINADR,R0
+       BL   @VADW
+       CLR  R2
+       MOVB *WP,R2
+WRIT10 CI   R2,>0D00
+       JNE  CHKEOT
+CRGRTN MOV  @LINB,LINADR
+       JMP  SCROLL
+*
+CHKEOT CI   R2,EOT
+       JNE  WRIT01
+       RTWP
+WRIT01 CI   R2,>0A00
+       JGT  WRIT03
+       LI   R2,>2000
+WRIT03 A    @SCROS,R2
+WRIT20 MOVB R2,@VDPWD
+       INC  LINADR
+       C    @LIND,LINADR
+       JEQ  CRGRTN
+       RTWP
+       PAGE
+*
+SCROLL LI   R6,23
+       CLR  R4      SRC PTR
+       CLR  R5      DEST PTR
+       MOV  R1,R10
+NXTLIN MOV  @SWIDTH,R2
+       A    R2,R4   INC SRC PTR TO NEXT LINE
+       MOV  R4,R0
+       BL   @VAD
+       LI   R1,CPUBUF
+       BL   @V2C02
+       MOV  @SWIDTH,R2     SCREEN WIDTH
+       MOV  R5,R0
+       BL   @VADW
+       LI   R1,CPUBUF
+       BL   @C2V02
+       A    @SWIDTH,R5
+       DEC  R6
+       JNE  NXTLIN
+       LI   R1,SPACES
+       A    @SCROS,R1
+       SWPB R1
+       A    @SCROS,R1
+       MOV  @SWIDTH,R2
+       MOV  @LINB,R0
+       DEC  R0
+       BL   @VADW
+       BL   @VIN02
+       MOV  R10,R1
+       RTWP
+*
+T      LWPI XREGS
+       LI   R2,40*24          RECALL VIRTUAL SCREEN
+       LI   R1,VSCREN
+       CLR  R0
+       BL   @VADW
+       BL   @C2V02
+       BL   @HOLD    PRESS-ANY-KEY
+T02    B    @MONTOP
+*
+U      MOV  @SCROS,R0
+       JEQ  U01
+       CLR  @SCROS
+       JMP  T02
+U01    LI   R0,>6000 ADJUST SCREEN BIAS
+       MOVB R0,@SCROS
+       JMP  T02
+       PAGE
+*
+V2C02  MOVB @VDPRD,*R1+
+       DEC  R2
+       JGT  V2C02
+       RT
+*
+C2V02  MOVB *R1+,@VDPWD
+       DEC  R2
+       JGT  C2V02
+       RT
+*
+VIN02  MOVB R1,@VDPWD
+       SWPB R1
+       MOVB R1,@VDPWD
+       SWPB R1
+       DECT R2
+       JGT  VIN02
+       RT
+*
+VADW   A    @SADDR,R0
+       ORI  R0,>4000
+VADW10 SWPB R0
+       MOVB R0,@VDPWA
+       SWPB R0
+       MOVB R0,@VDPWA
+       S    @SADDR,R0
+       RT
+VAD    A    @SADDR,R0
+       JMP  VADW10
+       PAGE
+*
+*      LOAD GROM   AND VDP ADDRESS                         *
+*                            BL calls go here
+GLOAD  MOVB STARTA,@GWA(GREG)       load grom address
+       SWPB STARTA
+       MOVB STARTA,@GWA(GREG)
+       RT
+*                         BL calls
+VLOADR ANDI STARTA,>BFFF
+VLOAD  SWPB STARTA
+       MOVB STARTA,*VREG
+       SWPB STARTA
+       MOVB STARTA,*VREG
+       RT
+*
+*                            BL calls
+VLOADW ORI  STARTA,>4000
+       JMP  VLOAD
+************************************************************
+*    GET DATA FROM SOURCE,  GET DATA FROM DESTINATION      *
+*   SOURCE OR DESTINATION CAN BE EITHER RAM, GRAM, OR VDP  *
+*                                                          *
+*   SOURCE  address is in user "STARTA"                    *
+*           and uses GFLAG1                                *
+*   DESTINATION address is in user "STOPA"                 *
+*           and uses GFLAG2                                *
+************************************************************
+*
+GETFRA MOV  @GFLAG1,TCHAR            use source flags
+       MOV  @2*STARTA(WP),STARTA     use user STARTA for address
+       JMP  GETT
+*
+GETTOA MOV  @GFLAG2,TCHAR            use dest flags
+       MOV  @2*STOPA(WP),STARTA      use user STOPA for address
+*
+GETT   MOVB TCHAR,TCHAR      is it a grom access ?
+       JEQ  GETT1    no, skip
+       BL   @GLOAD  load grom address
+       MOVB *GREG,*WP        put a byte in user's R0 MSBy
+       NOP
+       MOVB *GREG,@1(WP)     put a byte in user's R0 LSBy
+       JMP  GETT5
+GETT1  SWPB TCHAR
+       MOVB TCHAR,TCHAR      is it a vdp access ?
+       JEQ  GETT4    no, skip
+       BL   @VLOADR
+       MOVB @VRD(VREG),*WP
+       NOP
+       MOVB @VRD(VREG),@1(WP)
+       JMP  GETT5
+GETT4  MOVB *STARTA+,*WP     must be CPU memory access
+       MOVB *STARTA,@1(WP)
+GETT5  RTWP         git
+       PAGE
+************************************************************
+*   PUT TO SOURCE OR DESTINATION                           *
+************************************************************
+PUTFRA MOV  @GFLAG1,TCHAR        use source flags
+       MOV  @2*STARTA(WP),STARTA use user STARTA
+       JMP  PUT
+*
+PUTTOA MOV  @GFLAG2,TCHAR        use dest flags
+       MOV  @2*STOPA(WP),STARTA  use user STOPA
+*
+PUT    MOVB TCHAR,TCHAR      is it a grom access ?
+       JEQ  PUT1    no, skip
+       DEC  STARTA    we must decrement for some simulators
+       BL   @GLOAD
+       MOVB *WP,@GWD(GREG)
+       JMP  PUT5
+PUT1   SWPB TCHAR
+       MOVB TCHAR,TCHAR      is is a VDP access
+       JEQ  PUT4    no, skip
+       BL   @VLOADW
+       MOVB *WP,@VWD(VREG)
+       JMP  PUT5
+PUT4   MOVB *WP,*STARTA      must be CPU memory access
+PUT5   RTWP
+       PAGE
+       TITL 'MEMORY INSPECT/CHANGE'
+*
+*
+*
+FETVDP MOVB @VRD(R15),R0      Load the next word from VDP Ram
+       SWPB R0
+       MOVB @VRD(R15),R0
+       SWPB R0
+       RT
+       PAGE
+************************************************************
+*     MEMORY-GROM-VDP     INSPECT/CHANGE                   *
+************************************************************
+*
+*
+* * * * * * * * * * * * * * * * * * *
+*     MEMORY INSPECT CHANGE         *
+* * * * * * * * * * * * * * * * * * *
+M      MOV  @GFLAG1,VALUE    IS IT GROM OR VDP ?
+       JNE  GV               YES, GO TO THAT ROUTINE
+       ANDI STARTA,>FFFE      WORD ALIGN
+       ANDI STOPA,>FFFE       WORD ALIGN
+       DEC  COUNT    1 INPUT?
+       JEQ  MIC      YES, MEMORY INSPECT/CHANGE
+*
+*         MEMORY DUMP
+*
+MLOOP1 LI   COUNT,6  3 WORDS PER LINE
+       BL   @NLSAEQ  NEW LINE, START ADDRESS, EQUAL
+MLOOP2 BL   @CONSPA  OUTPUT CONTENTS
+       INCT STARTA
+       DECT COUNT
+MSKIP2 MOV  COUNT,COUNT       DONE WITH LINE
+       JNE  MLOOP2   NO, GO ON
+       BL   @OUTASC
+       C    STARTA,STOPA
+       JLE  MLOOP1
+MEXIT  B    @MONTOP
+*                         PRINT ASCII EQUIVALENT
+OUTASC AI   STARTA,-6         START AT BEGINNING OF THIS LINE
+       LI   VALUE,SPACE1
+       BLWP @MESG
+       PAGE
+       LI   COUNT,6
+MSKIP3 BLWP @GETFR   GET DATA
+       INC  STARTA
+       ANDI VALUE,>7F00       STRIP OFF MSB
+       CI   VALUE,>2000       IS IT A CONTROL CHARACTER ?
+       JHE  MSKIP5   NO, SKIP
+MSKIP4 LI   VALUE,'*'*256     CHANGE TO A *
+MSKIP5 CI   VALUE,>7F00
+       JEQ  MSKIP4
+       BLWP @WRIT    OUTPUT CHARACTER
+       DEC  COUNT
+       JNE  MSKIP3
+       RT                     NEXT LINE
+*
+*         MEMORY INSPECT
+*
+MIC    BL   @NLSAEQ  NEW LINE, STARTA, =
+       BL   @CONSPA  OUTPUT CONTENTS & 2 SPACES
+       BLWP @RHEX    ACCEPT NEW DATA
+       DATA MNULL,ERR2
+       MOV  VALUE,*STARTA     CHANGE MEMORY LOCATION
+MNULL  CI   TCHAR,>D00        RETURN?
+       JEQ  MEXIT    YES, EXIT
+       CI   TCHAR,>2D00       MINUS TERMINATION?
+       JNE  NEXTA    NO,SKIP
+       DECT STARTA   GO TO PREVIOUS LOCATION
+       JMP MIC
+NEXTA  INCT STARTA   GO TO NEXT LOCATION
+       JMP MIC
+       PAGE
+* * * * * * * * * * * * * * * * * * * *
+*   GROM OR VDP EXAMINE               *
+* * * * * * * * * * * * * * * * * * * *
+GV     DEC  COUNT    ONE INPUT?
+       JEQ  GIC      YES, GROM INSPECT/CHANGE
+GLOOP1 CLR  COUNT    BYTES PER LINE
+       BL   @NLSAEQ  NEW LINE, STARTA,=
+GLOOP2 BLWP @GETFR   READ & OUTPUT GROM DATA
+       BLWP @WHX2
+       INC  STARTA
+       INC  COUNT
+       CI   COUNT,6  END OF LINE?
+       JEQ  GV10     YES, DO NOT SPACE
+       LI   VALUE,SPACE1
+       BLWP @MESG
+       JMP  GLOOP2   CONTINUE
+GV10   BL   @OUTASC
+       C    STARTA,STOPA
+       JLE  GLOOP1
+GEXIT  B    @MONTOP
+       PAGE
+*        GROM INSPECT
+*
+GIC    BL   @NLSAEQ  NEW LINE, STARTA, =
+       BLWP @GETFR   GET GROM OR VDP DATA
+       MOVB @VFLAG1,TEMP      IS IT VDP ACCESS ?
+       JEQ  GIC020   NO, SKIP
+       MOV  STARTA,TEMP
+       SLA  TEMP,1   IS IT A REGISTER LOAD
+       JOC  STAT     YES, PRINT OUT STATUS AND QUIT
+GIC020 BLWP @WHX2    OUTPUT BYTE
+       LI   VALUE,SPACE2
+       BLWP @MESG
+       BLWP @RHEX    ACCEDPT NEW DATA
+       DATA GNULL,ERR2
+       SWPB VALUE
+       BLWP @PUTFR   LOAD GROM OR VDP DATA
+GNULL  CI   TCHAR,>0D00       DONE?
+       JEQ  GEXIT    YES,EXIT
+       CI   TCHAR,>2D00       MINUS?
+       JNE  NEXTGA
+       DEC  STARTA   GO TO PREVIOUS LOCATION
+       JMP  GIC
+NEXTGA INC  STARTA   GO TO NEXT LOCATION
+       JMP GIC
+       TITL 'GROM BASE CHANGE'
+       PAGE
+GBAS   LI   VALUE,MGBAS      output '  GROM BASE =  '
+       BLWP @MESG
+       MOV  @GREGL,VALUE     output grom base
+       BLWP @WHEX
+       LI   VALUE,SPACE4     output spaces
+       BLWP @MESG
+       BLWP @RHEX   get new value
+       DATA GBASEX,ERR2
+       MOV  VALUE,@GREGL     store it
+GBASEX B    @MONTOP
+       TITL 'VDP BASE CHANGE'
+       PAGE
+VBAS   LI   VALUE,MVBAS      output '  VDP BASE =  '
+       BLWP @MESG
+       MOV  @VREGL,VALUE
+       AI   VALUE,VRD        output VDP read data location
+       BLWP @WHEX
+       LI   VALUE,SPACE4
+       BLWP @MESG
+       BLWP @RHEX   get new value
+       DATA GBASEX,ERR2
+       AI   VALUE,-VRD       make it the write address location
+       MOV  VALUE,@VREGL
+       JMP  GBASEX
+       TITL '*** SUBROUTINES ***'
+       PAGE
+* * * * * * * * * * * * * * * * * * * *
+*              SUBROUTINES            *
+* * * * * * * * * * * * * * * * * * * *
+*
+*      NEW LINE, OUTPUT START ADDRESS, EQUAL SIGN
+*
+NLSAEQ LI   VALUE,CRLF
+       BLWP @MESG    NEW LINE
+       MOV  STARTA,VALUE
+       BLWP @WHEX             OUTPUT START ADDRESS
+       LI   VALUE,EQUSGN
+       BLWP @MESG             OUTPUT MESSAGE
+       RT
+*
+*
+PRT    SRC  VALUE,12 PRINT A BYTE
+       BLWP @WHX1
+       SRC  VALUE,12     OUTPUT HEX DIGIT
+       BLWP @WHX1
+       RT
+SPAC   LI   VALUE,SPACE1
+       BLWP @MESG    OUTPUT 1 SPACE
+       RT
+*
+*        OUTPUT ADDRESSED MEMORY CONTENTS AND 2 SPACES
+*
+CONSPA MOV  *STARTA,VALUE
+       BLWP @WHEX             OUTPUT MEMORY CONTENTS
+       JMP  SPAC
+CON    MOV  *STARTA,VALUE
+       BLWP @WHEX    OUTPUT MEMORY CONTENTS
+       RT
+ASCII  CI   VALUE,' '*256
+       JHE  ASCRTN
+       LI   VALUE,'.'*256
+ASCRTN
+       RT
+*-------------------------------------------------------------------------
+*
+*      LOAD VDP ADDRESS FOR READ
+*
+*-------------------------------------------------------------------------
+VRAD   ANDI STARTA,>BFFF      CLEAR D1
+VRAD1  SWPB STARTA
+       MOVB STARTA,@VDPWA     LOAD LSB
+       SWPB STARTA
+       MOVB STARTA,@VDPWA     LOAD MSB
+       ANDI STARTA,>BFFF      CLEAR D1
+       RT
+*-------------------------------------------------------------------------
+*
+*      LOAD VDP ADDRESS FOR WRITE
+*
+*-------------------------------------------------------------------------
+VWAD   ORI  STARTA,>4000      SET D1
+       JMP  VRAD1
+*-------------------------------------------------------------------------
+*
+*      READ AND OUTPUT VDP DATA
+*
+*-------------------------------------------------------------------------
+VOUT   MOVB @VDPRS,VALUE      READ VDP
+       JMP  PRT
+*-------------------------------------------------------------------------
+*
+*      READ VDP STATUS
+*
+*-------------------------------------------------------------------------
+STAT   MOVB @VDPRS,VALUE
+       BL   @PRT
+       B    @MONTOP
+       TITL 'INPUT ASCII TO MEMORY'
+       PAGE
+************************************************************
+*                                                          *
+*      INPUT ASCII TO MEMORY                               *
+*                                                          *
+*                                                          *
+************************************************************
+A      BL   @NLSAEQ NEW LINE,STARTA,=
+       LI   COUNT,16
+A2     BL   @ECHO   GET CHARACTER
+       CI   VALUE,ESCAP      QUIT ?
+       JEQ  AEXIT   YES
+       CI   VALUE,>0800      BACKSPACE ?
+       JNE  A3      NO, SKIP
+       DEC  STARTA  PREVIOUS LOCATION
+       INC  COUNT
+       CI   COUNT,17         IF COUNT IS TOO HIGH, REALIGN
+       JEQ  A4
+       JMP  A2
+A3     BLWP @PUTFR
+       INC  STARTA
+       C    STARTA,STOPA
+       JEQ  AEXIT
+A4     DEC  COUNT
+       JNE  A2
+       JMP  A
+AEXIT  B    @MONTOP
+       TITL 'CRU INSPECT CHANGE'
+       PAGE
+* * * * * * * * * * * * * * * * * * * * *
+*        CRU INSPECT/CHANGE             *
+* * * * * * * * * * * * * * * * * * * * *
+C      MOV  STARTA,CRUBAS     CRU BASE
+       ANDI BITCNT,>F         ISOLATE BIT COUNT
+       CLR  WORDFG   CLEAR WORDFLAG
+       MOV  BITCNT,BITCNT     16 BITS?
+       JEQ  SETFG    YES, SET FLAG
+       CI   BITCNT,>9         BYTE OR LESS
+       JL   CSKIP1   YES,SKIP
+SETFG  INC  WORDFG   SET FLAG
+CSKIP1 SLA  BITCNT,6 FORM STCR COMMAND
+CLOOP  LI   XEC,>340A         STCR R10,BITCNT
+       SOC  BITCNT,XEC
+       X    XEC      EXECTUE 'STCR'
+       LI   VALUE,CRLF        NEXT LINE
+       BLWP @MESG
+       MOV  CRUBAS,VALUE      OUTPUT BASE
+       BLWP @WHEX
+       LI   VALUE,EQUSGN      OUTPUT EQUAL SIGN
+       BLWP @MESG
+       MOV  WORDFG,WORDFG     WORD TRANSFER?
+       JNE  CSKIP2   YES,SKIP
+       SRL  TEMP,8   ALIGN WORD
+CSKIP2 MOV  TEMP,VALUE
+       BLWP @WHEX    OUTPUT DATA
+       LI   VALUE,SPACE2      OUTPUT SPACES
+       BLWP @MESG
+       BLWP @RHEX    ACCEPT NEW DATA
+       DATA CNULL3,ERR2
+       MOV  VALUE,TEMP
+       MOV  WORDFG,WORDFG     WORD TRANSFER
+       JNE  CSKIP3            YES, SKIP
+       SLA  TEMP,8   ALIGN WORD
+CSKIP3 ANDI XEC,>F3FF         CONVERT STCR TO LDCR
+       X    XEC      EXECUTE LDCR
+CNULL3 CI   TCHAR,>D00        RETURN?
+       JNE  CLOOP    NO, JUMP BACK
+       B    @MONTOP
+       TITL 'REGISTER INSPECT/CHANGE'
+       PAGE
+* * * * * * * * * * * * * * * * * * * * *
+*      REGISTER INSPECT/CHANGE          *
+* * * * * * * * * * * * * * * * * * * * *
+R      LI   POINT,WS MESSAGE POINTER
+       LI   COUNT,3  LOOP COUNT
+       LI   REG,MREGWP
+RLOOP  MOV  POINT,VALUE
+       BLWP @MESG    OUTPUT MESSAGE
+       MOV  *REG,VALUE
+       BLWP @WHEX    OUTPUT CONTENTS
+       LI   VALUE,SPACE2
+       BLWP @MESG    OUTPUT SPACES
+       BLWP @RHEX    ACCEPT NEW DATA
+       DATA RNULL,ERR2
+       MOV  VALUE,*REG        UPDATE REGISTER
+RNULL  CI   TCHAR,>2D00       MINUS?
+       JEQ  RLOOP    YES,DO AGAIN
+       CI   TCHAR,>0D00       RETURN?
+       JEQ  REXIT    YES,EXIT
+       DEC  COUNT    DONE?
+       JEQ  REXIT    YES, EXIT
+       AI   POINT,5  ADD 5 TO MESSAGE POINTER
+       INCT REG      NEXT REGISTER
+       JMP  RLOOP
+REXIT  B    @MONTOP
+       TITL 'EXECUTE'
+       PAGE
+************************************************************
+*      EXECUTE                                             *
+************************************************************
+E      BL   @RGPLWS      RESTORE GPLWS
+       MOV  COUNT,COUNT      IF USER ENTRY, JUMP TO IT
+       JEQ  GIT
+       MOV  STARTA,PC
+RINTL
+       ABS  @INTER       LIMI 0
+       JEQ  GIT
+       LIMI 2
+GIT    RTWP
+       TITL 'USER WORKSPACE INSPECT/CHANGE'
+       PAGE
+* * * * * * * * * * * * * * * * * * * * *
+*      USER WORKSPACE INSPECT/CHANGE    *
+* * * * * * * * * * * * * * * * * * * * *
+W      MOV  WP,POINT GET WORKSPACE POINTER
+       MOV  COUNT,COUNT       NULL INPUT?
+       JEQ  WNULL1   YES, TO FORMATTED DUMP
+       ANDI STARTA,>F         MASK OFF MYBLE
+       MOV  STARTA,REG        SAVE REGISTER #
+       SLA  STARTA,1
+       A    STARTA,POINT      FORM REGISTER ADDRESS
+ICLOOP BL   @WOUT    OUTPUT  WORKSPACE DATA
+       BLWP @RHEX    ACCEPT NEW VALUE
+       DATA WNULL2,ERR2
+       MOV  VALUE,*POINT      UPDATE REGISTER
+WNULL2 CI   TCHAR,>D00        RETURN?
+       JNE  SKIP
+WPEXIT B    @MONTOP
+SKIP   CI   TCHAR,>2000       NEXT REGISTER?
+       JEQ  NREG     YES, JUMP AHEAD
+       MOV  REG,REG  AT R0?
+       JEQ  WPEXIT   YES, QUIT
+       DEC  REG      UPDATE REGISTER #
+       DECT POINT    UPDATE POINTER
+       JMP  ICLOOP
+NREG   CI   REG,>F   AT R15?
+       JEQ  WPEXIT   YES, QUIT
+       INC  REG      UPDATE REGISTER #
+       INCT POINT    UPDATE ADDRESS
+       JMP  ICLOOP
+*
+*      FORMATTED DUMP
+*
+WNULL1 CLR  REG      START AT 0
+       MOV  WP,POINT GET START ADDRESS
+NLINE  LI   VALUE,CRLF        NEW LINE
+       BLWP @MESG
+       PAGE
+WLOOP  BL   @WOUT1   OUTPUT DATA
+       INC  REG      UPDATE REGISTER #
+       INCT POINT    UPDATE POINTER
+       CI   REG,>F   END OF LINE?
+       JGT  WPEXIT
+       CI   REG,>3
+       JEQ  NLINE
+       CI   REG,6
+       JEQ  NLINE
+       CI   REG,9
+       JEQ  NLINE
+       CI   REG,12
+       JEQ  NLINE
+       CI   REG,15
+       JEQ  NLINE    YES, NEW LINE
+       JMP  WLOOP
+*
+*     SUBROUTINE
+*
+WOUT   LI   VALUE,CRLF
+       BLWP @MESG    NEW LINE
+WOUT1  LI   VALUE,VR
+       BLWP @MESG    OUTPUT 'R'
+       MOV  REG,VALUE
+       BLWP @WHX1             OUTPUT REGISTER #
+       LI   VALUE,EQUSGN
+       BLWP @MESG    OUTPUT EQUAL SIGN
+       MOV  *POINT,VALUE
+       BLWP @WHEX    OUTPUT CONTENTS OF REGISTER
+       LI   VALUE,SPACE2
+       BLWP @MESG    OUTPUT 2 SPACES
+       RT
+       TITL 'SINGLE STEP'
+       PAGE
+************************************************************
+*    SINGLE STEP & BREAKPOINT ROUTINES                     *
+************************************************************
+BINTBX B    @INITBX  XOP 1 WORD BREAKPOINT
+BPINST EQU  $        2 WORD BREAKPOINTS
+       BLWP @B2WORD  DATA TO BE LOADED OVER CODE
+*
+* * * * * * * * * * * * * * * *
+*         SINGLE STEP         *
+* * * * * * * * * * * * * * * *
+S      LI   CRUBAS,TRACE TRACE BIT
+       LWPI VREGS
+       BL   @RGPLWS  RESTORE GPLWS
+       LWPI MREGS
+       CI   STARTA,0 DEFAULT TO 1?
+       JNE  TRACE1   NO,SKIP
+       INC  STARTA
+TRACE1 MOV  @T9900,@TFLAG  SET TRACE FLAG
+       SBO  0        SEND TRACE
+       RTWP          EXECUTE
+*
+*          LOAD ENTRY
+*
+LOAD
+LD     EQU  $        SAVE GPLWS
+       C    @TFLAG,@T9900      ARE WE IN SINGLE STEP MODE
+       JNE  INZ      NO, INITIALIZE SYSTEM
+       DEC  STARTA   DONE?
+       JNE  TRACE1   EXECUTE INSTRUCTION
+       LWPI VREGS
+       BL   @SGPLWS
+       LWPI MREGS
+       B    @WPSOUT   YES, OUTPUT WORKSPACE
+*
+       DEF  DEBUG
+DEBUG
+INZ    BL   @SGPLWS  SAVE GPLWS
+       B    @INV     INITIALIZE SYSTEM
+SGPLWS LI   R1,SAVEWS
+       MOV  @RSAVE,@SRSAVE
+       MOV  @>8374,@SAVKEY
+       CLR  @>8374         KBD 0
+       LI   R2,GPLWS
+SGPL10 LI   R0,16    COUNT
+SGPL20 MOV  *R2+,*R1+
+       DEC  R0
+       JGT  SGPL20
+       RT
+SAVKEY DATA 0
+*
+RGPLWS EQU  $
+       MOV  @SRSAVE,@RSAVE
+       MOV  @SAVKEY,@>8374
+       LI   R1,GPLWS RESTORE GPLWS
+       LI   R2,SAVEWS
+       JMP  SGPL10
+       TITL 'BREAKPOINT ROUTINES'
+       PAGE
+* * * * * * * * * * * * * * * * *
+*       BREAKPOINT ROUTINE      *
+* * * * * * * * * * * * * * * * *
+B      LI   VALUE,BPBUFF      START OF BP BUFFER
+       MOV  @BPOINT,POINT
+       JNE  B03
+       MOV  VALUE,@BPOINT
+B03    LI   POINT,11 MAX # OF BREAKPOINTS
+       MOV  COUNT,COUNT
+       JEQ  NOADD
+       ABS  @BPXOP   XOP BREAKPOINT
+       JNE  COMP     NO
+       LI   POINT,17 YES, MULT BY 2
+COMP   C    VALUE,@BPOINT     POINTER AT A GOOD VALUE
+       JEQ  B1       YES, SKIP
+       ABS  @BPXOP   XOP BREAKPOINT?
+       JEQ  B10      YES
+       MOV  *VALUE,R11
+       S    STARTA,R11
+       CI   R11,3    PROTECT USER FROM
+       JGT  B05      SETTING CONSECUTIVE
+       CI   R11,-3   BREAKPOINTS IN 2
+       JLT  B05      WORD BKPT MODE.
+       CI   TCHAR,>2D00       MINUS TERMINATION?
+       JEQ  B05
+       LI   VALUE,BADBKP
+       B    @AHEADB
+B05    INCT VALUE    NO
+B10    C    *VALUE+,*VALUE+   VALUE=VALUE+4
+       DEC  POINT    DONE?
+       JNE  COMP     NO, TRY AGAIN
+       JMP  BERR1
+B1     MOV  COUNT,COUNT       ANY INPUTS?
+       JEQ  NOADD    NO, JUMP AHEAD
+       CI   TCHAR,>2D00       MINUS TERMINATION
+       JEQ  CLR1     YES,CLEAR BREAKPOINT
+*
+*    SET A BREAKPOINT
+*
+       SETO @BPFLG   START LOADING BREAKPOINT VECTOR
+       MOV  @BPOINT,POINT     GET POINTER
+       CI   POINT,BUFEND      BUFFER FULL?
+       JEQ  BERR1   YES PRINT ERROR MESSAGE
+       JH   BERR1
+       MOV  STARTA,*POINT+    STORE ADDRESS
+       MOV  *STARTA,*POINT+   SAVE DATA
+       ABS  @BPXOP   XOP BREAKPOINT?
+       JEQ  B20      YES
+       INCT STARTA
+       MOV  *STARTA,*POINT+    SAVE SECOND WORD OF DATA
+       DECT STARTA    ADJUST POINTER
+       MOV  @BPINST,*STARTA+   INSERT BLWP CALL
+       MOV  @BPINST+2,*STARTA
+       MOV  POINT,@BPOINT
+       LI   VALUE,WARNBP     WARN USER THAT BREAKPOINT USES 2 WORDS
+       BLWP @MESG
+       JMP  BEXIT    RETURN
+BERR1  B    @BPERR1
+B20    MOV  @XOP1,*STARTA     INSERT XOP CALL INTO CODE
+       DEC  STARTA
+       MOV  POINT,@BPOINT     SAVE POINTER
+       JMP  BEXIT
+       PAGE
+*  CLEAR A BREAKPOINT
+*
+CLR20  MOV  *POINT,*STARTA    XOP BREAKPOINT, REPLACE DATA
+       MOV  POINT,STARTA
+       INCT STARTA
+       DECT POINT
+       JMP  BLOOP2
+*
+*      ENTRY POINT TO CLEAR XOP ROUTINE
+*
+CLR1   MOV  @BPOINT,POINT     GET POINTER
+BLOOP1 CI   POINT,BPBUFF      NO MATCH FOUND?
+       JH   CLR05
+       B    @BPERR2   OUTPUT ERROR MESSAGE
+CLR05  AI POINT,-4   ALIGN POINTER
+MFOUR  EQU  $-2
+       ABS  @BPXOP   XOP BREAKPOINT?
+       JEQ  CLR10    YES
+       DECT POINT    NO
+CLR10  C    STARTA,*POINT     MATCH?
+       JNE  BLOOP1   NO, JUMP BACK
+       INCT POINT    ALIGN POINTER WITH DATA
+       ABS  @BPXOP   XOP BREAKPOINT?
+       JEQ  CLR20    YES
+       MOV  *POINT+,*STARTA+   REPLACE DATA
+       MOV  *POINT+,*STARTA   REPLACE SECOND WORD
+       MOV  POINT,STARTA
+       AI POINT,-6
+BLOOP2 CI   STARTA,BUFEND     DONE?
+       JEQ  BSKIP    YES,RETURN
+       MOV *STARTA+,*POINT+   BUMP DATA DOWN
+       JMP  BLOOP2   JUMP BACK
+BSKIP  A    @MFOUR,@BPOINT    ALIGN POINTER
+       ABS  @BPXOP   XOP BREAKPOINT?
+       JEQ  CLR40    YES
+       DECT @BPOINT  NO
+CLR40  MOV  @BPOINT,POINT
+       CI   POINT,BPBUFF      ALL BREAKPOINTS NOW CLEARED ?
+       JNE  BEXIT    NO, SKIP
+       CLR  @BPFLG   DON'T LOAD XOP VECTORS ANYMORE
+BEXIT  B    @MONTOP
+NOADD  CI   TCHAR,>2D00       MINUS TERMINATION?
+       JEQ  CLRALL   YES,CLEAR ALL
+       PAGE
+*
+*    OUTPUT BREAKPOINTS
+*
+       LI   VALUE,BPMESG      OUTPUT MESSAGE
+       BLWP @MESG
+       LI   STARTA,BPBUFF     START OF BUFFER
+BLOOP3 C    STARTA,@BPOINT    DONE?
+       JEQ  BEXIT    YES,EXIT
+       MOV  *STARTA+,VALUE    GET ADDRESS
+       BLWP @WHEX    OUTPUT ADDRESS
+       LI   VALUE,SPACE2
+       BLWP @MESG    OUTPUT SPACES
+       INCT STARTA   SKIP DATA
+       ABS  @BPXOP   XOP BREAKPOINT?
+       JEQ  CLR50    YES
+       INCT STARTA   NO,SKIP SECOND WORD
+CLR50  JMP  BLOOP3
+       PAGE
+*    CLEAR ALL BREAKPOINTS
+*
+CLRALL CLR  @BPFLG   DON'T LOAD XOP VECTOR ANYMORE
+       MOV  @BPOINT,POINT     GET POINTER
+       LI   STARTA,BPBUFF
+       MOV  STARTA,@BPOINT
+BLOOP4 CI   POINT,BPBUFF      DONE
+       JEQ  BEXIT    YES, SKIP
+       AI POINT,-4   ALIGN POINTER
+       ABS  @BPXOP   XOP BREAKPOINT?
+       JEQ  CLRA10   YES
+       DECT POINT    NO
+       MOV  *POINT+,STARTA    GET ADDRESS
+       MOV  *POINT+,*STARTA+   RESTORE DATA
+       MOV  *POINT,*STARTA    RESTORE SECOND WORD OF DATA
+       DECT POINT    ALIGN POINTER
+CLRA20 DECT POINT
+       JMP BLOOP4
+CLRA10 MOV  *POINT+,STARTA
+       MOV  *POINT,*STARTA
+       JMP  CLRA20
+       PAGE
+*
+*      BREAKPOINT XOP ENTRY POINT
+INITBX LWPI MREGS
+       MOV  @XOPVAL,VALUE
+       MOV  @>FFF2,R13    SAVE RETURN VECTOR
+       MOV  @>FFF4,R14
+       MOV  @>FFF6,R15
+       JMP  BPX
+*    BREAKPOINT NON-XOP ENTRY POINT
+*
+B2WORD DATA MREGS
+       DATA BPX
+BPX
+       LWPI IREGS
+       STST R2
+       LIMI 0
+       ANDI R2,>F
+       MOV  R2,@INTER
+       BL   @SGPLWS    SAVE GPLWS
+       LI   R2,768     SAVE USERS SCREEN!
+       LI   R1,VSCREN
+       CLR  R0
+       BL   @VAD
+       BL   @V2C02
+       LWPI MREGS
+       DECT PC         ADJUST USER PC
+       ABS  @BPXOP     XOP BREAKPOINT?
+       JEQ  BPX10      YES
+       DECT PC         NO,ADJUST USER PC  FOR TWO-WORD BP
+BPX10  LI   VALUE,BPMSG
+       BLWP @MESG      OUTPUT 'B'
+WPSOUT LI   STARTA,MREG1A     POINT TO WP
+BLOOP5 LI   VALUE,SPACE4
+       BLWP @MESG      OUTPUT 4 SPACES
+       MOV  *STARTA+,VALUE
+       BLWP @WHEX      OUTPUT REGISTER
+       CI   STARTA,MREG32     DONE?
+       JNE  BLOOP5     NO, JUMP BACK
+       MOV  PC,STARTA
+       C    @TFLAG,@T9900 SINGLE STEP MODE
+       JEQ  BPX40
+       B    @CLR1      NO, CLEAR BREAKPOINT
+BPX40  CLR  @TFLAG     CLEAR SINGLE STEP FLAG
+       B    @MONTOP
+*
+*    BREAKPOINT ERROR OUTPUTS
+*
+BPERR1 LI   VALUE,BPER1
+       JMP  AHEADB
+BPERR2 LI   VALUE,BPER2
+AHEADB BLWP @MESG
+       B    @MONTOP
+T9900  DATA >9900
+       TITL 'DECIMAL TO HEX CONVERSION'
+       PAGE
+* * * * * * * * * * * * * * * * * * * * * *
+*     HEX ARITHMETIC AND CONVERSIONS      *
+*      DECIMAL TO HEX CONVERSION          *
+* * * * * * * * * * * * * * * * * * * * * *
+DH     CLR  MINUS             RESET MINUS FLAG
+       CLR  MPY1       RESET ACCUMULATOR
+       BL   @ECHO      INPUT A DIGIT
+       CI   VALUE,>2D00       MINUS?
+       JNE  CKNUM      NO, SKIP
+       INC  MINUS      SET MINUS FLAG
+GETNUM BL   @ECHO      GET A DIGIT
+CKNUM  CI   VALUE,>3000       MIN NUMERIC
+       JL   DONE
+       CI   VALUE,>3900       MAX NUMERIC
+       JH   DONE
+       SLA  VALUE,4    ASCII TO BINARY
+       SRL  VALUE,12
+       MPY  @TEN,MPY1  MULTIPLY ACC BY 10
+       MOV  MPY2,MPY1
+       A    VALUE,MPY1 ADD DIGIT
+       JMP  GETNUM
+DONE   MOV  MINUS,MINUS       NEGATE INPUT?
+       JEQ  NMINUS            NO,SKIP
+       NEG  MPY1       YES,NEGATE
+NMINUS LI   VALUE,SPACE7
+       BLWP @MESG
+       LI   VALUE,EQUSGN      PRINT =
+       BLWP @MESG
+       MOV  MPY1,VALUE
+       BLWP @WHEX      PRINT HEX
+       B    @MONTOP    EXIT
+TEN    DATA 10
+       TITL 'HEX TO DECIMAL CONVERSION'
+       PAGE
+* * * * * * * * * * * * * * * * * * * * * * *
+*        HEX TO DECIMAL CONVERSION          *
+* * * * * * * * * * * * * * * * * * * * * * *
+HD     CLR  ZEROFG     CLEAR LEADING ZERO FLAG
+       LI   VALUE,SPACE7      OUTPUT 7 SPACES TO SKIP PAST ENTRY
+       BLWP @MESG
+       LI   VALUE,EQUSGN      PRINT '='
+       BLWP @MESG
+       MOV  STARTA,MPY2       TEST INPUT
+       JLT  RMINUS     NEGATIVE, OUTPUT '-'
+       JEQ  ZEROUT     ZERO, OUTPUT '0'
+       JMP  RALOOP
+RMINUS LI   VALUE,MINUST      PRINT '-'
+       BLWP @MESG
+       NEG  MPY2       NEGATE NUMBER
+RALOOP LI   MDIV2,10000       LOAD DIVISOR
+HLOOP  CLR  MDIV1
+       CLR  MPY1
+       DIV  MDIV2,MPY1 EXTRACT MOST SIG DIGIT
+       MOV  MPY1,MPY1  ZERO DIGIT?
+       JNE  NZERO      NOT ZERO DIGIT, SKIP
+       MOV  ZEROFG,ZEROFG     SUPPRESS LEADING ZEROS?
+       JEQ  SUPPR      YES, SKIP
+NZERO  AI   MPY1,>30   BINARY TO ASCII
+       SWPB MPY1
+       MOV  MPY1,VALUE OUTPUT DIGIT
+       BLWP @WRIT
+       INC  ZEROFG     SET FLAG
+SUPPR  DIV  @TEN,MDIV1 UPDATE DIVISOR
+       MOV  MDIV1,MDIV2
+       JNE  HLOOP      IF DIVISOR ZERO, QUIT
+RETURN B    @MONTOP
+ZEROUT LI   VALUE,>3000       LUTPUT A '0'
+       BLWP @WRIT
+       JMP  RETURN
+       TITL 'HEX ARITHMETIC'
+       PAGE
+* * * * * * * * * * * * * * * * * * * * * * *
+*               HEX ARITHMETIC              *
+* * * * * * * * * * * * * * * * * * * * * * *
+H      LI   VALUE,HOE  NEW LINE, PRINT 'H1='
+       BLWP @MESG
+       MOV  STARTA,VALUE          OUTPUT H1
+       BLWP @WHEX
+       LI   VALUE,HTE  PRINT 'H2='
+       BLWP @MESG
+       MOV  STOPA,VALUE          OUTPUT H2
+       BLWP @WHEX
+*                 SUM
+       LI   VALUE,HP   PRINT 'H1+H2='
+       BLWP @MESG
+       MOV  STARTA,VALUE
+       A    STOPA,VALUE
+       BLWP @WHEX      OUTPUT SUM
+*                 DIFFERENCE
+       LI   VALUE,CRLF
+       BLWP @MESG
+       LI   VALUE,HM   OUTPUT 'H1-H2='
+       BLWP @MESG
+       MOV  STARTA,VALUE
+       S    STOPA,VALUE
+       BLWP @WHEX      OUTPUT H1-H2
+*                 PRODUCT
+       LI   VALUE,HPROD       '  H1*H2 = '
+       BLWP @MESG
+       MOV  STARTA,VALUE
+       MPY  STOPA,VALUE
+       BLWP @WHEX
+       LI   VALUE,SPACE1
+       BLWP @MESG
+       MOV  TCHAR,VALUE
+       BLWP @WHEX
+       PAGE
+*                 QUOTIENT
+       LI   VALUE,CRLF
+       BLWP @MESG
+       LI   VALUE,HQUOT      '  H1/H2 = '
+       BLWP @MESG
+       MOV  STARTA,TCHAR
+       CLR  VALUE
+       DIV  STOPA,VALUE
+       BLWP @WHEX
+       LI   VALUE,HQUOT1     ' R '   (REMAINDER)
+       BLWP @MESG
+       MOV  TCHAR,VALUE
+       BLWP @WHEX
+       B    @MONTOP
+       TITL 'MOVE BLOCK'
+       PAGE
+* * * * * * * * * * * * * * * * * * * * * * *
+*        N      MOVE BLOCK                  *
+*        K   FIND BUFFER ERROR              *
+*               CHANGE BIAS                 *
+*             CHANGE ASR FLAG               *
+*             COMPARE BLOCKS                *
+* * * * * * * * * * * * * * * * * * *
+*           MOVE BLOCK              *
+* * * * * * * * * * * * * * * * * * *
+N      MOV  NCOUNT,NCOUNT     NO COUNT?
+       JEQ  KEXIT      YES,QUIT
+       CI   TCHAR,>2D00       MINUS TERMINATION?
+       JEQ  NSKIP      YES, SKIP
+N1     BLWP @GETFR    GET A BYTE
+       BLWP @PUTTO    PUT A BYTE
+       INC  STARTA     INCREMENT ADDRESSES FOR NEXT ROUND
+       INC  STOPA
+       DEC  NCOUNT     DONE?
+       JNE  N1         NO, JUMP BACK
+       JMP  KEXIT      RETURN
+NSKIP  A    NCOUNT,STARTA
+       A    NCOUNT,STOPA
+N2     DEC  STARTA
+       DEC  STOPA
+       BLWP @GETFR     MOV DATA
+       BLWP @PUTTO
+       DEC  NCOUNT     DONE?
+       JNE  N2         NO, JUMP BACK
+       JMP  KEXIT
+       TITL 'COMPARE BLOCKS'
+       PAGE
+************************************************************
+*      COMPARE BLOCKS                                      *
+************************************************************
+CMP    BLWP @GETFR    GET DATA FROM FIRST BLOCK
+       MOV  VALUE,CHAR
+       BLWP @GETTO           GET DATA FROM SECOND BLOCK
+       CB   VALUE,CHAR       = ?
+       JEQ  CMPNT     YES, SKIP
+       MOV  VALUE,TCHAR
+       BL   @PRTBD    PRINT CRLF, ADDRESS AND DATA
+*                                  FOR FIRST BLOCK
+       LI   VALUE,SPACE4
+       BLWP @MESG
+       BL   @PRTBD1   PRINT ADDRESS AND DATA
+*                                  FOR SECOND BLOCK
+       MOV  REG,STARTA
+*
+CMPNT  INC  STARTA
+       INC  STOPA
+       DEC  NCOUNT    FINISHED ?
+       JNE  CMP       NO, DO NEXT BYTE
+       JMP  KEXIT
+       TITL 'FIND WORD OR BYTE'
+       PAGE
+********************************************************
+*        FIND WORD OR BYTE EQUAL TO GIVEN VALUE        *
+*        FIND WORD OR BYTE NOT EQUAL TO GIVEN VALUE    *
+********************************************************
+F      LI   XEC,>1602         JUMP NOT EQUAL INSTRUCTION
+       JMP  FIND
+K      LI   XEC,>1302  JUMP EQUAL INSTRUCTION
+FIND   DEC  STARTA
+       CI   TCHAR,>2D00
+       JNE  CB
+       SWPB KEY       SWAP ONLY IF BYTE COMPARE
+CB     INC  STARTA
+       BLWP @GETFR
+       MOV  VALUE,CHAR
+       CI   TCHAR,>2D00      IS IS A BYTE OPERATION ?
+       JEQ  CB1              YES, COMPARE BYTES
+       C    CHAR,KEY  COMPARE WORDS
+       X    XEC
+       BL   @PRTWD
+       INC  STARTA    IT WILL BE INCed AGAIN ABOVE
+       JMP  GOOD1
+CB1    CB   CHAR,KEY  COMPARE BYTES
+       X    XEC        EXECUTE JUMP INSTRUCTION
+       BL   @PRTBD     OUTPUT ADDRESS AND DATA
+GOOD1  C    STARTA,STOPA      DONE?
+       JL   CB         NO, JUMP BACK
+KEXIT  B    @MONTOP
+       TITL 'CHANGE X, Y, & Z BIAS / ASR FLAG'
+       PAGE
+* * * * * * * * * * * * * * * * * * * * * *
+*           CHANGE BIAS, ASRFLAG          *
+* * * * * * * * * * * * * * * * * * * * * *
+X      LI   STARTA,RX ADDRESS OF X BIAS
+       JMP  CBIAS
+Y      LI   STARTA,RY ADDRESS OF Y BIAS
+       JMP  CBIAS
+Z      LI   STARTA,RZ ADDRESS OF Z BIAS
+*
+CBIAS  MOV  *STARTA,VALUE    OUTPUT PRESENT VALUE
+       BLWP @WHEX
+       LI   VALUE,SPACE2
+       BLWP @MESG
+       BLWP @RHEX     GET NEW VALUE
+       DATA KEXIT,ERR2       DO NOT CHANGE IF NULL INPUT
+       MOV  VALUE,*STARTA    ENTER NEW VALUE
+       JMP  KEXIT
+*
+       TITL '*** SUBROUTINES ***'
+       PAGE
+************************************************************
+*      SUBROUTINES                                         *
+************************************************************
+*  PRINT   ADDRESS, EQUAL SIGN AND TWO DIGIT DATA          *
+*     PRTBD   GETS ADDRESS FROM 'STARTA' AND               *
+*               DATA FROM 'CHAR' MSBy                      *
+*     PRTBD1  GETS DATA FROM 'STOPA' AND                   *
+*               DATA FROM 'TCHAR' MSBy  NO CRLF IS PRINTED.*
+*               'STARTA' MUST BE RESTORED FROM 'REG'       *
+*               BY USER                                    *
+************************************************************
+PRTBD1 MOV  STARTA,REG
+       MOV  STOPA,STARTA
+       MOV  TCHAR,CHAR
+       JMP  PRTBD2
+*
+PRTBD  LI   VALUE,CRLF
+       BLWP @MESG
+PRTBD2 MOV  STARTA,VALUE
+       BLWP @WHEX
+       LI   VALUE,EQUSGN
+       BLWP @MESG
+       MOV  CHAR,VALUE
+       BLWP @WHX2
+       RT
+*
+*    SAME AS PRDBD EXCEPT IS PRINTS 4 DIGITS OF DATA
+*
+PRTWD  MOV  R11,TEMP
+       BL   @PRTBD
+       SWPB VALUE
+       BLWP @WHX2
+       B    *TEMP
+SEND   EQU  $
+       END

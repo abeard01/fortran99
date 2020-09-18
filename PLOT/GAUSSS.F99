@@ -1,0 +1,20 @@
+      INTEGER*4 IX
+      REAL*8 G
+      IX=12345
+      DO 1 I=1,20
+      CALL GAUSS(IX,2.0D0,3.0D0,G)
+1     WRITE(9,1000)IX,G
+1000  FORMAT(1X,I15,F15.7)
+      END
+      SUBROUTINE GAUSS(IX,S,AM,V)
+      INTEGER*4 IX
+      REAL*8 Y,S,AM,V
+      V=0.0D0
+      DO 50 I=1,12
+      IX=IX*65539
+      IF(IX)5,6,6
+    5 IX=IX+2147483647+1
+    6 Y=IX
+   50 V=V+Y
+      V=(V*0.4656613D-9-6.0D0)*S+AM
+      END

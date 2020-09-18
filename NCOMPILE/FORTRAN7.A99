@@ -1,0 +1,16 @@
+	TITL  'VERSION IDENTIFIER'
+	IDT   'VERS'
+*
+*  This is a stub module which is used to identify the version
+*  number of the compiler
+*
+	DEF  VERSNO
+	DEF  FORT7E
+*
+	DATA 0			SKIP FIRST WORD
+VERSNO	EQU  $
+	COPY "version.a99"
+	BYTE >0D,>FF
+	EVEN
+FORT7E	EQU  $
+	END

@@ -1,0 +1,12 @@
+assign errors:   fast:fortran/gerrors
+assign listings: fast:fortran/glistings
+assign objects:  fast:fortran/gobjects
+assign equates:  fast:fortran/equates
+date >now
+crever
+a99 >errors:menu -oobjects:objm -llistings:menu -pc menu
+cd objects:
+loader >menu.l99 menu.c99
+cd sys:fortran/gexecute
+type errors:menu
+type objects:menu.l99

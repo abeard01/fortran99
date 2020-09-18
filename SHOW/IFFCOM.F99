@@ -1,0 +1,14 @@
+c
+        integer *1 record(128), filename(41), map(640)
+        integer *2 width, height, bitsleft, rlenumb, repeats
+        integer *4 formsz, length, vidtbls(6), inmem, memstart
+        real    *4 form, header, ilbm
+        integer *1 colors, masking, compress, pad1, xaspect,
+     +             yaspect, cmap(3,32), dummy, creg(32)
+        logical *2 gotheader, gotcmap
+        common record, recptr, filename, map, form, formsz,
+     +         header, ilbm, length, colors, masking, compress,
+     +         pad1, xaspect, yaspect, cmap, dummy, gotheader,
+     +         gotcmap, vidtbls, inmem, memstart, creg, width,
+     +         height, bitsleft, rlenumb
+

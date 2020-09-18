@@ -1,0 +1,10 @@
+assign errors:   fast:fortran/errors
+assign listings: fast:fortran/glistings
+assign objects:  fast:fortran/gobjects
+assign equates:  fast:fortran/equates
+date >now
+crever
+a99 >errors:tidebug -oobjects:objt -llistings:tidebug tidebug
+type errors:tidebug
+
+
