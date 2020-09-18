@@ -1,0 +1,22 @@
+      COMPLEX FUNCTION CR$(C,R)
+C CR$: COMPLEX ARGUMENT WITH REAL EXPONENT
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    26-Nov-89   E.Clausen   Initial Version by Elmer Clausen
+C
+      COMPLEX C
+      COMPLEX*16 CD,X,CDEXP,CDLOG
+      IF(C.EQ.(0.0,0.0))GO TO 1
+        CD=C
+        X=R
+        CR$=CDEXP(X*CDLOG(CD))
+      RETURN
+1     IF(R.GE.0.0)THEN
+        CR$=C
+      ELSE
+        CR$=(1.E99,0.0)
+      ENDIF
+      END

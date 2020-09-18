@@ -1,0 +1,159 @@
+                            TRANSFORM UTILITY
+                            =================
+                             BY LGMA PRODUCTS
+                              JULY 19, 1989
+
+  Berry Miller asked me to do a little (useful) program to demonstrate
+  some of the capabilities of 9640 FORTRAN.   He wanted the program to
+  show how strings might be used, and suggested a utility to convert
+  DISPLAY/FIXED/128 files to DISPLAY/VARIABLE/80 files.
+
+  Such a program would be a really handy utility for MDOS.  The reason
+  The reason hinges behind how the standard TI-99 terminal emulators
+  like FASTERM and TELCO handle TEXT or ASCII files (called DISPLAY/
+  VARIABLE/80 files on the TI-99 and GENEVE).
+
+  Normal TI-99 and MDOS files get posted on a bulletin board or network
+  with a 128 byte header in front of the file, called a "TIFILES" header.
+  However, files posted by other computers and ASCII or TEXT files uploaded
+  by the TI-99 and MDOS emulators don't have a TIFILES header.
+
+  This causes the dilemma that the terminal emulator doesn't know what
+  format the file is supposed to be in.   For example, is it a PROGRAM
+  file?  A display/var/80 file?  A display/fix/80 file?
+
+  Most terminal emulators resolve this by creating an arbitrary display/
+  fixed/128 file.   Several utilities have arisen which use this format
+  (such as the GIF picture utility by Paul Charlton) and this is ok.
+  If you are downloading text files, however, this is the wrong format
+  and you will see some strange things when you type out the file.
+
+  TRANSFORM fixes this.  It takes a DISPLAY/FIX/128 file (the way it comes
+  from the terminal emulator) and creates either a DISPLAY/VAR/80 file
+  (for text files) or a DISPLAY/FIX/80 file.
+
+  The GENEVE solution - TRANSFORM
+  ===============================
+
+  Included in this archive is a program written in 9640 FORTRAN which
+  transforms d/f/128 files into d/f/80 or d/v/80 files.  It is a short
+  and simple program which in MDOS tradition, takes it's command parameters
+  from the command line (rather then menu driven, like on the TI-99).
+
+  Transform is called from the MDOS command line, with the following
+  parameters:
+
+              TRANSFORM [input_file] [output_file][/file]
+
+       input_file  :  name of input file to translate
+       output_file :  name of output file to translate
+       /option     :  /DF80 for dis/fix/80, /DV80 for dis/var/80
+                      (default = dis/fix/80)
+
+  An example of running this program would be:
+
+              TRANSFORM E:CAPTURE128 F:CAPTURE80 /V
+
+  which says to read the d/f/128 input file on the ram disk called
+  "capture128", and create a d/v/80 file on the hard disk called
+  "capture80".
+
+  Basic Program Structure
+  =======================
+
+  The following is a high level "program design language" flow of the
+  TRANSFORM program:
+
+        get command line (cmdstr)
+        get first file name from command line (getfile)
+        get second file name from command line (getfile)
+        get option from command line (getfile)
+        if no option specified
+            set type display/var/80
+        else if option is "fixed"
+            set type display/fix/80
+        else if option is "variable"
+            set type display/var/80
+        endif
+        open input and output files
+        do until (end of input data)
+          read five display/fixed/128 records from input file
+          if ( display/fixed/80 format )
+            write eight display/fixed/80 records
+          else
+            do for each byte in input record
+              if ( input byte is cntrl/z )
+                set file end
+              else if ( input byte is a line feed or overflow d/v/80 record )
+                write d/v/80 record
+              else if ( input byte is a carriage return )
+                ignore input byte
+              else if ( input byte is a tab stop )
+                detab output record
+              else
+                move character to output record
+              endif
+            enddo
+          endif
+        enddo
+
+  The first thing we do is get the command line string using the CMDSTR
+  routine (BTW - Paul Charlton originated this routine, without it almost
+  none of the FORTRAN programs would be command line driven).  The program
+  then gets three command line arguments using the GETFILE routine:
+
+               1. the input file name (the display/fix/128 file)
+               2. the output file name (the display/var/80 file)
+               3. the variable or fixed option
+
+   
+  It then sets the type flag based on the /F or /V option.
+
+  Conversion of DISPLAY/FIXED/80 files is easy, just read five display/
+  fixed/128 records, and write eight display/fixed/80 records.  I picked
+  five input records cause it rounded nicely to eight output records.  It
+  is usually good on disk I/O programs also to read a good chunk of data
+  from one file, and then write a good chunk of data to another file.
+  This usually results in faster programs.
+
+  Conversion of DISPLAY/VARIABLE/80 files is a little tougher.  Five
+  input records are again read, and then output records are created
+  by blanking an output record, reading bytes until a line feed is
+  detected, and writing the record to the output file.   If a
+  control/z is detected, then an end of file condition is detected and
+  the processing terminates.
+
+  I also noted that many of the ASCII files I download are full of
+  tab stops.   Many machines (e.g. VAX computers and others) use
+  tab stops liberally.   Since the TI-99 and GENEVE can't handle them,
+  I strip them out here and "detab" the output file.  This saves you
+  a detab step.
+
+  Extending the Utility
+  =====================
+
+  I usually offer to the public ways in which the utility could be
+  extended or modified.   How about:
+
+    1. A display of which line number the program is currently
+       processing.
+
+    2. Conversion of more file types (e.g. d/f/128 to program file,
+       etc.)
+
+    3. Variations on both input and output file types.
+
+  If you extend the program, please let me know!   Note, however, the
+  file is copyrighted 1989 by LGMA Products.   This doesn't mean I don't
+  want you to change it or use it, but if you do change it, let others
+  enjoy what you've done!   Let me know or post it somewhere so we all
+  can benefit.
+
+                                                     al beard
+                                                     lgma products
+
+
+  (BTW, 9640 FORTRAN is available from Disk Only Software and Quality
+   99 Software.   Recommended list price is $69.95, although I'm sure
+   that both have discounted somewhat.   Please check with dealers for
+   price and delivery)

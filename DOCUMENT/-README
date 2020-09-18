@@ -1,0 +1,42 @@
+Release Notes : QDE v1.8 for MDOS 1.14        89/01/07
+
+QDE v1.8 was developed using MOS 1.14 and may not run correctly with earlier
+versions of MDOS.
+
+QDE v1.8 has the following bug fixes and new features :
+
+ - The inital blank screen which persisted until certain keys (ie. F5) were
+   pressed does not occur providing QDE was invoked in 80 column mode.
+
+ - The wipe (^W) command now clears the filename as well as the text buffer,
+   eliminating the accidental overwriting of files.
+
+ - The status display (F5) will now show a filename of NULL if a name was
+   not entered with the QDE command or the wipe command was issued.
+
+ - The editing screen now displays 26 rows.
+
+ - Standard assembler tab stops may be selected instead of the 4 column stops
+   by use of ^9.
+
+ - A show directory (^F) command is available providing the the file SD,
+   included in this release, is present on the default device. If RAMdisk
+   is the default, task loading is almost instantaneous.
+
+ - The directory display produced by SD has been corrected for files without
+   dates and/or spurious attribute bits.
+
+For best results, my MDOS sofware should be run in standalome mode without
+a TIMODE statement in the AUTOEXEC file on 512K systems. If you prefer a
+dual mode system, configure a 110K ramdisk (100K if the c99 compiler is to
+be run) in your AUTOEXEC file. You may use the MDOS command CHKDSK to
+determine if sufficient free memory is available.
+
+In summary, to ensure correct operation of QDE v1.8:
+
+ - Run from MDOS 1.14,
+ - Be sure that at least 10 pages of free memory are available,
+ - Invoke QDE in 80 column mode.
+ - Have a copy of the file SD on the default device (preferably RAMdisk)
+
+Clint Pulley

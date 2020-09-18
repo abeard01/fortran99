@@ -1,0 +1,20 @@
+      COMPLEX FUNCTION JC$(J,C)
+C JC$: INTEGER*4 ARGUMENT WITH COMPLEX EXPONENT
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    26-Nov-89   E.Clausen   Initial Version by Elmer Clausen
+C
+      COMPLEX C
+      COMPLEX*16 E,X,CDEXP,CDLOG
+      INTEGER*4 J
+      REAL*8 A
+      A=J        ! GET INTEGER VALUE
+        JC$=(0.0,0.0)
+      IF(A.EQ.0.0D0)RETURN
+        E=C      ! COMPLEX TO COMPLEX*16
+        X=J      ! INTEGER TO COMPLEX*16
+        JC$=CDEXP(E*CDLOG(X))
+      END

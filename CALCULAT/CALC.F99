@@ -1,0 +1,522 @@
+      PROGRAM CALC
+C  This program is a simplistic spreadsheet
+C  04-MAR-1989       version 4.1    Changed way files are stored, removed
+C                                   slash "/" from filename, was causing
+C                                   problems under MDOS
+      INCLUDE 'DSK1.CALCOM'
+C  Initialize
+      CALL SET32
+      CALL INITDATA
+      CALL INITLOGI
+998   CALL DISPHEA
+      WRITE(6,9100)
+C  Get option
+999   CALL NEWKEY(KEYC)
+C  If fctn/back, confirm & exit if ok
+      IF(KEYC.EQ.15) THEN
+        WRITE ( 6, 9110 )
+        CALL NEWKEY(KEYC)
+        IF ( KEYC .EQ. 89 ) THEN
+          CALL EXIT
+        ELSE
+          GOTO 998
+        ENDIF
+      ENDIF
+C  Else, do option
+      KEYC=KEYC-Z'0030'
+      GOTO(1000,2000,3000,4000,5000,6000,7000,8000),KEYC
+      GOTO 999
+C  1 - Edit values
+1000  CALL EMATRIX
+      GOTO 998
+C  2 - Edit logic
+2000  CALL ELOGIC
+      GOTO 998
+C  3 - List logic
+3000  CALL LSPREAD
+      GOTO 998
+C  4 - Print
+4000  CALL PSPREAD
+      GOTO 998
+C  5 - Reinitialize
+5000  CALL INITIAL
+      GOTO 998
+C  6 - Save
+6000  CALL SAVE
+      GOTO 998
+C  7 - Load
+7000  CALL LOADF
+      GOTO 998
+C  8 - Calculate
+8000  CALL CALCULAT
+      GOTO 998
+9100  FORMAT('+',M3.2, 'Press:', M6.6, '1 To Edit Values',
+     2  M8.6, '2    Edit Logic Model', M10.6,'3    List',
+     4  M12.6,'4    Print', M14.6,'5    Reinitialize',
+     6  M16.6,'6    Save', M18.6,'7    Load',  M20.6,'8    Calculate' )
+9110  FORMAT('+',M23.4,'Are you sure (Y/N)?')
+      END
+      SUBROUTINE PSPREAD
+C  Print spreadsheet on specified device
+      INCLUDE 'DSK1.CALCOM/NOLIST'
+      CALL DISPHEA
+      WRITE(6,9100)
+C  Get print option
+1000  CALL GETLOGD
+      IF (RETFLG) RETURN
+C  Obtain file name
+1400  WRITE(6,9110)
+      READ (6,9120,ERR=1000,END=1000)INFILE
+C  Open print file
+      ERRSTS=0
+      CALL OPEN(1,INFILE,1,0,1,0,96,ERRSTS)
+      IF(ERRSTS.NE.0)GOTO 9000
+C  Write logic, data models
+      IF(DOLOG) THEN
+        CALL DSPREAD(1)
+      ENDIF
+      IF(DODAT) THEN
+        WRITE(1,9140,ERR=9000)SPNAME,(I,I=1,LASTCOL)
+        DO 2010 I=1,LASTROW
+          IF(MATRIX(I,1).EQ.8H         ) THEN
+            WRITE(1,9160,ERR=9000) I
+          ELSE
+            WRITE(1,9150,ERR=9000)I,(MATRIX(I,J),J=1,LASTCOL)
+          ENDIF
+2010    CONTINUE
+      ENDIF
+      CALL CLOSE(1)
+      RETURN
+9000  CALL CLOSE(1)
+      WRITE(6,9130)ERRSTS
+      CALL WAIT
+9100  FORMAT('+',M3.12,'Print Mode', M5.3,'Press:', M8.8,'1 To Print Logic',
+     +  M10.8,'2',9X,'Data', M12.8,'3',9X,'Both' )
+9110  FORMAT('0Device name?')
+9120  FORMAT(16A2 )
+9130  FORMAT('0Error ',Z4,' on file',/,3X,16A2 )
+9140  FORMAT('1',22X,'99 Spreadsheet',/,24X,A8,/,3X,15I10)
+9150  FORMAT(1X,I2,2X,A8,14F10.2)
+9160  FORMAT(1X,I2)
+      END
+      SUBROUTINE LSPREAD
+C  List spreadsheet logic to screen
+      CALL DSPREAD(6)
+      CALL WAIT
+      END
+      SUBROUTINE DSPREAD ( UNIT )
+C  List spreadsheet logic to specified unit.
+      INCLUDE 'DSK1.CALCOM/NOLIST'
+      INTEGER OP(4)
+      REAL VALUE
+      INTEGER IVAL(2)
+      EQUIVALENCE (IVAL(1), VALUE)
+      DATA OP / '+ ','- ','/ ','* ' /
+C  Clear screen & print header
+      WRITE(UNIT,9100)SPNAME
+C  Print total row, total column
+      WRITE(UNIT,9105)TOTROW,TOTCOL,LASTROW,LASTCOL
+C  Do for each row
+      DO 1000 I=1,MAXROW
+C  Print row number & name
+        WRITE(UNIT,9110)I,MATRIX(I,1)
+C  Print row equation, if any
+        USED=POINTERS(I)
+        OPERAT = '  '
+        DO WHILE(USED.NE.0)
+          NEXTL=LINKS(USED)
+          TYPE=IAND(NEXTL/4096,Z'000F')
+          NEXTL=IAND(NEXTL,Z'0FFF')
+          TYPE=TYPE+ 1
+          IF(TYPE.LT.5) THEN
+            OPERAT = OP(TYPE)
+          ELSE
+            WRITE(UNIT,9120)OPERAT,VALUES(1,USED)
+          ENDIF
+          USED=NEXTL
+        ENDDO
+1000  CONTINUE
+9100  FORMAT('1',A8)
+9105  FORMAT('0Total row:',I7,/' Total column:',I4,/
+     +  '0Last row:    ',I4,/ ' Last column: ',I4)
+9110  FORMAT(1X,'Row',I3,' is ',A8)
+9120  FORMAT(1X,A1,I6)
+      END
+      SUBROUTINE INITIAL
+C  Reset internal variables
+      WRITE(6,9100)
+      CALL NEWKEY(KEYC)
+      IF(KEYC.EQ.89) THEN
+        CALL INITDATA
+        CALL INITLOGI
+      ENDIF
+9100  FORMAT('+',M23.4,'Are you sure (Y/N)?')
+      END
+      SUBROUTINE CALCULAT
+C  Calc spreadsheet row equations, total fields
+      INCLUDE 'DSK1.CALCOM/NOLIST'
+      INTEGER IVAL(2)
+      REAL    VALUE
+      DOUBLE PRECISION DARG1, DARG2
+      EQUIVALENCE(IVAL(1),VALUE)
+      EQUIVALENCE(IVAL(1),FROW)
+      CALL DISPHEA
+      WRITE(6,9100)
+C  Do for each row
+      DO 1000 RROW=1,MAXROW
+C  Display calc in progress
+        WRITE(6,9110)RROW
+C  See if calc on this row
+        LASTOP=1
+        USED=POINTERS(RROW)
+        DO WHILE(USED.NE.0)
+C  Decode packet
+          ITEMP  =LINKS(USED)
+          IVAL(1)=VALUES(1,USED)
+          IVAL(2)=VALUES(2,USED)
+          USED   =IAND(ITEMP, Z'0FFF' )
+          TYPE   =IAND(ITEMP / 4096, Z'000F' ) + 2
+C  Do case of packet type
+          IF(TYPE.LT.6) THEN
+             LASTOP = TYPE
+          ELSEIF(TYPE.EQ.6) THEN
+C  Row value, do last operation
+            DO 1050 I=2,MAXCOL
+              DARG1 = MATRIX(RROW,I)
+              DARG2 = MATRIX(FROW,I)
+              GOTO(1100,1200,1300,1400,1500),LASTOP
+C  =
+1100            DARG1=DARG2
+                GOTO 1040
+C  +
+1200            DARG1=DARG1+DARG2
+                GOTO 1040
+C  -
+1300            DARG1=DARG1-DARG2
+                GOTO 1040
+C  /
+1400            IF ( DARG2 .EQ. 0.0D0 ) THEN
+                  DARG1=9999.99
+                ELSE
+                  DARG1=DARG1/DARG2
+                ENDIF
+                GOTO 1040
+C  *
+1500            DARG1=DARG1*DARG2
+1040          MATRIX(RROW,I)=DARG1
+1050        CONTINUE
+          ENDIF
+        ENDDO
+1000  CONTINUE
+C  calculate total row
+      WRITE(6,9120)
+      IF(TOTROW.NE.0) THEN
+        WRITE(6,9130)
+        DO 2010 J=2,MAXCOL
+          MATRIX(TOTROW,J)=0.0D0
+          DO 2010 I=1,TOTROW-1
+            MATRIX(TOTROW,J)=MATRIX(TOTROW,J)+MATRIX(I,J)
+2010    CONTINUE
+      ENDIF
+C calculate total column
+      IF(TOTCOL.NE.0) THEN
+        WRITE(6,9140)
+        DO 3010 J=1,MAXROW
+          MATRIX(J,TOTCOL)=0.0D0
+          DO 3010 I=2,TOTCOL-1
+            MATRIX(J,TOTCOL)=MATRIX(J,TOTCOL) + MATRIX(J,I)
+3010    CONTINUE
+      ENDIF
+9100  FORMAT('+',M3.10,'Calculate Mode' )
+9110  FORMAT('+',M8.10,'Calculating Row', M10.16, I5 )
+9120  FORMAT('+',M8.10,'Calculating Total' )
+9130  FORMAT('+',M10.16,'Row...')
+9140  FORMAT('+',M10.16,'Column')
+      END
+      SUBROUTINE INITDATA
+C  Initialize data
+      INCLUDE 'DSK1.CALCOM/NOLIST'
+C  Set max row/column
+      MAXROW=40
+      MAXCOL=15
+C  Clear Matrix
+      DO 1000 I=1,MAXROW
+        DO 1000 J=2,MAXCOL
+          MATRIX(I,J)=0.0D0
+1000  CONTINUE
+C  Define sprite cursor
+      CALL SPCHAR('0080'X,'000000000000FF00'X)
+      CALL SPCHAR('0081'X,'0000000000000000'X)
+      CALL SPCHAR('0082'X,'000000000000FF00'X)
+      CALL SPCHAR('0083'X,'0000000000000000'X)
+      END
+      SUBROUTINE INITLOGI
+C  Initialize linked list for logic model.
+      INCLUDE 'DSK1.CALCOM/NOLIST'
+C  Initialize pointers & row names
+      DO 1000 I=1,MAXROW
+        POINTERS(I)=0
+1000    MATRIX(I,1)=8H
+C  Initialize links
+      DO 1010 I=1,200
+        LINKS(I)=I+1
+        VALUES(1,I)=0
+1010    VALUES(2,I)=0
+      LINKS(200)=0
+      AVAIL=1
+C  Init spreadsheet name, total row & column
+      SPNAME=8HDEFAULT
+      TOTCOL=15
+      LASTCOL=15
+      TOTROW=40
+      LASTROW=40
+      END
+      SUBROUTINE NEWKEY ( KEYC )
+C  Read a key from keyboard
+      ISTATUS=0
+      DO WHILE (ISTATUS.EQ.0)
+        CALL KEY(0,KEYC,ISTATUS)
+      ENDDO
+C  Following line was added to make program MDOS compatible
+      KEYC = IAND ( KEYC, Z'007F' )
+      END
+      SUBROUTINE DISPHEA
+C  This subroutine displays the spreadsheet header
+      INCLUDE 'DSK1.CALCOM/NOLIST'
+      WRITE(6,9100)SPNAME
+9100  FORMAT ( '1', M1.10, '99 Spreadsheet', M2.13, A8 )
+      END
+      SUBROUTINE EMATRIX
+C  Edit value matrix
+      INCLUDE 'DSK1.CALCOM/NOLIST'
+      DOUBLE PRECISION VALUE
+C  Display Submenu, and get user entry
+999   CALL DISPHEA
+      WRITE(6,9100)
+      CALL NEWKEY(KEYC)
+C  If back, return to main menu
+      IF(KEYC.EQ.15)RETURN
+C  Else, execute function
+      KEYC = KEYC - Z'0030'
+      GOTO (1000,2000,3000,4000,5000), KEYC
+      GOTO 999
+C  1 - Edit
+1000  CALL EVALUES
+      GOTO 999
+C  2 - Clear Row
+2000  WRITE(6,9110)
+      READ (6,9160,ERR=999,END=999)FROW
+      IF((FROW.LT.1).OR.(FROW.GT.MAXROW)) THEN
+        WRITE(6,9170)
+        GOTO 2000
+      ENDIF
+      DO 2010 I=2,MAXCOL
+2010    MATRIX(FROW,I)=0.0D0
+      GOTO 999
+C  3 - Clear column
+3000  WRITE(6,9120)
+      READ (6,9160,ERR=999,END=999)FCOL
+      IF((FCOL.LT.1).OR.(FCOL.GT.MAXCOL)) THEN
+        WRITE(6,9170)
+        GOTO 3000
+      ELSEIF(FCOL.EQ.1)THEN
+        VALUE=8H
+      ELSE
+        VALUE=0.0D0
+      ENDIF
+      DO 3010 I=1,MAXROW
+3010    MATRIX(I,FCOL)=VALUE
+      GOTO 999
+C  4 - Copy Row
+4000  WRITE(6,9130)
+      READ(6,9160,ERR=999,END=999)FROW
+      IF((FROW.LT.1).OR.(FROW.GT.MAXROW)) THEN
+        WRITE(6,9170)
+        GOTO 4000
+      ENDIF
+4010  WRITE(6,9150)
+      READ(6,9160,ERR=999,END=999)TROW
+      IF((TROW.LT.1).OR.(TROW.GT.MAXROW)) THEN
+        WRITE(6,9170)
+        GOTO 4010
+      ENDIF
+      DO 4020 I=1,MAXCOL
+4020    MATRIX(TROW,I)=MATRIX(FROW,I)
+      GOTO 999
+C  5 - Copy column
+5000  WRITE(6,9140)
+      READ (6,9160,ERR=999,END=999)FCOL
+      IF ((FCOL.LE.1).OR.(FCOL.GT.MAXCOL)) THEN
+        WRITE(6,9170)
+        GOTO 5000
+      ENDIF
+5010  WRITE(6,9150)
+      READ (6,9160,ERR=999,END=999)TCOL
+      IF((TCOL.LE.1).OR.(TCOL.GT.MAXCOL)) THEN
+        WRITE(6,9170)
+        GOTO 5010
+      ENDIF
+      DO 5020 I=1,MAXROW
+5020    MATRIX(I,TCOL)=MATRIX(I,FCOL)
+      GOTO 999
+9100  FORMAT('+',M3.12,'Edit Values', M8.6,'1 To Modify Values',
+     + M10.6,'2    Clear Row', M12.6,'3    Clear Column',
+     + M14.6,'4    Copy Row', M16.6,'5    Copy Column')
+9110  FORMAT('0Clear Row?')
+9120  FORMAT('0Clear Column?')
+9130  FORMAT('0Copy Row?')
+9140  FORMAT('0Copy Column?')
+9150  FORMAT(' To?',/)
+9160  FORMAT(I2 )
+9170  FORMAT('0Bad Value')
+      END
+      SUBROUTINE EVALUES
+C  Edit value matrix
+      INCLUDE 'DSK1.CALCOM/NOLIST'
+C  Set new screen
+      NEWSCREN=.TRUE.
+C  Set initial window limits
+      ROW=1
+      COLUMN=1
+C  Disable check key after screen write
+      CALL PRINTC ( .FALSE. )
+C  Call window to format screen
+2000  CALL WINDOW
+C  Get key
+      CALL NEWKEY(K)
+C  Do processing on key
+2500  USEOLD=.FALSE.
+      IF(K.EQ.9) THEN         ! Fctn/D - right arrow
+        IF(COLUMN.LT.MAXCOL) THEN
+          COLUMN=COLUMN+1
+        ENDIF
+      ELSEIF(K.EQ.8) THEN     ! Fctn/S - left arrow
+        IF(COLUMN.GT.1) THEN
+          COLUMN=COLUMN-1
+        ENDIF
+      ELSEIF(K.EQ.11) THEN    ! Fctn/E - up arrow
+        IF(ROW.GT.1) THEN
+          ROW=ROW-1
+        ENDIF                 ! Fctn/X or enter - down arrow
+      ELSEIF((K.EQ.10).OR.(K.EQ.13)) THEN
+        IF(ROW.LT.MAXROW) THEN
+          ROW=ROW+1
+        ENDIF
+      ELSEIF(K.EQ.15) THEN
+         CALL DELSPR(1)
+         CALL PRINTC ( .TRUE. )
+        RETURN
+C Number 0 to 9
+      ELSEIF((K.GE.Z'0030').AND.(K.LE.Z'0039').AND.
+     1  (COLUMN.NE.1)) THEN
+        CALL NUMBER(K)
+        USEOLD=.TRUE.
+C Minus sign
+      ELSEIF ( (K.EQ.45) .AND. (COLUMN.NE.1) ) THEN
+        CALL NUMBER(K)
+        USEOLD=.TRUE.
+C Letter A to Z
+      ELSEIF((K.GE.33).AND.(K.LE.95).AND.
+     1  (COLUMN.EQ.1)) THEN
+        CALL ALPHA(K)
+        USEOLD=.TRUE.
+      ENDIF
+      IF(USEOLD)THEN
+        GOTO 2500
+      ELSE
+        GOTO 2000
+      ENDIF
+      END
+      SUBROUTINE WINDOW
+      INCLUDE 'DSK1.CALCOM/NOLIST'
+C  Delete sprite cursor
+      CALL DELSPR(1)
+C  Determine starting row
+      CALL GETROW(SROW,SCOL,XCORD,YCORD)
+C  If old start row & new not same, set screen refresh
+      IF(.NOT.NEWSCREN) THEN
+        IF((OLDROW.NE.SROW).OR.(OLDCOL.NE.SCOL)) NEWSCREN=.TRUE.
+      ENDIF
+      IF(NEWSCREN) THEN
+C  Save starting row, column for next time.
+      OLDROW=SROW
+      OLDCOL=SCOL
+C  Write header
+        SCOL1=SCOL+1
+        SCOL2=SCOL1+1
+        WRITE(6,9100)SCOL,SCOL1,SCOL2
+C  Do for each row
+        CROW=3
+        DO 1000 I=SROW,SROW+9
+          IF(SCOL.EQ.1) THEN
+            WRITE(6,9120)CROW,I,(MATRIX(I,J),J=SCOL,SCOL2)
+          ELSE
+            WRITE(6,9130)CROW,I,(MATRIX(I,J),J=SCOL,SCOL2)
+          ENDIF
+1000    CROW=CROW+2
+      ENDIF
+C  Put sprite cursor at requested location
+      SPROW=(ROW-SROW)*16+13
+      SPCOL=(COLUMN-SCOL)*72+40
+      CALL SPRITE(1,'0080'X,2,SPROW,SPCOL)
+      CALL MAGNIF(4)
+      NEWSCREN=.FALSE.
+9100  FORMAT('1',6X,I2,6X,I2,7X,I2)
+9120  FORMAT('+',MN.2,I2,1X,A8,2(1X,F8.2))
+9130  FORMAT('+',MN.2,I2,3(1X,F8.2))
+      END
+      SUBROUTINE NUMBER ( KEYC )
+C  Read a number from the keyboard.
+      INCLUDE 'DSK1.CALCOM/NOLIST'
+      DOUBLE PRECISION DVAL,VALUE
+      INTEGER STRING(6)
+      LOGICAL ODD,FDECIMA
+C  Initialize pointers, & set first character
+      DO 1000 I=1,6
+1000    STRING(I)='  '
+      STRING(6)=0
+      IPTR=1
+      STRING(IPTR)=256*KEYC
+      ODD=.TRUE.
+      FDECIMA=KEYC.EQ.46
+      RETFLG=.FALSE.
+C  Determine starting row.
+      CALL GETROW(SROW,SCOL,XCORD,YCORD)
+      CALL HCHAR(YCORD,XCORD,Z'0020',8)
+      ICORD=XCORD
+      CALL HCHAR(YCORD,ICORD,KEYC)
+      ICORD=ICORD+1
+C  Read a key.  If non-numeric or not decimal point, perform value conversion.
+      DO WHILE (.NOT.RETFLG )
+        CALL NEWKEY(KEYC)
+        IF(IPTR.EQ.5) THEN
+          RETFLG=.TRUE.
+          IF((KEYC.GE.Z'0030').AND.(KEYC.LE.Z'0039')) THEN
+            KEYC=0
+          ENDIF
+        ELSEIF (((KEYC.GE.Z'0030').AND.(KEYC.LE.Z'0039')).OR.
+     1          (KEYC.EQ.46)) THEN
+          CALL HCHAR(YCORD,ICORD,KEYC)
+          ICORD=ICORD+1
+          IF (FDECIMA) THEN
+            RETFLG=.TRUE.
+            KEYC=0
+          ELSEIF(ODD) THEN
+            STRING(IPTR)=STRING(IPTR)+KEYC
+            IPTR=IPTR+1
+            ODD=.FALSE.
+          ELSE
+            STRING(IPTR)=KEYC*256
+            ODD=.TRUE.
+          ENDIF
+        ELSE
+          RETFLG=.TRUE.
+        ENDIF
+      ENDDO
+C  Convert string to double precision
+      VALUE=DVAL(STRING)
+      MATRIX(ROW,COLUMN)=VALUE
+C  Rewrite the value on the screen
+      WRITE (6,9100)YCORD,XCORD,VALUE
+9100  FORMAT('+',MN.N,F8.2)
+      END

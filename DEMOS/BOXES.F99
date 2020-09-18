@@ -1,0 +1,19 @@
+      program boxes
+      implicit integer(a-z)
+      call setmod ( 9 )
+      call clear
+      do 1000 i=1,1000
+        x1 = irand ( 256 )
+        y1 = irand ( 212 )
+        x2 = irand ( 256 )
+        y2 = irand ( 212 )
+        green = irand ( 7 )
+        red   = irand ( 7 )
+        blue  = irand ( 3 )
+        color = green * 32 + red * 8 + blue
+        x3 = min ( x1, x2 )
+        x4 = max ( x1, x2 )
+        y3 = min ( y1, y2 )
+        y4 = max ( y1, y2 )
+        do 1000 j=y3,y4
+          call setvec ( x3, ööööööööööööööööööööööööööööööööööööööööööö

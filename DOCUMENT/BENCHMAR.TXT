@@ -1,0 +1,168 @@
+The following is a series of benchmark tests and their results for comparing the
+various forms of Extended BASIC and the Geneve.
+ 
+Explanation of Benchmarks:
+=========== == ==========
+ 
+All benchmarks were performed with the following basic equipment - 1 DS/DD 6MS
+Tandon floppy disk drive and a Myarc DS/DD floppy disk controller.  
+
+
+
+In Benchmark #1, the test was to see how long it took to draw 100 lines with
+random start and stop points. The following is the program used:
+
+
+
+       100 CALL KEY(0,K,S) :: IF S=0 THEN 100 ELSE IF K<>89 THEN 100
+
+       110 FOR I=1 TO 100
+
+       120 X1=INT(RND*192)+1
+
+       130 Y1=INT(RND*256)+1
+       140 X2=INT(RND*192)+1
+
+       150 Y2=INT(RND*256)+1
+
+       160 CALL DRAW(1,X1,Y1,X2,Y2)
+
+       170 NEXT I
+
+
+
+In Benchmark #2 the test was to compute and print 360 SIN calculations, of the
+numbers between 1 and 360. This test was performed, whenever possible, in the
+four graphic modes supported by Myarc XBII on the Geneve. The code is as
+follows:
+
+       
+
+       100 CALL KEY(0,K,S) :: IF S=0 THEN 100 ELSE IF K<>89 THEN 100
+
+       110 FOR I=1 TO 360
+
+       120 Z=SIN(I)
+
+       130 PRINT I;Z
+
+       140 NEXT I
+
+
+
+Benchmark #3 is a test of how fast the basics and the computers count from 1 to
+2000, and can display each number as they count in the upper left corner. This
+test was also performed in all graphics modes possible for the language and
+computer.
+
+
+
+       100 CALL KEY(0,K,S) :: IF S=0 THEN 100 ELSE IF K<>89 THEN 100
+
+       110 FOR I=1 TO 2000
+
+       120 DISPLAY AT(1,1):I
+
+       130 NEXT I
+
+
+
+Benchmark #4 tests how long it takes to write 100, 80 character sequential
+records to disk. This test was performed in the Pattern Mode (alternately
+GRAPHICS 1 in Myarc XB and the only graphics mode in TI XB):
+
+
+
+       100 CALL KEY(0,K,S) :: IF S=0 THEN 100 ELSE IF K<>89 THEN 100
+
+       110 A$=RPT$("X",80) 
+
+       120 OPEN #1:"DSK1.OUT",DISPLAY,VARIABLE 80,OUTPUT
+
+       130 FOR I=1 TO 100 :: PRINT #1:A$ :: NEXT I
+
+       140 CLOSE #1
+
+
+
+The last Benchmark, #5, tests how long it takes to read in the 100, 80
+character sequential records created in Benchmark #4. Again, this was run
+in Pattern mode:
+
+
+
+       100 CALL KEY(0,K,S) :: IF S=0 THEN 100 ELSE IF K<>89 THEN 100
+
+       110 OPEN #1:"DSK1.OUT",DISPLAY,VARIABLE 80,INPUT
+
+       120 FOR I=1 TO 100 :: INPUT #1:A$ :: NEXT I
+
+       130 CLOSE #1
+
+
+
+
+
+Results of Tests
+
+======= == =====
+
+
+
+ 
+(NOTE: All times to nearest second)
+
+
+
+            Myarc XBII       Myarc XBII     TI Extended   TI Extended   Largest
+          (Version 2.11)   (Version 2.12)      BASIC         BASIC       Ratio
+              Geneve          TI-99/4A        Geneve       TI-99/4A
+          ==============   ==============   ===========   ===========   =======
+ 
+Benchmark
+      #1:       14               22             n/a           n/a         1.57
+ 
+Benchmark
+      #2
+GRAPHICS 1:     33               55              35            84         2.55
+GRAPHICS 2:     33               58             n/a           n/a
+GRAPHICS 3:     33*              54*            n/a           n/a
+GRAPHICS 4:     44              n/a             n/a           n/a
+ 
+Benchmark
+      #3
+GRAPHICS 1:     28               49              53           121         4.32
+GRAPHICS 2:     28               50             n/a           n/a
+GRAPHICS 3:    n/a**            n/a**           n/a           n/a
+GRAPHICS 4:     30              n/a             n/a           n/a
+ 
+Benchmark
+      #4:       14               21             n/a***         28         2.00
+ 
+Benchmark
+      #5:       11               14              18            33         3.00
+ 
+ 
+                                                            Average of
+                                                            ratios:       2.69
+ 
+ 
+ 
+GRAPHICS1 = Pattern mode
+GRAPHICS2 = Text mode (40 col.)
+GRAPHICS3 = Bitmap Mode (99/4A)
+GRAPHICS4 = Test mode (80 col.)
+ 
+*   Garbage was displayed on screen
+**  Nothing was displayed - test couldn't be done
+*** Every time a disk write was tried, from anywhere, in 99/4A mode of Geneve
+    the machine locks up either during or after. Running SLOWVDP does not help.
+ 
+Final Note: All of these times will improve dramatically when the new version
+of Extended BASIC (Advanced Extended BASIC) is available for the Geneve. That
+Geneve-specific language will feature at least a two-fold increase in most
+things, so the total speed improvement in BASIC will be around 6-fold. Other
+langauges will also show remarkable improvements, specifically those written
+excusively for the Geneve.
+
+ 

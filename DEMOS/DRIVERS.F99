@@ -1,0 +1,47 @@
+        program driver
+        implicit integer(a-z)
+c
+c  driver  :  demonstration program for plotting functions
+c
+c  This program originally came from Elmer Clausen of Buffalo, NY.
+c  Place into public domain by LGMA Products (with permission)
+c    22-aug-1987.
+c  Translated to use GENEVE bit-map graphics by LGMA Products,
+c    14-Oct-1988.
+c
+c  Copyright 1988/1989 by LGMA Products
+c
+        double precision x
+c
+c  set mode 9 for screen, which is 256 colors, and 256 x 212 pixels
+c
+        call setmod ( 9 )               ! graphics mode 7
+c
+c  put in crosshairs
+c
+        call setvec ( 128, 1, 128, 192, 50 )
+        call setvec ( 1, 96, 256, 96, 50 )
+c
+c  now plot sine wave
+c
+        write ( 6, 9100 )
+        do 100 ic=1,256                 ! write excess characters
+          x = float(ic-1)*3.1416/128.0  ! sine arguments
+          ir=96.d0-95.01d0*dsin(x)	! sinewave pattern
+          call setpix ( ic, ir, 100 )
+100     continue
+c
+c  now wait for a keypress to leave
+c
+        status = 0
+        do while ( status .eq. 0 )
+          call key ( 0, k, status )
+        enddo
+        call setmod ( 1 )              ! restore 80 column mode
+        stop
+9100    format ( '+', m15.5, 'Sine Wave',
+     +                m5.25, 'plotted with',
+     +                m6.25, '9640 FORTRAN',
+     +                m8.25, 'Press any Key',
+     +                m9.25, ' to continue')
+        end

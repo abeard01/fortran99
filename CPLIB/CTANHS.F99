@@ -1,0 +1,20 @@
+      COMPLEX FUNCTION CTANH(X) ! COMPLEX HYPERBOLIC TANGENT
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    10-DEC-89   E.Clausen   Initial Version by Elmer Clausen
+C
+      COMPLEX X
+      COMPLEX*16 Z,Y,CEX,CEMX,CDEXP
+      Z=X
+      CEX=CDEXP(Z)
+      CEMX=CDEXP(-Z)
+      Y=CEX+CEMX            ! DENOMINATOR
+      IF(Y.EQ.(0.0D0,0.0D0))THEN
+         CTANH=(1.E99,0.0)  ! ERROR VALUE
+      ELSE
+         CTANH=(CEX-CEMX)/(CEX+CEMX)
+      ENDIF
+      END

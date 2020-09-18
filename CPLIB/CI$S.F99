@@ -1,0 +1,28 @@
+      COMPLEX FUNCTION CI$(C1,I2)
+C CI$: COMPLEX ARGUMENT WITH INTEGER EXPONENT
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    26-Nov-89   E.Clausen   Initial Version by Elmer Clausen
+C
+      COMPLEX C1
+      COMPLEX*16 CD1,CDI$
+      IF(C1.EQ.(0.,0.))GO TO 1
+      CI$=(1.,0.)              ! ASSUME RESULT
+      IF(I2.EQ.0) RETURN       ! DONE IF EXPONENT = 0
+        CD1=C1
+        CDI$=(1.D0,0.D0)
+        J=IABS(I2)             ! GET ABSOLUTE EXPONENT
+        DO 4 K=1,J
+4       CDI$=CDI$*CD1          ! COMPUTE RESULT
+        IF(I2.LT.0)CDI$=(1.0D0,0.0D0)/CDI$
+        CI$=CDI$
+      RETURN
+1     IF(I2.GE.0)THEN
+        CI$=C1
+      ELSE
+         CI$=(1.0E99,0.)       ! ERROR RESULT
+      ENDIF
+      END

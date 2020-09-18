@@ -1,0 +1,19 @@
+C
+C  ARCCOM - ARCHIVE PROGRAM COMMON (W/SQUEEZE)
+C     
+	LOGICAL WANTIT(128), SQUEEZE
+	COMMON IDISK,       SS,          DCPBPTR,     STATE,
+     +         NOHDRS,      ERROR,       SQUEEZE,
+     +	       NORECS,      NOHIST,      SENTCHAR,    SENDNEWC,
+     +         SENDCNT,     NOCHILD,     DLE,         CEILING,
+     +         MAXCOUNT,    SPEOF,       INPTR,       NUMVALS,
+     +         CNTSECT,     NUMNODES,    TCODE,       CURIN,
+     +         CBITSREM,    CCODE,       DCTREEHD,    OUPTR,       
+     +         MAXSREC,     LINECT,      DISPCNT,     LARGE,
+     +         REPCT,       BPOS,        INFILSIZ,
+     +         HPTR,        HREP,        OF,          EOF,
+     +         BTLIST(258), STACK(128),  WEIGHT(514), TDEPTH(514), 
+     +         LCHILD(514), RCHILD(514), CODELEN(258),CODE(258),
+     +         FILENM(10),  FDINDEX(128),FREC(128),   IOREC(128),
+     +         WANTIT,      OREC(64),    HREC(128),   IHREC(9)
+C

@@ -1,0 +1,24 @@
+      COMPLEX FUNCTION CSQRT(X) ! COMPLEX SQUARE ROOT
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    26-Nov-89   E.Clausen   Initial Version by Elmer Clausen
+C
+      COMPLEX X
+      COMPLEX*16 DCMPLX
+      REAL*8 A,B,C,D,DSQRT,DABS,DSIGN
+      A=X                       ! REAL PART OF X
+      B=AIMAG(X)                ! IMAG PART OF X
+         C=DSQRT(A*A+B*B)
+C DABS TO AVOID NEG SQRT BY ROUNDOFF NEAR ZERO
+         D=DSQRT(0.5D0*DABS(C+A)) ! REAL PART OF CDSQRT
+         A=DSQRT(0.5D0*DABS(C-A))
+         IF(B.EQ.0.0D0)THEN
+            B=A                 ! SIGN(0)=1
+         ELSE
+            B=DSIGN(A,B)        ! IMAG PART OF CDSQRT
+         ENDIF
+         CSQRT=DCMPLX(D,B)
+      END

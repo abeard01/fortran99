@@ -1,0 +1,18 @@
+      COMPLEX FUNCTION CSIN(X) ! COMPLEX SINE
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    26-Nov-89   E.Clausen   Initial Version by Elmer Clausen
+C
+      COMPLEX X
+      COMPLEX*16 DCMPLX
+      REAL*8 A,B,C,DSIN,DABS,DSIGN,DEXP,DCOS
+      A=X                  ! REAL PART OF X
+      B=AIMAG(X)           ! IMAG PART OF X
+         IF(DABS(B).GT.230.0D0)B=DSIGN(230.0D0,B) ! EXP ARG LIMIT
+         C=DEXP(B)         ! EXP(IMAG)
+         B=DEXP(-B)        ! EXP(-IMAG)
+         CSIN=DCMPLX((0.5D0*(B+C)*DSIN(A)),(-0.5D0*(B-C)*DCOS(A)))
+      END

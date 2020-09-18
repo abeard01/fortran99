@@ -1,0 +1,14 @@
+assign errors:   sys:fortran/gerrors
+assign listings: sys:fortran/glistings
+assign objects:  sys:fortran/gobjects
+assign equates:  sys:fortran/equates
+date >now
+crever
+a99 >errors:fdebug -oobjects:objf -llistings:fdebug fdebug
+date >end
+type errors:fdebug
+cd sys:fortran/gobjects
+loader >fdebug.l99 fdebug.c99
+type fdebug.l99
+cd sys:fortran/gexecute
+filezap fort45a

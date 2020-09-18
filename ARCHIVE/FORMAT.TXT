@@ -1,0 +1,316 @@
+                                                                 07-Nov-1987
+                                                          by:   Alan L. Beard
+                                                           BIX:  abeard
+                                                    Compuserve:  71370,2723
+
+                        TI-99/GENEVE Archiver Format
+                        ----------------------------
+
+  1  General
+
+       This is a text file describing the archiver format popularized by Barry
+       Traver.  It is furthur extended by Huffman encoding techniques, into
+       a squeezing archiver.
+
+       An archiver is a program, which reads a collection of (usually related)
+       other programs, and combines them into a single file called an archive.
+       Sometime later, the programs can be recovered from this single file in
+       the original file formats.
+
+       The advantage of an archiver is that only a single file need be posted
+       on a network instead of multiple files.  A user need only be concerned
+       that the single file was downloaded, and be assured that this single
+       file contains all necessary elements to run a program (e.g. source,
+       objects, executables, documentation files, readme files, etc.).
+
+       A second advantage of an archiver is that the archiver can be made
+       "smart", i.e. it can take advantage of repitition of characters in
+       files to "squeeze" or "crunch" the files into an archive, making 
+       the resulting archive usually some 30 to 60% smaller than the original
+       files contained.  This is done without loss of information.  The 
+       "squeezed" archive is shorter to upload/download, saving the user 30
+       to 60% on his downloading fees.  Also, moderators on networks and
+       bulletin board systems encourage file compression as immediately 30
+       to 60% more mass storage becomes available, with no increase in costs!
+
+       A squeezing archiver also makes sense to a user interested in
+       archiving a number of infrequently used files (such as the source
+       for a program after it has been compiled).
+  
+       As a matter of fact, the only disadvantage to archiving is that
+       the archive/dearchiving process tends to be time-consuming (2 to
+       15 minutes to unpack an archive).  But, since this is done offline,
+       on an essentially free (your) system, this usually isn't very
+       significant.
+
+
+2 The TRAVER Algorithm/Format
+
+       Barry Traver introduced the most popular archiver for the TI-99
+       and Geneve.  It is written in Extended BASIC, is quite a professional
+       program, and demonstrates the capabilities of Extended BASIC.  A
+       single assembly language subroutine was used, which allowed sector
+       reads and writes by accessing a Device Service Routine (DSR) in
+       the TI Disk controller card.
+
+       The TRAVER archiver is FAIRWARE, for those people who subscribe
+       to the TRAVelER, the program is free.
+
+       Barry picked a simple approach to the archiving algorithm, one
+       that shows an indepth knowledge of the internal TI-99 disk file
+       structure, and uses that structure to the archiver's advantage.
+       Files are packed in a archive very close to the same way they
+       are on the TI-99 disk.  The archive itself consists of a fixed/
+       display/128 file (probably since BASIC can't open a fixed/display/
+       256 byte file).
+
+  2.1 File Packing Algorithm
+
+       The basic algorithm for the archiver works something like this:
+
+         a. The file descriptor index record is read which points to
+            all of the one sector file header records.
+
+         b. The user is prompted for which files on the disk are to
+            be compressed.
+
+         c. Each desired file header record is read, the unused bytes
+            are stripped (including the reserved expansion bytes, and
+            the data chain pointer blocks) leaving a "mini" file descriptor
+            record which consists of the following:
+
+                  o 10 character file name
+                  o File Status Flags
+                  o Maximum Number Records/Sector or AU
+                  o Total Number of Sectors Used
+                  o End of File Offset
+                  o Logical Record Length
+                  o Number of Fixed Records or Number Sectors Used
+
+	    These 18 byte mini file headers are packed fourteen to two
+	    128 byte records (for a total of 252 bytes).  The remaining
+	    unused four bytes per sector contain either zeroes (meaning
+	    this is the last header sector) or the characters END! 
+	    (meaning this is the last header sector).
+
+         d. Following the header section of the archive is the data
+            section.  Each 256 byte sector of the file is packed as
+            two 128 byte records.
+
+  2.2  File Unpacking Algorithm
+
+       The file unpacking algorithm is quite straightforward.  The user
+       is solicited for the file or the files to be "unpacked".  These
+       are read from the archive file headers, and:
+
+          a. The data section for each file is located using the
+             "total number of sectors used" field in the mini-file
+             descriptor records.
+
+          b. The file is read from the archive, and written to the disk
+             as a DISPLAY/FIXED/128 file.
+
+          c. After the file has been successfully written to the disk,
+             the disk is searched for the file header and the file
+             header is overwritten by the information contained in
+             mini-file descriptor.
+
+
+  3  The BEARD Huffman Squeezing FORMAT
+
+     An extension to the TRAVER archiver format was released by myself
+     in September 1987.  This extension provides capability for squeezing
+     the archive using HUFFMAN encoding techniques originally developed
+     by R.Greenlaw under CP/M.  This CP/M method was ported from CP/M
+     to the IBM PC, and then to the Amiga, and finally to the TI-99.
+     Software sources were obtained in the public domain from BYTE
+     INFORMATION EXCHANGE.
+
+     Thanks should be offered at this point for the inputs provided
+     by Dr. Jerry Coffey, who helped me work out the final bugs in
+     the squeezing archiver, especially for helping me make it backwards
+     compatible to the Traver Archive.
+
+     The program is written in FORTRAN, so to use it you need to either
+     own a copy of FORTRAN, or get a copy of the public domain module
+     99STAND.ARC (for version 2.0) or FORTSA (for version 3.1 and above).
+
+     The program maintains backwards compatibility to the TRAVER format,
+     it can unpacked either squeezed or unsqueezed archives, or a combination
+     of them.  The basic format of the archive is the same, a header
+     section consisting of "Traver-like" mini file headers, followed by
+     a data section of squeezed and (possibly) unsqueezed data files.
+
+
+  3.1 File Analysis
+
+     Before a file can be squeezed, it must be analyzed.  This is performed
+     automatically by the squeezing archiver as a first pass on the file.
+
+     The analysis portion basically consists of reading every sector in
+     the file to be compressed, and counting the occurances of each of
+     the possible 256 data byte values.  Once all of the file has been
+     read, and all of the occurance counts have been collected, then
+     a sort and binary tree is created containing the optimal Huffman
+     codes for the file.
+
+  3.1 File Squeezing Algorithm
+
+     Once the file has been analyzed, and a binary tree created, then
+     the squeezing part of the archiver is executed.  This portion
+     first writes a prolouge to the data file consisting of the
+     archival type, the sector length of the original file, the
+     number of binary tree nodes, and the binary tree, followed
+     by variable length bit strings representing the Huffman encoded
+     data.
+
+     Following the squeeze operation, the reduction in the file size
+     is tested.  If the resulting file is larger than the original
+     file, then the file is "re-packed", using the normal unsqueezed
+     TRAVER format.
+
+     If a reduction is detected in the file size, then the file header
+     is modified.  First, the file status flag is OR'd with a '20'X,
+     indicating an archived file.  The Total Number of Sectors used
+     field is changed to the Total Number of 128 byte records used.
+
+     The actual data file contains the following information:
+
+        o One word representing the archiving method.  This is currently
+          set to a 1, since this is the first squeezing method to be
+          implemented.  Future methods should set this to a different
+          unique number representing the different squeezing technique.
+
+        o One word representing the original value for the Total
+          Number of Sectors.  Note that this was changed in the
+          mini-file header to be the number of 128 byte records.
+
+        o One word representing the number of nodes in the binary
+          huffman tree (this word starts the particular encoding
+          scheme, whereas the first two words must be understood
+          by all archivers).
+
+        o The nodes of the binary tree, first the left child, and then
+          the right child, repeated for the NUMNODES.
+
+        o The squeezed archive data, terminated by a special "end-of-file"
+          character.
+
+  3.2  File Unsqueezing Algorithm
+
+      The file unsqueezing algorithm is similar to the "non-squeezing"
+      file unpacking algorithm.  The only key is to recognize that this
+      is a squeezed file (by the special file status bit OR'd '20'X),
+      and to recognize that the total sectors used is actually the
+      total records used if this is a squeezed file.
+
+      If this is not a squeezed file, than the unpacking algorithm is 
+      identical to the TRAVER format.
+
+      One small difference can occur between an unpacked file (via the
+      Traver method) and a squeezed file (via the Beard method).  The
+      final sector of a file is usually only partially used, and the
+      squeezing archiver takes advantage of this fact to only save the
+      in use partial amount of the final sector.  The archiver "zero-
+      fills" the remainder of the sector.  The inconsistency is that
+      the final sector can be different (in its unused portion) than
+      the original file.  This should not cause any problems in using
+      the file (unless some tricks have been played with the DSR), but
+      would show as a difference on a sector by sector compare.
+
+  4 Improvements
+
+     Many improvements to the implemented squeezing archiver are possible
+     and encouraged.  The following is a list of possible improvement
+     areas:
+
+       a. The TI-99 disk format is quite wasteful in that it does not
+          split a record (either fixed or variable) over a sector
+          boundry.  Therefore, a DISPLAY/FIXED/129 file will have 127
+          bytes/sector of unused space!  Variable files are similar, if
+          the next record to be stored cannot fit in the current sector,
+          then the record is terminated and the next record is started.
+          Since the squeezing archive is actually a stream of bits, this
+          unused space could easily be skipped in the archive.
+
+       b. The bit manipulation routines in this program are in FORTRAN,
+          therefore are slower than what is achievable with Assembly.
+          A good deal of the lower level stuff could be streamlined.
+
+       c. It would be useful if the archiver would recognize that a
+          file could not be squeezed at the "analysis" stage rather
+          than after it has been squeezed and written.
+
+       d. Different, and better squeezing algorithms are available.
+          It might be possible to borrow from the IBM PC archiver,
+          and do the analysis in various formats, and pick the
+          compression method that yielded the best result.
+
+       e. There is currently no support for hard disks, or reading/
+          writing sectors to/from a RAM disk.  (the reason being
+          that I don't have a hard disk, and I haven't figured out
+          the RAM disk yet).
+
+  5. Archive FORMAT Recap
+
+     a. Archive consists of two sections packed into a 128 byte fixed
+        length record file:
+
+               o Header Section
+               o Data Section
+
+     b. The header section consists of "mini-file headers" packed 14
+        to a record.  Each "mini-file header" is a stripped version of
+        a standard TI-99 file header, and contains the following:
+
+           byte nos          Contents
+
+            0-9         10 Character (MAX) file name.  Unused characters
+                        are space characters.
+
+            10          File Status Flags:
+                                          Bit No   ON=1         OFF=0
+                           >00 Dis/Fix      0   Program File   Data File
+                           >01 Program      1   Internal       Display
+                           >02 Int/Fix      2   Reserved
+                           >80 Dis/Var      3   Write Prot     No Write Prot
+                           >82 Int/Var      4   Reserved
+                                           *5   Squeezed       Unsqueezed
+                         *Non-standard      6   Reserved
+                            meaning         7   Variable Len   Fixed Len
+
+            11          Maximum Number of Records/Sector or AU
+
+            12-13       Total Number of Sectors Used (unsqueezed archive) or
+                        Total Number of 128 byte Records Used (squeezed archive)
+
+            14          End of File Offset
+
+            15          Logical Record Length
+
+            16-17       Number of Fixed Length Records or Number of Sectors
+                        Used by Variable Length Records
+
+        The last 128 byte header record contains the characters "END!" in
+        the last four bytes.  Unused header record slots (to fill out a
+        128 byte record) contain zeroes.
+
+  c. The data section follows the header section, and contains a number
+     of data files pointed to by the header section.  There is no special
+     seperation between the data sections in the data section itself, it
+     is merely a collection of 128 byte records.
+
+     The unsqueezed data section contains an even number of 128 byte
+     records for each sector in the input file.
+
+     The squeezed data section has a more complex format, but still
+     consists of 128 byte records.  Actually, the data section can
+     be thought of as a continuous "stream" of data, organized as
+     follows:
+
+        word 0 - Set to a "1", to indicate the compression method.
+        word 1 - The original value for the Total Number of Sectors
+        word 2 - The number of nodes in the binary tree
+        words 3 to numnodes*2+2 - The binary tree
+        remaining - Variable bit data for the Huffman Encoding.
+

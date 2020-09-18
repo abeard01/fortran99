@@ -1,0 +1,531 @@
+	SUBROUTINE INIT_HUFF
+	IMPLICIT INTEGER(A-Z)
+C
+C  Second translation, bytes to variable length bit strings
+C
+C  This translation uses the Huffman algorithm to develop a
+C  binary tree representing the decoding information for a
+C  variable length bit string code for each input value.
+C  Each string's length is in inverse proportion to its
+C  frequency of incoming data stream.
+C  The encoding table is derived from the decoding table.
+C
+C  The range of valid values into the Huffman algorithm are
+C  the values of a byte stored in an integer plus the special
+C  endfile value chosen to be an adjacent value.  Overall, 0=SPEOF.
+C
+C  The "node" array of structures contains the nodes of the
+C  binary tree.  The first NUMVALS nodes are the leaves of the
+C  tree and represent the values of the data bytes being encoded
+C  and the special endfile, SPEOF.
+C
+C  The remaining nodes become the internal nodes of the tree.
+C  In the original design it was believed that a Huffman code
+C  would fit in the same number of bits that will hold the sum
+C  of all the counts.  That was disproven by a user's file and
+C  was a rare and infamous bug.  This version attempts to choose
+C  among equally weighted subtrees according to their maximum depths
+C  to avoid unnecessarily long codes.  In case that is not sufficient
+C  to guarantee codes <=16 bits long, we initially scale the counts
+C  so that the total fits within an unsigned integer, but if codes
+C  longer than 16 bits are generated the counts are rescaled to
+C  a lower ceiling and code generation is retried.
+C
+C  Initialize the huffman translation.  This requires reading
+C  the input file through any preceding translation functions
+C  to get the frequency distribution of the various values.
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+C
+C  Initialize tree nodes to no weight, no children
+C
+	DO  900 I=1,NUMNODES
+	  WEIGHT(I) = 0
+	  TDEPTH(I) = 0
+ 	  LCHILD(I) = NOCHILD
+ 	  RCHILD(I) = NOCHILD
+ 900	CONTINUE
+C
+C  Build frequency information in trees
+C
+	C = 1
+	DO WHILE ( C .NE. SPEOF )
+	  C = GETCNR(IDUM)
+	  IF ( C .EQ. EOF ) C = SPEOF
+	  IF ( WEIGHT(C+1) .NE. MAXCOUNT) THEN
+	    WEIGHT(C+1) = WEIGHT(C+1) + 1
+	  ENDIF
+	ENDDO
+C
+	CEILING = MAXCOUNT
+C
+1000	CONTINUE
+	IF ( CEILING .NE. MAXCOUNT ) WRITE ( 6, 9100 )
+C
+	CALL SCALE(CEILING)
+	CEILING = CEILING /2    ! in case we rescale
+C
+C  Build list of single node binary trees having
+C  leaves for the input values with non-zero counts
+C
+	LISTLEN = 1
+	DO 1010 I=1,NUMVALS
+	  IF ( WEIGHT(I) .NE. 0 ) THEN
+	    TDEPTH(I) = 0
+	    BTLIST(LISTLEN) = I
+	    LISTLEN = LISTLEN + 1
+	  ENDIF
+1010	CONTINUE
+C
+C  Arrange list of trees into a heap with the entry
+C  indexing the node with the least weight at the top.
+C
+	CALL HEAP(BTLIST, LISTLEN)
+C
+C  Convert the list of trees into a single decoding tree
+C
+	CALL BLD_TREE(BTLIST, LISTLEN)
+C
+C  Initialize the encoding table
+C
+	DO 1020 I=1,NUMVALS
+	  CODELEN(I) = 0
+1020	CONTINUE
+C
+C  Try and build the encoding table.  FAIL if any code >16 bits.
+C
+	IF ( BUILDENC(0,DCTREEHD) .EQ. -1 ) GOTO 1000
+C
+C  Initialize encoding variables
+C
+	CBITSREM = 0		! Force initial read
+	CURIN    = 0		! Anything but endfile
+C
+9100	FORMAT ( '+', M6.2, 'Rescaling*' )
+	END
+	INTEGER FUNCTION GETC_CHA(IDUM)
+	IMPLICIT INTEGER(A-Z)
+C
+C  GETC_CHA - Get next character from input, and add to CRC
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+	EQUIVALENCE (FREC(8),TOTSECT),(FREC(9),FILOFF)
+C
+	IF ( INPTR.EQ.257 ) THEN
+	  INPTR = 1
+	  CALL GETSECT
+	  IF ( SS .EQ. 0 ) THEN
+	    GETC_CHA = EOF
+	    RETURN
+	  ENDIF
+	ENDIF
+C
+C  THE FOLLOWING CODE HANDLES THE CASE OF THE LAST SECTOR, AND THE
+C  NUMBER OF BYTES WITHIN THE SECTOR.  I ONLY SQUEEZE UP TO THE 
+C  DESIRED BYTE IN THE LAST SECTOR.
+C
+	IF ( CNTSECT .EQ. TOTSECT ) THEN
+	  LASTBYT = GETBYT ( FILOFF, 1 )
+	  IF (LASTBYT .NE. 0) THEN
+            IF ( (INPTR-1) .GT. LASTBYT ) THEN
+              GETC_CHA = EOF
+	      RETURN
+	    ENDIF
+	  ENDIF
+	ENDIF
+	GETC_CHA = GETBYT(IOREC,INPTR)
+	INPTR = INPTR + 1
+	END
+	SUBROUTINE SCALE(CEIL)
+	IMPLICIT INTEGER(A-Z)
+C
+C  The count of number of occurrances of each input value
+C  have already been prevented from exceeded MAXCOUNT.
+C  Now we must scale them so that their sum doesn't exceed
+C  ceiling and yet no non-zero count can become zero.
+C  This scaling prevents errors in the weights of the
+C  interior nodes of the Huffman tree and also ensures that
+C  the codes will fit in a signed integer.  Rescaling is
+C  also used if necessary to limit the code length.
+C
+	IMPLICIT INTEGER(A-Z)
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+	LOGICAL INCREASED
+C
+	INCREASED = .TRUE.
+	DO WHILE (INCREASED)
+	  SUM = 0
+	    OVFLW = 0
+	    DO 1000 I=1,NUMVALS
+	      IF ( WEIGHT(I) .GT. (CEIL-SUM) ) THEN
+	        OVFLW = OVFLW + 1
+	      ENDIF
+	      SUM = SUM + WEIGHT(I)
+1000	    CONTINUE
+C
+	    DIVISOR = OVFLW + 1
+C
+C  Ensure no non-zero values are lost
+C
+	    INCREASED = .FALSE.
+	    DO 1010 I=1,NUMVALS
+	      W = WEIGHT(I)
+	      IF ( (W .LT. DIVISOR) .AND. (W.GT.0) ) THEN
+C
+C  Don't fail to provide a code if its used at all
+C
+	      WEIGHT(I) = DIVISOR
+	      INCREASED = .TRUE.
+	    ENDIF
+1010	  CONTINUE
+	ENDDO
+C
+C  Scaling factor chosen, now scale
+C
+	IF ( DIVISOR .GT. 1 ) THEN
+	  DO 1020 I=1,NUMVALS
+	    WEIGHT(I) = WEIGHT(I) / DIVISOR
+1020	  CONTINUE
+	ENDIF
+	END
+	SUBROUTINE HEAP(LIST,LENGTH)
+	IMPLICIT INTEGER(A-Z)
+C
+C  HEAP() and ADJUST() maintain a list of binary trees as a
+C  heap with the top indexing the binary tree on the list
+C  which has the least weight or, in case of equal weights,
+C  least depth in its longest path.  The depth part is not
+C  strictly necessary, but tends to avoid long codes which
+C  might provide rescaling.
+C
+	DIMENSION LIST(LENGTH)
+C
+	TOP = (LENGTH-3)/2
+C
+	DO 1000 J=0,TOP
+	  I = TOP - J
+	  CALL ADJUST(LIST, I, LENGTH-2 )
+1000	CONTINUE
+	END
+	SUBROUTINE ADJUST(LIST, TTOP, BOTTOM )
+	IMPLICIT INTEGER(A-Z)
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+	DIMENSION LIST(BOTTOM)
+	LOGICAL CMPTREES, FLAG
+C
+	TOP = TTOP
+1000	CONTINUE
+	K = 2 * TOP + 1    ! Left child of top
+	TEMP = LIST(TOP+1) ! remember root node of top tree
+	IF ( K .LE. BOTTOM ) THEN
+	  FLAG = CMPTREES(LIST(K+1),LIST(K+2))
+	  IF((K.LT.BOTTOM).AND.FLAG)THEN
+	    K = K + 1
+	  ENDIF
+C
+C  K now indexes to smaller child (in heap of trees) of top.
+C  Now make top index "smaller" of old top and smallest child.
+C
+	  FLAG = CMPTREES(TEMP,LIST(K+1))
+	  IF ( FLAG ) THEN
+	    LIST(TOP+1) = LIST(K+1)
+	    LIST(K+1) = TEMP
+C
+C  Make the changed list a heap
+C
+	    TOP = K
+	    GOTO 1000
+	  ENDIF
+	ENDIF
+	END
+	LOGICAL FUNCTION CMPTREES(A,B)
+	IMPLICIT INTEGER(A-Z)
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+C
+	IF ( WEIGHT(A) .GT. WEIGHT(B) ) THEN
+	  CMPTREES = .TRUE.
+	ELSE IF ( (WEIGHT(A) .EQ. WEIGHT(B)) .AND.
+     +	      (TDEPTH(A) .GT. TDEPTH(B)) ) THEN
+	  CMPTREES = .TRUE.
+	ELSE
+	  CMPTREES = .FALSE.
+	ENDIF
+	END
+	SUBROUTINE BLD_TREE(LIST,LEN)
+	IMPLICIT INTEGER(A-Z)
+C
+C  HUFFMAN ALGORITM: develops the single element trees
+C  into a single binary tree by forming subtrees rooted in
+C  interior nodes having weights equal to the sum of weights of all
+C  their descendents and having depth counts indicating the
+C  depth of their longest paths.
+C
+C  When all trees have been formed into a single tree satisfying
+C  the heap properly (on weight, with depth as a tie breaker)
+C  then the binary code assigned to a leaf (value to be encoded)
+C  is then the series of left(0) and right(1) paths leading from
+C  the root to the leaf.  Note that trees are removed from the 
+C  heaped list by moving the last element over the top element
+C  and reheaping the entire list.
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+	DIMENSION LIST(LEN)
+C
+	FREENODE = NUMVALS + 1
+	DO WHILE ( LEN .GT. 2 )
+C
+C  Take from list two btrees with least weight and build an
+C  interior node pointing to them.  This forms a new tree.
+C
+	  LCH = LIST(1)	! This one will be left child
+C
+C  Delete top (least) tree from the list of trees
+C
+	  LEN = LEN-1
+	  LIST(1) = LIST(LEN)
+	  CALL ADJUST(LIST,0,LEN-2)
+C
+C  Take new top (least) tree.  Reuse list slot later
+C
+	  RCH = LIST(1)		! This one will be right child
+C
+C  Form new tree from the two least trees using a
+C  free node as a root.  Put the new tree in the list.
+C
+	  LIST(1) = FREENODE
+	  LCHILD(FREENODE) = LCH
+	  RCHILD(FREENODE) = RCH
+	  WEIGHT(FREENODE) = WEIGHT(LCH) + WEIGHT(RCH)
+	  TMAX             = TDEPTH ( LCH )
+	  IF ( TMAX .LE. TDEPTH(RCH) ) TMAX = TDEPTH(RCH)
+	  TDEPTH(FREENODE) = 1 + TMAX
+	  FREENODE = FREENODE + 1
+C
+C  Reheap list to get least tree at top
+C
+	  CALL ADJUST(LIST, 0, LEN-2)
+	ENDDO
+	DCTREEHD = LIST(1)   	! Head of final tree
+	END
+	INTEGER FUNCTION BUILDENC ( LEVEL, ROOT )
+	IMPLICIT INTEGER(A-Z)
+C
+C  Recursive routine to walk the indicated subtree and level
+C  and maintain the current path code in bstree.  When a leaf
+C  is found the entire code string and length are put into
+C  the encoding table entry for the leaf's data value.
+C
+C  Returns -1 if codes are too long
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+C
+	DIMENSION MASKS(16)
+	DATA MASKS / '0000'X, '0001'X, '0003'X, '0007'X,
+     +		     '000F'X, '001F'X, '003F'X, '007F'X,
+     +		     '00FF'X, '01FF'X, '03FF'X, '07FF'X,
+     +		     '0FFF'X, '1FFF'X, '3FFF'X, '7FFF'X /
+C
+	TCODE = 0
+	SPPTR = 0
+1000	CONTINUE
+	L = LCHILD(ROOT)
+	R = RCHILD(ROOT)
+C
+	IF ( (L .EQ. NOCHILD) .AND. (R.EQ.NOCHILD) ) THEN
+C
+C  Leaf.  Previous path determines bit string code of length
+C  level (bits 0 to level -1).  Ensure unused code bits are 0.
+C
+	  CODELEN(ROOT) = LEVEL
+	  CODE(ROOT) = IAND(TCODE,MASKS(LEVEL+1))
+	  IF ( LEVEL .GT. 16 ) THEN
+	    BUILDENC = -1
+	  ELSE
+	    BUILDENC = 0
+	  ENDIF
+	  IF ( SPPTR .EQ. 0 ) THEN
+	    RETURN
+	  ELSE
+	    LEVEL = LEVEL - 1
+	    ROOT  = STACK(SPPTR)
+	    SPPTR = SPPTR - 1
+	    L     = STACK(SPPTR)
+	    SPPTR = SPPTR - 1
+	    R     = STACK(SPPTR)
+	    SPPTR = SPPTR - 1
+	    LOC   = STACK(SPPTR)
+	    SPPTR = SPPTR - 1
+	    GOTO ( 1100, 1200 ) , LOC
+	  ENDIF
+	ELSE
+	  IF ( L .NE. NOCHILD ) THEN
+	    TCODE = IAND(TCODE,NOT(ISHFT(1,LEVEL)))
+	    SPPTR = SPPTR + 1
+	    STACK(SPPTR) = 1    	! My return spot
+	    SPPTR = SPPTR + 1
+	    STACK(SPPTR) = R
+	    SPPTR = SPPTR + 1
+	    STACK(SPPTR) = L
+	    SPPTR = SPPTR + 1
+	    STACK(SPPTR) = ROOT
+	    LEVEL = LEVEL + 1
+	    ROOT  = L
+	    GOTO 1000
+1100	    CONTINUE
+	    IF ( BUILDENC .EQ. -1 ) RETURN
+	  ENDIF
+C
+	  IF ( R .NE. NOCHILD ) THEN
+	    TCODE = IOR(TCODE,ISHFT(1,LEVEL))
+	    SPPTR = SPPTR + 1
+	    STACK(SPPTR) = 2    	! My return spot
+	    SPPTR = SPPTR + 1
+	    STACK(SPPTR) = R
+	    SPPTR = SPPTR + 1
+	    STACK(SPPTR) = L
+	    SPPTR = SPPTR + 1
+	    STACK(SPPTR) = ROOT
+	    LEVEL = LEVEL + 1
+	    ROOT  = R
+	    GOTO 1000
+1200	CONTINUE
+	    IF ( BUILDENC .EQ. -1 ) RETURN
+	  ENDIF
+	ENDIF
+	BUILDENC = 0
+	IF ( SPPTR .NE. 0 ) THEN
+	  LEVEL = LEVEL - 1
+	  ROOT =  STACK(SPPTR)
+	  SPPTR = SPPTR - 1
+	  L     = STACK(SPPTR)
+	  SPPTR = SPPTR - 1
+	  R     = STACK(SPPTR)
+	  SPPTR = SPPTR - 1
+	  LOC   = STACK(SPPTR)
+	  SPPTR = SPPTR - 1
+	  GOTO ( 1100, 1200 ) , LOC
+	ENDIF
+	END
+	INTEGER FUNCTION GETCNR(IDUM)
+	IMPLICIT INTEGER(A-Z)
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+C
+C  GETCNR - Get NEXT character.  This routine also packs repititions
+C	    of the same character into DLE sequences.
+C
+C	     NOHIST     SENDNEWC
+	GOTO (1000, 2000, 3000, 4000), STATE
+C		   SENTCHAR    SENDCNT
+C
+	WRITE ( 6, 9100 )
+	STOP
+C
+C  NOHIST - No relevant history
+C
+1000	CONTINUE
+	STATE = SENTCHAR
+	LASTCHAR = GETC_CHA(IDUM)
+	GETCNR = LASTCHAR
+	RETURN
+C
+C  SENTCHAR - LASTCHAR is sent, need lookahead
+C
+2000	CONTINUE
+	IF ( LASTCHAR .EQ. DLE ) THEN
+	  STATE = NOHIST
+	  GETCNR = 0
+	  RETURN
+	ELSE IF ( LASTCHAR .EQ. EOF ) THEN
+	  GETCNR = EOF
+	ELSE
+	  DO 2010 I=1,255
+ 	    LIKECT = I
+	    NEWCHAR = GETC_CHA(IDUM)
+	    IF ( NEWCHAR .NE. LASTCHAR ) GOTO 2020
+2010	  CONTINUE
+2020	  CONTINUE
+	  GOTO ( 2030, 2040 ), LIKECT
+C
+C  More than 1
+C
+	    STATE = SENDCNT
+	    GETCNR = DLE
+	    RETURN
+C
+C  2 chars in a row
+C
+2030	  CONTINUE
+	    LASTCHAR = NEWCHAR
+	    GETCNR = NEWCHAR
+	    RETURN
+C
+C  3 chars in a row
+C
+2040	  CONTINUE
+	    STATE = SENDNEWC
+	    GETCNR = LASTCHAR
+	    RETURN
+	  ENDIF
+C
+C  SENDNEWC - Previous sequence complete, send a new character
+C
+3000	CONTINUE
+	  STATE    = SENTCHAR
+	  GETCNR   = NEWCHAR
+	  LASTCHAR = NEWCHAR
+ 	  RETURN
+C
+C  SENDCNT - Sent DLE for repeat sequence, send count
+C
+4000	CONTINUE
+	  STATE = SENDNEWC
+	  GETCNR = LIKECT
+C
+9100	FORMAT (' * GETCNR bug, bad internal state')
+	END
+	SUBROUTINE WRT_HEAD
+	IMPLICIT INTEGER(A-Z)
+C
+C  WRT_HEAD:  Write header to output file
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+	EQUIVALENCE (FREC(8),INSECT)
+C
+	CALL PUTWE(1)			! Archiving Method
+	CALL PUTWE(INSECT)		! Save Original Input Sectors
+C
+C  Write out a simplified decoding tree.  Only the interior
+C  nodes are written.  When a child is a leaf index (representing
+C  a data value) it is recoded as -(index+1) to distinguish it from
+C  interior indexes which are recoded as positive indexes in the new
+C  tree.
+C
+C  Note that this tree will be empty for an empty file
+C
+	IF ( DCTREEHD .LE. NUMVALS ) THEN
+	  NUMNODES = 0
+	ELSE
+	  NUMNODES = DCTREEHD - NUMVALS
+	ENDIF
+	CALL PUTWE(NUMNODES)
+	I = DCTREEHD
+	DO 1040 K=1,NUMNODES
+	  L = LCHILD(I)
+	  R = RCHILD(I)
+	  IF ( L .LE. NUMVALS ) THEN
+	    L = -L
+	  ELSE
+	    L = DCTREEHD-L
+	  ENDIF
+	  IF ( R .LE. NUMVALS ) THEN
+	    R = -R
+	  ELSE
+	    R = DCTREEHD-R
+	  ENDIF
+	  CALL PUTWE(L)
+	  CALL PUTWE(R)
+	  I = I - 1
+1040	CONTINUE
+	END

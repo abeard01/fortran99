@@ -1,0 +1,20 @@
+c
+c  FILEZAP Common:
+c
+        integer *1 command(81), file(80), sector(256), idispz(16),
+     +             idispa(16), k1, sectors(256,80), volname(10),
+     +             future(36), bitmap(200)
+        integer *2 extlength, lastsect, datecr, timecr,
+     +             datech, timech, sectnum(80), maxsect,
+     +             nextsect, dxpos, dypos, volmax, isector,
+     +             boffset, psector
+        integer *1 flags, numrec, numbyte, reclength, byte8, byte9,
+     +             volspt, dsk(3), spare1, voltrk, volside, voldens
+        logical *2 left, middle, right
+c
+        common command, file, sector, idispz, idispa, isector,
+     +         extlength, flags, numrec, lastsect, numbyte, reclength,
+     +         byte8, byte9, datecr, timecr, datech, timech, sectors,
+     +         sectnum, maxsect, nextsect, dxpos, dypos,
+     +         volname, volmax, volspt, dsk, spare1, voltrk, volside,
+     +         voldens, future, bitmap, boffset, psector

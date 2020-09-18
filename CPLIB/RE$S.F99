@@ -1,0 +1,15 @@
+      COMPLEX*16 FUNCTION RE$(R,E)
+C RE$: REAL ARGUMENT WITH COMPLEX*16 EXPONENT
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    26-Nov-89   E.Clausen   Initial Version by Elmer Clausen
+C
+      COMPLEX*16 E,X,CDEXP,CDLOG
+        RE$=(0.0D0,0.0D0)
+      IF(R.EQ.0.0)RETURN
+        X=R
+        RE$=CDEXP(E*CDLOG(X))
+      END

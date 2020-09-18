@@ -1,0 +1,1653 @@
+      program backup
+      implicit integer(a-z)
+c
+c  backup - hard disk backup utility.
+c
+c  This program is a backup utility for a hard disk drive.  It backs
+c  the whole hard drive or selected directories to floppy disk.
+c
+c  Calling sequence:
+c
+c       backup function [/Ldev] [/Hhard] [/Ffloppy] [/Ooptions]
+c
+c  where:
+c
+c       function - is the backup function, and is specified as:
+c
+c                     LIST    - LIST an archive
+c                     SAVE    - Backup to hard disk
+c                     RESTORE - Restore from floppy
+c
+c       /Ldev  -   says print a log on device "dev".  If "dev" is not
+c                  specified, then the default "PRN" device is used.
+c
+c       /Hhard -   is the hard drive specification.  It may be specified as
+c                  a hard drive specification (e.g. HDS1. or F:) or as
+c                  a directory specification (e.g. HDS1.CARTS).
+c
+c       /Ffloppy -  is the "floppy" specification.  It can be a drive name
+c                  (e.g. DSK1., DSK2., etc.) or a
+c
+c       /Ooptions - is one or more options, as follows:
+c
+c                    O  -  Overwrite existing files with backup (no question)
+c                    S  -  Skip existing files if also on backup
+c
+c  For example, to back up all of the files on the hard drive under MDOS
+c  .96 using disk drive DSK1. then specify:
+c
+c       BACKUP SAVE /HHDS1 /FDSK1
+c
+c  to restore the all of the files on a floppy to your hard disk, then
+c  specify:
+c
+c       BACKUP RESTORE /HHDS1 /FDSK2
+c
+c  To list all of the files on floppy DSK2, you could type:
+c
+c       BACKUP LIST /HHDS1 /FDSK2
+c
+c  Directory creation is performed automatically.
+c
+c  Update History:
+c
+c    12-May-90            Let's clean it up and make it usable
+c    22-Nov-89            Initial creation
+c
+      include 'BAKCOM'
+c
+      character argl, defhard(5), defflop(5)
+      real *4 version
+c
+      data defhard / 'H', 'D', 'S', '1', '.' /
+      data defflop / 'D', 'S', 'K', '1', '.' /
+c
+      version = 1.1               ! current version #
+c
+      iout = 6                    ! unit number for screen output
+      overwrit = .false.          ! force overwrite
+      skipfile = .false.          ! force file skip
+      mounted = .false.           ! set no floppy mounted
+      outptr  = 0                 ! zero output pointer
+      backno  = 0                 ! current backup number
+c
+c  floppy disk parameters
+c
+      tracks    = 40              ! # of tracks (40 or 80)
+      secttrak  = 9               ! # of sectors/track
+      skew      = 2               ! skew, between tracks
+      interlace = 1                 interlace = 1        rlace of sectors
+      density   = 1               ! density (1=single)
+      sides     = 2               ! # of sides
+c                                 ! # of sectors on the floppy disk
+      nosectd   = secttrak * tracks * sides
+c                                 ! # of sectors per archive file
+      nosectf   = nosectd - 3
+c
+      repeatc   = ' '             ! repeat compression character
+      repeatn   = 0               ! # of repeats
+c
+      soh       = z'ff'           ! start of header character
+      repsent   = z'02'           ! repeat sentinel
+      method    = z'03'           ! compression method (3=repeat)
+c
+c  get command string
+c
+      error  = 0
+      write ( iout, 9100 )
+      cmdlen = 80
+      call cmdstr ( command, error )
+      if ( error .ne. 0 ) then
+        error = -5
+        goto 200
+      endif
+c
+c  parse the command string
+c
+      noarg  = 5
+      argsiz = 40
+      call parsecm ( noarg, argsiz )
+      if ( error .ne. 0 ) then
+        call prnerr
+        write ( 6, 9110 )
+        stop
+      endif
+c
+c  if list option, then extract log file name & open log file
+c
+      call getfile ( '/L', logfile )
+      if ( error .ne. 0 ) then
+        error = 0
+        logging = .false.
+      else
+        logging = .true.
+        if ( logfile(1) .eq. ' ' ) then
+          call open ( 1, 'PRN: ', 0, 0, 1, 0, 96, error )
+        else
+          call open ( 1, logfile, 0, 0, 1, 0, 96, error )
+        endif
+        if ( error .ne. 0 ) then
+          call prnerr
+          write ( 6, 9120 ) logfile
+          stop
+        endif
+      endif
+c
+c  get hard disk file name (e.g. HDS1)
+c
+        call getfile ( '/H', hardfile )
+        if ( error .ne. 0 ) then
+          error = 0
+          do 1010 i=1,5
+1010      hardfile(i) = defhard(i)
+          do 1020 i=6,40
+1020      hardfile(i) = ' '
+        endif
+c
+c  get floppy disk file name (e.g. DSK1)
+c
+      call getfile ( '/F', flopfile )
+      if ( error .ne. 0 ) then
+        error = 0
+        do 1030 i=1,5
+1030    flopfile(i) = defflop(i)
+        do 1040 i=6,40
+1040    flopfile(i) = ' '
+      endif
+c
+c  put a period at the end of the floppy and hard disk names (if not
+c  there already)
+c
+      lastchar = 40
+      do while ( lastchar .ne. 1 .and. hardfile(lastchar) .eq. ' ')
+        lastchar = lastchar - 1
+      enddo
+      if(hardfile(lastchar).ne.':'.and.hardfile(lastchar).ne.'.') then
+        hardfile(lastchar+1) = '.'
+      endif
+c
+      lastchar = 40
+      do while ( lastchar .ne. 1 .and. flopfile(lastchar) .eq. ' ' )
+        lastchar = lastchar - 1
+      enddo
+      if(flopfile(lastchar).ne.':'.and.flopfile(lastchar).ne.'.') then
+        flopfile(lastchar+1) = '.'
+      endif
+c
+c  extract any options
+c
+      do 1035 i=1,40
+1035  options(i) = ' '
+c
+      call getfile ( '/O', options )
+      if ( error .eq. 0 ) then
+        do 1050 i=1,40
+          if ( options(i) .eq. 'O' ) then
+            overwrit = .true.
+          else if ( options(i) .eq. 'S' ) then
+            skipfile = .true.
+          else if ( options(i) .ne. ' ' ) then
+            write ( 6, 9130 ) options(i)
+            stop
+          endif
+1050    continue
+      endif
+      error = 0
+c
+c  now determine the argument letter
+c
+      if      ( argv(1,1) .eq. 'L' ) then
+        call slist
+c
+      else if ( argv(1,1) .eq. 'S' ) then
+        call sbackup
+c
+      else if ( argv(1,1) .eq. 'R' ) then
+        call srestore
+c
+      else
+        error = -5                      ! unknown command
+      endif
+c
+200   continue
+      if ( error .ne. 0 ) then
+        call prnerr
+        if ( error .lt. 0 ) write ( iout, 9110 )
+      endif
+9999  continue
+      call close ( 1 )
+      stop
+c
+9100  format ( /,' Hard Drive Backup Utility V1.0 (22-Nov-89)'/
+     +           ' Copyright 1989 by LGMA Products')
+9110  format ( /,' Command Line Format:'/
+     +           '  BACKUP function /Ldev /Hhard /Ffloppy'/
+     +           '    function -  LIST    ( list archive )'/
+     +           '                SAVE    ( backup hard to floppy )'/
+     +           '                RESTORE ( restore floppy to hard )'/
+     +           '    /Ldevice -  Produce log on "device" or PRN'/
+     +           '    /Hhard   -  Hard Drive Name (e.g. HDS1.)'/
+     +           '    /Ffloppy - Floppy Drive Name (e.g. DSK1.)')
+9120  format ( ' Opening Log File', 40a1 )
+9130  format ( ' Invalid Option Letter /O',a1 )
+      end
+      subroutine sbackup
+      implicit integer(a-z)
+c
+c  sbackup - this subroutine starts the backup process.  It opens
+c            the hard disk directory, and executes the backup process.
+c
+      include 'BAKCOM/NOLIST'
+c
+      real *8 avail, left, size, recsize, type, protect, percent
+      integer *4 javail, jused
+      integer *1 endname(4)
+      logical *2 newfile
+      data endname / '>EOD'/
+c  open the hard drive directory or main
+      maxinput = 512.d0             ! input byte count
+      maxoutput = 0.d0              ! output byte count
+      dircount = 0                  ! count of directories
+      filcount = 0                  ! count of files
+      flush    = .false.            ! turn off flush
+c
+      basefile = 20
+      call open ( basefile, hardfile, 2, 1, 0, 1, 256, error )
+      if ( error .ne. 0 ) then
+        call prnerr
+        write ( 6, 9100 ) hardfile
+        if ( logging ) write ( 1, 9100 )
+        stop
+      endif
+c  read each file on the hard disk and display temporarily
+      read ( basefile, 9170, err=9999, end=9999, status=error ) irec
+      iptr = 0
+      call getstr ( device )        ! get the device name
+      call getflt ( avail  )
+      call getflt ( avail  )
+      call getflt ( left   )
+      javail = avail
+      jused  = avail - left
+c
+      do 1000 i=1,40
+        j = i
+        if ( hardfile(j) .eq. ' ' ) goto 1010
+1000  continue
+1010  continue
+      write ( 6, 9140 ) j, (hardfile(i),i=1,j), device
+      write ( 6, 9150 ) javail, jused
+      if ( logging ) then
+        write ( 1, 9140 ) j, (hardfile(i),i=1,j), device
+        write ( 1, 9150 ) javail, jused
+      endif
+c
+      do 1020 i=1,20                ! up to 20 levels
+        nofiles(i) = 0
+1020  continue
+c
+      level = 1                     ! set current operating depth
+      do while ( .true. )
+        nofiles(level) = nofiles(level) + 1
+        read ( basefile, 9170, end=9999, err=9999, status=error ) irec
+c  if reach the end of a directory, then trim back to the previous
+c  directory if not on root file
+        if ( irec(1) .eq. z'00' ) then
+1030      continue
+          call close ( basefile )
+          if ( level .eq. 1 ) goto 2000
+          level = level - 1
+          basefile = basefile - 1
+          lastchar = 40
+          do while ( hardfile(lastchar) .ne. '.' )
+            lastchar = lastchar -1
+          enddo
+c
+          lastchar = lastchar - 1
+          do while ( hardfile(lastchar) .ne. '.' )
+            lastchar = lastchar - 1
+          enddo
+c
+          do while ( lastchar .lt. 40 )
+            lastchar = lastchar + 1
+            hardfile(lastchar) = ' '
+          enddo
+        else
+c
+          iptr = 0
+c  get the file attributes, including the file name, type of file,
+c  size of file, and protected or not.
+          call getstr ( device )
+          call getflt ( type   )
+          call getflt ( size   )
+          call getflt ( recsize )
+          call getflt ( protect )
+          isize = size
+          rsize = recsize
+          itype = dabs(type)
+          if ( itype .le. 0 .or. itype .gt. 5 ) then
+            itype = 6
+            dircount = dircount + 1
+          else
+            filcount = filcount + 1
+          endif
+c  form a full file name based on current directory name and file name
+          call concat ( fullfile, hardfile, device, lastchar )
+c  remove any funny characters
+          call checkfq ( fullfile, lastchar )
+c                                   display file name & other information
+          if ( itype .ne. 6 ) then
+            call bread ( fullfile, 0, 0, fileinfo, error )
+            if ( error .ne. 0 ) then
+              call prnerr ( error )
+              write ( 6, 9180 ) fullfile
+              if ( logging ) write ( 1, 9180 ) fullfile
+            else
+              call listfile ( fullfile, fileinfo, logging )
+            endif
+          else                      ! directory file
+            write ( 6, 9190 ) fullfile
+            if ( logging ) write ( 1, 9190 ) fullfile
+          endif
+c  if normal type of file (1,2,3,4 or 5), then call backup routine
+          if ( itype .ge. 1 .and. itype .le. 5 ) then
+            call fileback
+c  if this is a directory type of file, then
+          else if ( itype .eq. 6 ) then
+c  add a closing period for final delimeter
+            lastchar = lastchar + 1
+            if ( lastchar .gt. 40 ) then
+              error = -7
+              goto 9999
+            endif
+            fullfile(lastchar) = '.'
+            i = 0
+            do while ( i .lt. 40 )
+              i = i + 1
+              hardfile(i) = fullfile(i)
+            enddo
+            nofiles(level) = nofile
+            level = level + 1
+            if ( level .gt. 20 ) then
+              error = -7            ! too many subdirectories
+              goto 9999
+            endif
+            basefile = basefile + 1
+            call open ( basefile, hardfile, 2, 1, 0, 1, 256, error )
+            if ( error .ne. 0 ) then
+              call prnerr
+              write ( 6, 9110 ) hardfile
+              if ( logging ) write ( 1, 9110 ) hardfile
+              goto 9999
+            endif
+c                                   read & discard dummy first record
+            maxinput = maxinput + 512.d0
+            read ( basefile, 9170, end=9999, err=9999, status=error ) irec
+          endif
+        endif
+      enddo
+c  following is the error handler.  It annunciates the error, and
+c  returns back to trim off the current directory and try the previous
+9999  continue
+      call prnerr
+      write ( 6, 9160 )
+      if ( logging ) write ( 1, 9160 )
+      goto 1030
+2000  continue
+      newfile = .true.
+      call putbyte ( endname(1), newfile )
+      call putbyte ( endname(2), newfile )
+      call putbyte ( endname(3), newfile )
+      call putbyte ( endname(4), newfile )
+c
+      do 2020 i=5,40
+        call putbyte ( endname(i), newfile )
+2020  continue
+      newfile = .true.
+      call putbyte ( soh, newfile )
+c
+      flush = .true.                 ! force flush of buffer
+      call putbyte ( soh, newfile )
+      write ( 6, 9120 ) dircount, filcount
+      percent = ( ( maxinput - maxoutput ) / maxinput )  * 100.d0
+      write ( 6, 9130 ) percent
+      if ( logging ) then
+        write ( 1, 9120 ) dircount, filcount
+        write ( 1, 9130 ) percent
+      endif
+c
+9100  format ( ' Error Opening Hard Disk File ',40a1 )
+9110  format ( ' Error Opening Subdirectory ',40a1 )
+9120  format ( ' Total Number of Directories : ',i6/
+     +         ' Total Number of Files :       ',i6 )
+9130  format ( ' Compressed :                  ',f6.2, '%')
+9140  format ( ' Drive ',na1, ',  HardDiskName - ',10a1 )
+9150  format ( ' Available Sectors - ',i7,', Used Sectors - ',i7)
+9160  format ( ' Error Processing Hard Disk Directory')
+9170  format ( 256a1 )
+9180  format ( ' Error Reading File Information for: ',40a1)
+9190  format ( ' Directory ',40a1 )
+      end
+      subroutine fileback
+      implicit integer(a-z)
+c  fileback - back up a single file from the hard disk to floppy.
+c
+c     fullfile  -  full path name of file (e.g. HDS1.CARTS.XB)
+c     itype     -  is the type of file, 1 to 5
+c     rsize     -  is the record size
+c     isize     -  is the total number of sectors in file
+c
+c  fileback reads the file into memory, performs a compression operation
+c  on the file (if specified) and writes the resulting file to the selected
+c  floppy
+      include 'BAKCOM/NOLIST'
+      logical *2 newfile
+      integer *4 jtemp
+      real *8 bytein, byteout, percent
+c  read file in groups of 60 sectors
+      totread = 0                   ! # of sectors read
+      filread  = 256                ! start with 1 sector overhead on file
+      filwrite = 0                  ! # of bytes written, this file
+      isize = isize - 2             ! decr size to true file size
+c  get the file info header
+      call bread ( fullfile, 0, 0, fileinfo, error )
+      if ( error .ne. 0 ) then
+        call prnerr
+        write ( 6, 9100 )
+        if ( logging ) write ( 1, 9100 )
+        return
+      endif
+c  move the header to the output buffer
+      newfile = .true.
+      do 1000 i=1,40
+        call putbyte ( fullfile(i), newfile )
+1000  continue
+      do 1010 i=1,20
+        call putbyte ( fileinfo(i), newfile )
+1010  continue
+      do while ( totread .lt. isize )
+        numsect = isize - totread
+        if ( numsect .gt. 60 ) numsect = 60
+        call bread ( fullfile, totread, numsect, sectors, error )
+        totread = totread + numsect
+        jtemp   = numsect * 256
+        filread = filread + jtemp
+        if ( error .ne. 0 ) then
+          call prnerr
+          write ( 6, 9100 )
+          if ( logging ) write ( 1, 9100 )
+          return
+        endif
+c  move the data from the sectors to the output buffer
+        do 1020 i=1,numsect
+c  if program type of file, must save entire record
+          if ( itype .eq. 5 ) then
+            endrec = 256
+c  else, call the clean routine to determine # of bytes in sector
+          else
+            endrec = preclean ( itype, rsize, sectors(1,i))
+            do while ( endrec .lt. 256 )
+              sectors(endrec,i) = z'00'
+              endrec = endrec + 1
+            enddo
+          endif
+c
+          do 1030 j=1,256
+            call putbyte ( sectors(j,i), newfile )
+1030      continue
+1020    continue
+      enddo
+      bytein = filread
+      byteout = filwrite
+      percent = ( ( bytein - byteout ) / bytein ) * 100.0d0
+      write ( 6, 9110 ) percent
+      if ( logging ) write ( 1, 9110 ) percent
+      maxinput  = maxinput  + filread
+      maxoutput = maxoutput + filwrite
+      return
+9100  format ( ' Error reading file from hard disk')
+9110  format ( '   ...Compressed ',f6.2,'%')
+      end
+      subroutine putbyte ( byte, newfile )
+      implicit integer(a-z)
+c  putbyte :  moves the passed "byte" to the output buffer, keeping
+c             track of whether there is a floppy disk currently mounted
+c             and the end of the output buffer (outbuf).
+      include 'BAKCOM/NOLIST'
+      character  byte, thisbyte
+      logical *2 newfile
+c  try and stuff character away.  Special conditions:
+c     newfile is set to .true.  =   output soh, reset flag, then file byte
+c     character is ff           =   output 02, 01
+c     character is 02           =   output 02, 02
+c     character is other        =   generate character
+      if ( newfile .or. byte .eq. soh .or. byte .eq. repsent .or.
+     +     repeatn .eq. 254 .or. repeatc .ne. byte ) then
+c  there is a "force" condition on the current character.  Flush the
+c  previous repeat count (repeatn) and repeat character (repeatc).
+        if ( repeatn .eq. 1 ) then
+          call putbuf ( repeatc )
+        else if ( repeatn .eq. 2 ) then
+          call putbuf ( repeatc )
+          call putbuf ( repeatc )
+        else if ( repeatn .eq. 3 ) then
+          call putbuf ( repeatc )
+          call putbuf ( repeatc )
+          call putbuf ( repeatc )
+        else if ( repeatn .ne. 0 ) then
+          call putbuf ( repsent )   ! set repeat
+          thisbyte  = repeatn       ! set repeat count
+          call putbuf ( thisbyte )
+          call putbuf ( repeatc )
+        endif
+        repeatn = 0
+      endif
+      if ( newfile ) then
+        call putbuf ( soh   )       ! start of header (for new file)
+        call putbuf ( method )      ! compression method (3=repeat)
+        newfile = .false.
+      endif
+c
+c  if character to go out is >02, then send >02, >02
+c
+      if ( byte .eq. repsent ) then
+        call putbuf ( byte )
+        call putbuf ( byte )
+c
+c  if character to go out is >ff, then send >02, >01
+c
+      else if ( byte .eq. soh ) then
+        call putbuf ( repsent )
+        call putbuf ( z'01' )
+c
+c  if character to go out matches repeat character, then set repeat count
+c
+      else if ( repeatn .eq. 0 ) then
+        repeatn = 1
+        repeatc = byte
+      else
+        repeatn = repeatn + 1
+      endif
+      end
+      subroutine putbuf ( byte )
+      implicit integer(a-z)
+c
+c  putbuf - moves the current character to the output buffer.  When
+c           buffer overflows, dumps the buffer to the output file.
+c           When the output file overflows, then formats a new floppy
+c           and starts on next floppy.
+c
+      include 'BAKCOM/NOLIST'
+      character byte, yesno, digit
+      character firstsec ( 20 )
+      integer *1 bnosectf(2)
+c
+      data firstsec / 'B', 'A', 'C', 'K', 'U', 'P', '1', ' ', ' ', ' ',
+     +                z'02', z'd0', z'09', z'44', z'53', z'4b', z'20',
+     +                z'28', z'02', z'01' /
+c
+      equivalence ( bnosectf, nosectf )
+c  see if output buffer will overflow.  If so, then dump it.
+      if ( .not. mounted ) then
+900     continue
+        write ( 6, 9100 ) (flopfile(i),i=1,4)
+        read  ( 6, 9110, end=9999, err=9999, iostat=error ) yesno
+        if ( yesno .eq. 'q' .or. yesno .eq. 'Q' ) then
+          write ( 6, 9160 )
+          if ( logging ) write ( 1, 9160 )
+          stop
+        else if ( yesno .eq. 'y' .or. yesno .eq. 'Y' ) then
+1000      continue
+          write ( 6, 9120 ) flopfile
+          call wait
+          write ( 6, 9130 )
+          call format ( flopfile, tracks, skew, interlace, density,
+     +                 sides, formsect, error )
+          if ( error .ne. 0 ) then
+            write ( 6, 9140 )
+            read  ( 6, 9110, end=9999, err=9999, iostat=error ) yesno
+            if ( yesno .eq. 'Y' .or. yesno .eq. 'y' ) then
+              error = 0
+              goto 1000
+            else
+              write ( 6, 9160 )
+              stop
+            endif
+          else
+c
+c  write first two sectors to output file
+c
+            do 1020 i=1,20
+1020        vsector(i) = firstsec(i)
+c
+            do 1025 i=21,56
+1025        vsector(i) = z'00'
+c
+            vsector(57) = z'03'
+c
+            do 1026 i=58,146
+1026        vsector(i) = z'00'
+c
+            do 1030 i=147,256
+1030        vsector(i)  = z'ff'
+c
+            do 1035 i=257,512
+1035        vsector(i) = z'00'
+c
+            call bwrite ( flopfile, 0, 2, vsector, error )
+            if ( error .ne. 0 ) then
+              write ( 6, 9140 )
+              read  ( 6, 9110, end=9999, err=9999, status=error ) yesno
+              if ( yesno .eq. 'Y' .or. yesno .eq. 'y' ) then
+                error = 0
+                goto 1000
+              else
+                write ( 6, 9160 )
+                stop
+              endif
+            endif
+            mounted = .true.        ! floppy has been formatted
+            write ( 6, 9170 ) formsect
+            if ( logging ) write ( 1, 9170 ) formsect
+          endif
+        else
+          mounted = .true.          ! user has pre-formatted floppies
+        endif
+c
+        if ( mounted ) then         ! open archive file
+          backno = backno + 1
+          call condts ( date )      ! get current date
+          do 1040 i=1,5
+1040      arcname(i) = flopfile(i)
+c
+          arcname(6) = 'B'          ! form archive name
+          arcname(7) = date(1)
+          arcname(8) = date(2)
+          arcname(9) = date(4)
+          arcname(10) = date(5)
+          arcname(11) = date(7)
+          arcname(12) = date(8)
+          arcname(13) = '-'
+          digit       = backno / 10
+          arcname(14) = digit + '0'
+          digit       = backno - ( ( backno/10 ) * 10 )
+          arcname(15) = digit + '0'
+          arcname(16) = ' '
+c
+c  now create the file info header
+c
+          irec(1)     = 01          ! extended record length
+          irec(2)     = 00
+c
+          irec(3)     = 02          ! binary type of file
+          irec(4)     = 0           ! # of records in a sector
+c
+          irec(5)     = bnosectf(1) ! reserve 717 sectors
+          irec(6)     = bnosectf(2)
+c
+          irec(7)     = 0           ! # of bytes in last sector
+          irec(8)     = 0           ! logical record length (extended)
+          irec(9)     = bnosectf(1) ! highest record used
+          irec(10)    = bnosectf(2)
+c
+          irec(11)    = 0
+          irec(12)    = 0
+          irec(13)    = 0
+      irec(13)    = =         = 02       = 0
+c
+          irec(15)    = 0
+          irec(16)    = 0
+          irec(17)    = 0
+          irec(18)    = 0
+c
+          irec(19)    = 0
+          irec(20)    = 0
+c
+          call bwrite ( arcname, 0, 0, irec, error )
+          if ( error .ne. 0 ) then
+            call prnerr
+            write ( 6, 9150 ) arcname
+            if ( logging ) write ( 1, 9150 ) arcname
+            call wait
+            mounted = .false.
+            goto 900
+          endif
+          cursect = 0               ! current output sector number
+c
+c  compute # of bytes in last block to be written, and the sector
+c  number at which the last block starts.
+c
+          lasblok = mod ( nosectf , 32 ) * 256
+          lassect = ( nosectf / 32 ) * 32
+        endif
+      endif
+c
+c  if floppy mounted, then do binary write of data
+c
+      if ( mounted ) then
+        outptr = outptr + 1
+        if ( outptr .gt. 8192 .or. ( ( outptr .gt. lasblok) .and.
+     +       ( cursect .eq. lassect ) ) .or. flush ) then
+          if ( flush .and. ( outptr .lt. 8192 ) ) then
+            do 1050 i=outptr, 8192
+              outbuf(i) = z'00'
+1050        continue
+          endif
+c
+          if ( cursect .eq. lassect) then
+            call bwrite ( arcname, cursect, 13, outbuf, error )
+            mounted = .false.
+            arcwrite = arcwrite + 13
+          else
+            call bwrite ( arcname, cursect, 32, outbuf, error )
+            cursect = cursect + 32
+            arcwrite = arcwrite + 32
+          endif
+          if ( error .ne. 0 ) then
+            call prnerr
+            write ( 6, 9180 ) arcname
+            if ( logging ) write ( 1, 9180 ) arcname
+            return
+          endif
+          outptr = 1
+        endif
+        outbuf(outptr) = byte
+        filwrite = filwrite + z'00000001'
+      endif
+c
+9999  continue
+      return
+9100  format ( '+Would you like me to format a floppy disk in ',4a1,
+     +         ' (Y/N/Q)?')
+9110  format ( a1 )
+9120  format ( ' Please put a blank floppy in ',40a1)
+9130  format ( '+Formatting...')
+9140  format ( ' Error Formatting Floppy Disk, Shall I Retry?')
+9150  format ( ' Error Creating Archive File ',17a1)
+9160  format ( ' Aborting backup...')
+9170  format ( '+',i6,' Sectors Formatted'/)
+9180  format ( ' Error Writing to Archive File ',17a1 )
+      end
+      subroutine slist
+      implicit integer(a-z)
+c
+c  slist - list the archive file mounted in the floppy disk
+c
+      include 'BAKCOM/NOLIST'
+c
+      real *8 avail, left, size, recsize, type, protect
+      integer *4 javail, jused, totbytes
+      logical *2 newfile
+      integer *1 compress
+c
+c  do until all disks are exhausted
+c
+      mounted = .false.             ! whether floppy is mounted or not
+      totbytes = 0                  ! total byte count read
+      repeatn  = 0                  ! # of repeats
+      do while ( .true. )
+        fastscan = .true.
+        call getbyte ( kchar, newfile )
+c
+c  if start of header, this is a new file
+c
+        fastscan = .false.
+c
+        if ( newfile ) then
+          call getbyte ( compress, newfile )
+          do 1000 i=1,40
+            call getbyte ( hardfile(i), newfile )
+1000      continue
+c
+          if ( hardfile(1) .eq. '>' .and. hardfile(2) .eq. 'E' .and.
+     +         hardfile(3) .eq. 'O' .and. hardfile(4) .eq. 'D' ) then
+            write ( 6, 9110 )
+            if ( logging ) write ( 1, 9110 )
+            stop
+          endif
+c
+          do 1010 i=1,20
+            call getbyte ( fileinfo(i), newfile )
+1010      continue
+c
+          newfile = .false.
+c
+          call listfile ( hardfile, fileinfo, logging )
+        endif
+      enddo
+c
+      return
+9110  format ( ' End of Archive')
+9120  format ( 1x,40a1,1x,i1 )
+      end
+      subroutine getbyte ( byte, newfile )
+      implicit integer(a-z)
+c
+c  getbyte : gets the next byte from the input buffer.  At this level,
+c            doesn't worry about disk i/o etc.  Does repeat expansion
+c
+      include 'BAKCOM/NOLIST'
+c
+      character byte
+      integer *1 bytec
+      logical *2 newfile
+c
+c  if currently expanding repeat, then just return character
+c
+      if ( repeatn .ne. 0 ) then
+        repeatn = repeatn - 1
+        byte    = repeatc
+        return
+      endif
+c
+c  else, get next character from archive.  if soh, then return
+c
+      call getbuf ( byte )
+      if ( byte .eq. soh ) then
+        newfile = .true.
+        return
+      endif
+c
+c  if character is repeat sentinel, then check special cases of '01'
+c  and '02'.  If neither, then set up repeat count and character.
+c
+c  if character isn't a repeat sentinel, then skip everything & just
+c  return (character is already in byte).
+c
+c  note:     02, 01  is actually a z'ff'
+c            02, 02  is actually a z'02'
+c
+      if ( byte .eq. repsent ) then
+        call getbuf ( bytec )
+        if ( bytec .eq. z'01' ) then
+          byte = z'ff'
+        else if ( bytec .eq. z'02' ) then
+          return
+        else
+          call getbuf ( repeatc )
+          byte    = repeatc
+          repeatn = bytec
+          repeatn = iand ( repeatn, z'00ff' ) - 1
+        endif
+      endif
+      end
+      subroutine getbuf ( byte )
+      implicit integer(a-z)
+c
+c  getbyte - get the next byte from the archive file.  This may involve
+c            mounting a new floppy, reading in a new sector buffer, etc.
+c
+c
+      include 'BAKCOM/NOLIST'
+c
+      character yesno, byte
+      data numbytes / -1 /
+c
+100   continue
+      if ( .not. mounted ) then
+        write ( 6, 9100 ) (flopfile(i),i=1,4)
+        read  ( 6, 9110, end=9999, err=9999, status=error ) yesno
+        if ( yesno .ne. 'Y' .and. yesno .ne. 'y' ) then
+          stop
+        endif
+        call open ( 20, flopfile, 2, 1, 0, 1, 256, error )
+        if ( error .ne. 0 ) return
+c
+        read ( 20, 9120, end=9999, err=9999, status=error ) irec
+        iptr = 0
+c
+        call getstr ( device )
+        call getflt ( avail  )
+        call getflt ( avail  )
+        call getflt ( left   )
+        javail = avail
+        jused  = avail - left
+c
+c  now read the first file name (only file on an archive disk)
+c
+        read ( 20, 9120, end=9999, err=9999, status=error ) irec
+        call close ( 20 )
+        iptr = 0
+        call getstr ( device )
+c
+c  create the full path name for the floppy archive (e.g. DSK1.B112889-01)
+c
+        i = 1
+        do while ( flopfile(i) .ne. ' ' .and. i .lt. 40 )
+          fullfile(i) = flopfile(i)
+          i = i + 1
+        enddo
+c
+        j = 1
+        do while ( j .lt. 11 )
+          fullfile(i) = device(j)
+          i = i + 1
+          j = j + 1
+        enddo
+c
+        do while ( i .lt. 41 )
+          fullfile(i) = ' '
+          i = i + 1
+        enddo
+c
+        write ( 6, 9130 ) fullfile
+        if ( logging ) write ( 1, 9130 ) fullfile
+c
+        tsector  = 0
+        outptr   = 0
+        lastsect = ( nosectf / 60 ) * 60
+        lastblok = mod ( nosectf, 60 )
+        mounted = .true.
+      endif
+c
+c  if outptr .eq. 0, then read the next sector block
+c
+200   continue
+      if ( outptr .ge. numbytes ) then
+        if ( tsector .gt. lastsect ) then
+          mounted = .false.
+          goto 100
+        else if ( tsector .eq. lastsect ) then
+          call bread ( fullfile, tsector, lastblok, vsector, error )
+          tsector = tsector + 60
+          numbytes = lastblok * 256
+          mounted  = .false.
+        else
+          call bread ( fullfile, tsector, 60, vsector, error )
+          tsector = tsector + 60
+          numbytes = 15360
+        endif
+        outptr = 0
+        if ( error .ne. 0 ) then
+          call prnerr
+          write ( 6, 9140 ) fullfile
+          if ( logging ) write ( 1, 9140 ) fullfile
+          stop
+        endif
+      endif
+c
+c  a buffer has been read, now return the desired byte
+c
+      outptr = outptr + 1
+      if ( fastscan ) then
+        do while ( outptr .le. numbytes .and. vsector(outptr) .ne. soh)
+          outptr = outptr + 1
+        enddo
+        if ( outptr .gt. numbytes ) then
+          if ( tsector .gt. lastsect ) then
+            mounted = .false.
+            goto 100
+          else
+            goto 200
+          endif
+        else
+          byte = vsector(outptr)
+        endif
+      else
+        byte   = vsector(outptr)
+      endif
+      return
+c
+9999  call close ( 20 )
+c
+9100  format ( '+Shall I read next archive disk in ',4a1,' (Y/N/Q)?')
+9110  format ( a1 )
+9120  format ( 265a1 )
+9130  format ( ' Processing Archive ',40a1)
+9140  format ( ' Error reading from Archive ',40a1)
+      end
+      subroutine listfile ( filename, fileinfo, logging )
+      implicit integer(a-z)
+c
+c  listfile :  lists information about the current file being
+c              processed
+c
+      character filename(40), datestrin(8), timestrin(8)
+      integer *1 fileinfo(20), status
+      integer *4 extendrec, nosect, eofstart
+      logical *2 logging
+      real *8 types(6)
+      data types / 'Dis/Fix ', 'Dis/Var ', 'Int/Fix ', 'Int/Var ',
+     +             'Program ', 'Directry' /
+c
+c                                   ! # of bytes in extended record
+      extendrec = gettwo ( fileinfo(1) )
+c
+      status    = fileinfo(3)       ! status byte (file type, etc.)
+c
+      nosect    = gettwo ( fileinfo(5) )
+c
+      recbleng  = fileinfo(8)       ! record length of data files
+c
+      dateupda  = gettwo ( fileinfo(17) )
+c
+      timeupda  = gettwo ( fileinfo(15) )
+c
+      eofstart  = gettwo ( fileinfo(5) )
+c
+      sectused  = fileinfo(19)
+      sectused  = sectused * z'10000' + eofstart + z'00002'
+c
+      call cnvtdate ( dateupda , datestrin )
+      call cnvttime ( timeupda , timestrin )
+c
+      program  = kiand ( status , z'01' )
+      internal = kiand ( status , z'02' )
+      protect  = kiand ( status , z'04' )
+      variable = kiand ( status , z'80' )
+c                                   figure out type of file
+      if      ( program .ne. 0 ) then
+        itype = 5
+      else if ( internal .eq. 0 ) then
+        if ( variable .eq. 0 ) then
+          itype = 1
+        else
+          itype = 2
+        endif
+      else
+        if ( variable .eq. 0 ) then
+          itype = 3
+        else
+          itype = 4
+        endif
+      endif
+c                                   determine record size for display
+      if ( program .ne. 0 ) then
+        lastnumb  = fileinfo(8)
+        lastnumb  = iand ( lastnumb, z'00ff' )
+        if ( lastnumb .eq. 0 ) then
+          lastnumb = 256
+        endif
+        extendrec = ( ( sectused * 256 ) - 256 ) + lastnumb
+      else if ( extendrec .eq. z'00000' ) then
+        extendrec = recbleng
+        extendrec = jiabs ( extendrec )
+      endif
+c
+      if ( protect .ne. 0 ) then
+        protect = 'Y '
+      else
+        protect = '  '
+      endif
+c
+      write ( 6, 9100 ) (filename(i),i=1,33), sectused, types(itype),
+     +                  extendrec, protect, datestrin, timestrin
+      if ( logging ) then
+        write ( 1, 9100 ) (filename(i),i=1,33), sectused, types(itype),
+     +                  extendrec, protect, datestrin, timestrin
+      endif
+c
+9100  format ( 4x,33a1,1x,i6,1x,a8,i6,1x,a1,1x,8a1,1x,8a1)
+      end
+      subroutine cnvtdate ( date, string )
+      implicit integer(a-z)
+c
+      integer *2 date
+      character string(8)
+c
+c  convert the packed date in "date" to an ASCII string
+c
+      iptr  = 0
+c
+      year  = iand ( ishft ( date, -9 ), z'007f' )
+      month = iand ( ishft ( date, -5 ), z'000f' )
+      day   = iand ( date, z'001f' )
+c
+      call cnvtnumb ( month, string, iptr )
+      iptr = iptr + 1
+      string(iptr) = '/'
+      call cnvtnumb ( day, string, iptr )
+      iptr = iptr + 1
+      string(iptr) = '/'
+      call cnvtnumb ( year, string, iptr )
+      end
+      subroutine cnvttime ( time, string )
+      implicit integer(a-z)
+c
+c  cnvttime - convert the current time to an ASCII string
+c
+      integer *2 time
+      character string(8)
+c
+      iptr = 0
+c
+      hour   = iand ( ishft ( time, -11 ), z'001f' )
+      minute = iand ( ishft ( time, -5  ), z'003f' )
+      secs   = iand ( time, z'001f' ) * 2
+c
+      call cnvtnumb ( hour, string, iptr )
+      iptr = iptr + 1
+      string(iptr) = ':'
+      call cnvtnumb ( minute, string, iptr )
+      iptr = iptr + 1
+      string(iptr) = ':'
+      call cnvtnumb ( secs, string, iptr )
+      end
+      subroutine cnvtnumb ( value, string, iptr )
+      implicit integer(a-z)
+c
+c  cnvtnumb - convert the two digit number in "value" to ascii
+c
+      integer *2 value, iptr
+      character string(8)
+      integer *1 numb1, numb2
+c
+      numb1 = value / 10
+      numb2 = mod ( value, 10 )
+c
+      iptr  = iptr + 1
+      string(iptr) = numb1 + '0'
+      iptr  = iptr + 1
+      string(iptr) = numb2 + '0'
+      end
+      integer function gettwo ( string )
+      implicit integer(a-z)
+c
+c  gettwo : gets two bytes from the string, and returns as a single
+c           integer *2 value
+c
+      integer *1 string(2), mystring(2)
+      integer *2 answer
+c
+      equivalence ( mystring, answer )
+c
+      mystring(1) = string(1)
+      mystring(2) = string(2)
+      gettwo      = answer
+      end
+      subroutine srestore
+      implicit integer(a-z)
+c
+c  srestore - restore the archive file mounted in the floppy disk
+c
+      include 'BAKCOM/NOLIST'
+c
+      real *8 avail, left, size, recsize, type, protect
+      integer *4 javail, jused, totbytes
+      logical *2 newfile
+      integer *1 compress
+c
+c  do until all disks are exhausted
+c
+      mounted = .false.             ! whether floppy is mounted or not
+      totbytes = 0                  ! total byte count read
+      repeatn  = 0                  ! # of repeats
+      fastscan = .true.             ! scan til newfile
+c
+      do while ( .true. )
+        if ( fastscan ) then
+          call getbyte ( kchar, newfile )
+        endif
+        fastscan = .false.
+c
+        call getbyte ( compress, newfile )
+        do 1000 i=1,40
+          call getbyte ( thisfile(i), newfile )
+1000    continue
+c
+        if ( thisfile(1) .eq. '>' .and. thisfile(2) .eq. 'E' .and.
+     +       thisfile(3) .eq. 'O' .and. thisfile(4) .eq. 'D' ) then
+          write ( 6, 9110 )
+          if ( logging ) write ( 1, 9110 )
+          stop
+        endif
+c
+        do 1010 i=1,20
+          call getbyte ( fileinfo(i), newfile )
+1010    continue
+c
+        do 1020 i=1,40
+          if ( hardfile(i) .eq. ' ' ) goto 1040
+          if ( hardfile(i) .ne. thisfile(i) ) goto 1030
+1020    continue
+c
+c  file doesn't match the requested string; skip it
+c
+1030    continue
+        write ( 6, 9100 ) thisfile
+        if ( logging ) write ( 1, 9100 ) thisfile
+        fastscan = .true.
+        goto 1050
+c
+c  file matches the desired file name; restore it
+c
+1040    continue
+        write ( 6, 9105 )
+        call listfile ( thisfile, fileinfo, logging )
+        call frestore ( newfile )
+1050    continue
+      enddo
+c
+      return
+9100  format ( ' Skipping File ... ',40a1 )
+9105  format ( ' Restoring File ...')
+9110  format ( ' End of Archive')
+9120  format ( 1x,40a1,1x,i1 )
+      end
+      subroutine frestore ( newfile )
+      implicit integer(a-z)
+c
+c  frestore - file restore.  Restores a single file from floppy
+c             diskette onto the hard disk.
+c
+c     thisfile(40)  :  contains the file name
+c     fileinfo(20)  :  contains the file information
+c
+      include 'BAKCOM/NOLIST'
+c
+      character yesno
+      logical *2 newfile
+c
+c  first, try opening the file to see if it already exists
+c
+      call bread ( thisfile, 0, 0, irec, error )
+      if ( error .eq. 0 ) then
+1000    continue
+        if ( overwrit ) then
+          continue
+        else if ( skipfile ) then
+          print *,'File Skipped...'
+          return
+        else
+          write ( 6, 9100 )
+          read  ( 6, 9110, end=1000, err=1000 ) yesno
+          if      ( yesno .eq. 'Q' .or. yesno .eq. 'q' ) then
+            stop
+          else if ( yesno .eq. 'N' .or. yesno .eq. 'n' ) then
+            print *,'File Skipped...'
+            return
+          else if ( yesno .ne. 'Y' .and. yesno .ne. 'y' ) then
+            goto 1000
+          endif
+        endif
+      endif
+      error = 0
+c
+c  make sure the directory structure is created on the hard disk
+c  for the file being restored
+c
+      call createdir ( thisfile )
+c
+c  create the file on the hard disk by writing the file info header
+c  (this assumes for now that the directory structure is intact).
+c
+      call bwrite ( thisfile, 0, 0, fileinfo, error )
+      if ( error .ne. 0 ) then
+        call prnerr
+        write ( 6, 9120 ) thisfile
+        if ( logging ) write ( 1, 9120 ) thisfile
+        error = 0
+        return
+      endif
+c
+c  now unpack the file 60 sectors at a time, and write the information
+c  to the output file.
+c
+      oppptr   = 0                  ! pointer to output buffer
+      outsect  = 0                  ! pointer to output sector
+      newfile  = .false.            ! set no new file (for now)
+c
+      do while ( .not. newfile )
+        oppptr = oppptr + 1
+        if ( oppptr .gt. 8192 ) then
+          call bwrite ( thisfile, outsect, 32, outbuf, error )
+          if ( error .ne. 0 ) then
+            call prnerr
+            write ( 6, 9130 ) thisfile
+            if ( logging ) write ( 1, 9130 ) thisfile
+            stop
+          endif
+          oppptr = 1
+          outsect = outsect + 32
+        endif
+        call getbyte ( outbuf(oppptr), newfile )
+        if ( newfile ) then
+          newsect = oppptr / 256
+          call bwrite ( thisfile, outsect, newsect, outbuf, error )
+          if ( error .ne. 0 ) then
+            call prnerr
+            write ( 6, 9130 ) thisfile
+            if ( logging ) write ( 1, 9130) thisfile
+            stop
+          endif
+        endif
+      enddo
+      return
+c
+9100  format ( '+File already exists. Shall I overwrite (Y/N/Q)?')
+9110  format ( a1 )
+9120  format ( ' creating file ',40a1 )
+9130  format ( ' writing to file ',40a1)
+      end
+      subroutine createdir ( filename )
+      implicit integer(a-z)
+c
+c  createdir - create the directory for the file specified in filename
+c
+      character filename(40), dirname(40)
+c
+      level = 0
+      do 1000 i=1,40
+        dirname(i) = ' '
+1000  continue
+c
+      i = 1
+      do while ( .true. )
+        do while ( filename(i) .ne. ' ' .and. filename(i) .ne. '.' .and.
+     +             i .lt. 40 )
+          dirname(i) = filename(i)
+          i = i + 1
+        enddo
+c
+        if ( filename(i) .eq. ' ' ) return
+        if ( i .ge. 40 ) return
+c
+        dirname(i) = filename(i)
+        i = i + 1
+        level = level + 1
+        if ( level .gt. 1 ) then
+          call creatd ( dirname, error )
+        endif
+      enddo
+      end
+      subroutine parsecm ( noarg, argsiz )
+      implicit integer (a-z)
+c
+c  parsecm : takes a command from the command parser, and parses a
+c            'c' style argument count (argc), and argument strings
+c            (argv).   The maximum number of command line arguments
+c            is in the noarg variable, and the maximum size of
+c            each argument string is in the argsiz variable.
+c
+c            Errors are returned in the Error variable.
+c            The number of arguments found is returned in argc.
+c
+      include 'BAKCOM/NOLIST'
+c
+      integer *2 noarg, argsiz
+c
+      if ( error .ne. 0 ) then
+        error = -1                    ! command too long
+        return
+      endif
+c
+      do 1000 i=1,argsiz              ! blank the resulting strings
+        do 1000 j=1,noarg
+          argv(i,j) = ' '
+1000  continue
+c
+      argc   = 0                      ! number of arguments
+      maxcom = cmdlen                 ! # of characters in command
+      maxcom = maxcom + 1
+      comptr = 1                      ! command pointer
+c
+      do while ( comptr .lt. maxcom )
+        comptr = comptr + 1
+        if ( command(comptr) .ne. ' ' ) then
+          argc  = argc + 1
+          if ( argc .gt. noarg ) then
+            error = -3                ! too many subcommands
+            return
+          endif
+          argptr = 0
+          do while ( comptr.le.maxcom .and. command(comptr).ne.' ')
+            argptr = argptr + 1
+            if ( argptr .gt. argsiz ) then
+              error = -2              ! individual command too long
+              return
+            endif
+            argv(argptr,argc) = command(comptr)
+            comptr = comptr + 1
+          enddo
+        endif
+      enddo
+      end
+      subroutine getfile ( comlet, comstr )
+      implicit integer (a-z)
+c
+c  getfile : get a file name from the argument string
+c
+c  This module is passed a set of command letters (e.g. /L), and searches
+c  the open arguments 2 to 5 for the command which starts with the
+c  command letters.  If one is found, then the file name is extracted
+c  and moved to the comstr array.  If one is not found, then an error
+c  is returned.
+c
+      character comstr(40), comlet(2)
+c
+      include 'BAKCOM/NOLIST'
+c
+      do 1000 i=1,5
+        if ( argv(1,i) .eq. comlet(1) .and.
+     +       argv(2,i) .eq. comlet(2) ) then
+          do 1010 j=1,38
+            comstr(j) = argv(j+2,i)
+1010      continue
+          comstr(39) =  ' '
+          comstr(40) =  ' '
+          goto 1020
+        endif
+1000  continue
+      error = -6
+1020  return
+      end
+      subroutine prnerr
+      implicit integer (a-z)
+c
+c  prnerr:  print errors,  variable error has the error number
+c
+c  negative errors are generated internally, positive errors come
+c  from I/O system.
+c
+      include 'BAKCOM/NOLIST'
+      if      ( error .eq. -1 ) then
+        write ( iout, 9100 )
+        if ( logging ) write ( 1, 9100 )
+      else if ( error .eq. -2 ) then
+        write ( iout, 9110 )
+        if ( logging ) write ( 1, 9110 )
+      else if ( error .eq. -3 ) then
+        write ( iout, 9120 )
+        if ( logging ) write ( 1, 9120 )
+      else if ( error .eq. -4 ) then
+        write ( iout, 9130 )
+        if ( logging ) write ( 1, 9130 )
+      else if ( error .eq. -5 ) then
+        write ( iout, 9140 )
+        if ( logging ) write ( 1, 9140 )
+      else if ( error .eq. -6 ) then
+        write ( iout, 9150 )
+        if ( logging ) write ( 1, 9150 )
+      else if ( error .eq. -7 ) then
+        write ( iout, 9160 )
+        if ( logging ) write ( 1, 9160 )
+      else if ( error .eq. -8 ) then
+        write ( iout, 9170 )
+        if ( logging ) write ( 1, 9170 )
+c
+      else if ( error .eq. 1 ) then
+        write ( iout, 9180 )
+        if ( logging ) write ( 1, 9180 )
+      else if ( error .eq. 2 ) then
+        write ( iout, 9190 )
+        if ( logging ) write ( 1, 9190 )
+      else if ( error .eq. 3 ) then
+        write ( iout, 9200 )
+        if ( logging ) write ( 1, 9200 )
+      else if ( error .eq. 4 ) then
+        write ( iout, 9210 )
+        if ( logging ) write ( 1, 9210 )
+      else if ( error .eq. 5 ) then
+        write ( iout, 9220 )
+        if ( logging ) write ( 1, 9220 )
+      else if ( error .eq. 6 ) then
+        write ( iout, 9230 )
+        if ( logging ) write ( 1, 9230 )
+      else if ( error .eq. 7 ) then
+        write ( iout, 9240 )
+        if ( logging ) write ( 1, 9240 )
+      else if ( error .eq. 8 ) then
+        write ( iout, 9250 )
+        if ( logging ) write ( 1, 9250 )
+      else
+        write ( iout, 9260 ) error
+        if ( logging ) write ( 1, 9260 ) error
+      endif
+c
+9100  format ( ' Error 1 - Command Line too Long')
+9110  format ( ' Error 2 - Sub-Command too Long')
+9120  format ( ' Error 3 - Too Many Subcommands')
+9130  format ( ' Error 4 - Too Few Subcommands')
+9140  format ( ' Error 5 - Illegal Command')
+9150  format ( ' Error 6 - Command Missing')
+9160  format ( ' Error 7 - Too Many Subdirectories')
+9170  format ( ' Error 8 - Error Formatting Floppy')
+c
+9180  format ( ' I/O Error 0 - Non-Existant Device Name')
+9190  format ( ' I/O Error 1 - Device Write Protected')
+9200  format ( ' I/O Error 2 - Bad Open Attribute')
+9210  format ( ' I/O Error 3 - Illegal Operation')
+9220  format ( ' I/O Error 4 - Out of Table Space')
+9230  format ( ' I/O Error 5 - Read Past End of File')
+9240  format ( ' I/O Error 6 - Device Error')
+9250  format ( ' I/O Error 7 - File Error')
+9260  format ( ' Error ',i6,'- Unrecognized Error')
+      end
+      subroutine getflt ( value )
+      implicit integer(a-z)
+c
+c  getflt - get a floating point value from internal format string
+c
+      include 'BAKCOM/NOLIST'
+      real *8 value, dvalue
+      integer *1 kvalue(8)
+      equivalence ( kvalue, dvalue )
+c
+c  move in floating point value one byte at a time
+c
+      iptr = iptr + 1               ! skip the byte which has length
+      do 1000 i=1,8
+        iptr = iptr + 1
+        kvalue(i) = irec(iptr)
+1000  continue
+c
+      value = dvalue                ! transfer 8 bytes to use value
+      end
+      subroutine getstr ( string )
+      implicit integer(a-z)
+c
+c  getstr - gets the up to 255 character string in the user string
+c           variable
+c
+      include 'BAKCOM/NOLIST'
+c
+      character string(10)
+      do 1000 i=1,10
+        string(i) = ' '
+1000  continue
+c
+      iptr = iptr + 1
+      length = irec(iptr)
+c                                   if not zero length, extract string
+      if ( length .ne. 0 ) then
+        do 1010 i=1,length
+          iptr = iptr + 1
+          string(i) = irec(iptr)
+1010    continue
+      endif
+      end
+      integer function preclean ( type, rsize, sector )
+      implicit integer(a-z)
+c
+c preclean - returns a pointer to the end of the current sector.  Note
+c            that the ti-99 filing system can waste bytes at the end of
+c            a sector due to sector rounding.  For fixed length records,
+c            this wastage is calculated by the excess of the number of
+c            records which will fit into a sector.   For variable length
+c            records, the wastage is also variable.
+c
+      character sector(256)
+      integer *2 type, rsize
+c                                   fixed records
+      if ( type .eq. 1 .or. type .eq. 3 ) then
+        numrec = 256 / rsize
+        recptr = ( numrec * rsize )
+c                                   variable records
+      else if ( type .eq. 2 .or. type .eq. 4 ) then
+        recptr = 1
+        do while ( recptr .lt. 256 .and. sector(recptr) .ne. z'ff')
+          byteoff = sector(recptr)
+          if ( byteoff .eq. 0 ) then
+            recptr = 256
+          else
+            recptr  = recptr + iand ( byteoff, z'00ff' ) + 1
+          endif
+        enddo
+        endrec = recptr
+      else
+        recptr = 256
+      endif
+      preclean = recptr
+      end
+      subroutine concat ( fullfile, file1, file2, lastchar )
+      implicit integer(a-z)
+c
+c  concat : concatenates two file names, file1 & file2 into a single
+c           file name.  lastchar at end points to last non-blank
+c           character.
+c
+      character fullfile(40), file1(40), file2(10)
+      integer lastchar
+c
+      lastchar = 40
+      do while ( file1(lastchar) .eq. ' ' )
+        lastchar = lastchar - 1
+      enddo
+      nextchar = 0
+      do while ( nextchar .lt. 40 )
+        nextchar = nextchar + 1
+        fullfile(nextchar) = file1(nextchar)
+      enddo
+      nextchar = 1
+      do while ( file2(nextchar) .ne. ' ' .and. nextchar .lt. 11)
+        lastchar = lastchar + 1
+        if ( lastchar .gt. 40 ) return
+        fullfile(lastchar) = file2(nextchar)
+        nextchar = nextchar + 1
+      enddo
+      end
+      subroutine checkfq ( fullfile, lastchar )
+      implicit integer(a-z)
+c
+c  checkfq  :  check for a special character in the file name.  If found,
+c              then surround it by a double quote.
+c
+      character fullfile(40), outfile(44)
+c
+      return
+      input = 0
+      output = 0
+      do while ( input .lt. 40 .and. output .lt. 40 )
+        input = input + 1
+        output = output + 1
+        if ( fullfile(input) .eq. '/' ) then
+          outfile(output) = '"'
+          output = output + 1
+          outfile(output) = fullfile(input)
+          output = output + 1
+          outfile(output) = '"'
+        else
+          outfile(output) = fullfile(input)
+        endif
+      enddo
+c
+      input = 0
+      do while ( input .lt. 40 )
+        input = input + 1
+        fullfile(input) = outfile(input)
+      enddo
+c
+      lastchar = 40
+      do while ( fullfile(lastchar) .ne. ' ' )
+        lastchar = lastchar - 1
+      enddo
+      end

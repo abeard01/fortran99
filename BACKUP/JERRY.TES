@@ -1,0 +1,319 @@
+
+
+
+atdp7701405
+
+CONNECT 2400
+
+TELENET
+215 114A 
+
+TERMINAL=
+
+@C DELPHI
+
+DELPHI CONNECTED
+
+
+
+Username: ABEARD
+
+Password: 
+
+            You have 2 new Mail messages.
+
+
+
+
+Hello ABEARD
+
+Welcome to DELPHI
+Copyright (c) 1990
+General Videotex Corporation
+
+
+Logon at   : 15-JAN-1990 20:31:13
+Last Logon : 14-JAN-1990 21:33:32
+
+
+
+Heating Oil Prices Fall Sharply!  For details, type BUS FIN, then select FUEL.
+
+FlipIt Champ to win $45 Monday! Anyone can play.  Type ENT FLIP
+
+
+MAIN Menu:
+
+Business & Finance    News-Weather-Sports
+Conference            People on DELPHI
+DELPHI/Regional       Travel
+Entertainment         Workspace
+Groups and Clubs      Using DELPHI
+Library               HELP
+Mail                  EXIT
+Merchants' Row
+
+MAIN>What do you want to do? You scheduled a free time appointment in TI Interna
+tional Users Network on any
+day between 6:00 PM and 7:00 AM (Eastern Time Zone) or any time on the weekend
+for 1 hour (43 minutes remaining).
+
+You scheduled the appointment with TELEDATA:  JANUARY TI NET FREE TIME.
+
+You have an appointment for free time now.  If you are not ready, enter HELP.
+
+Do you want to take advantage of your free time now?(yes/no/other/help)
+Please wait ...
+=)0
+New mail on node BOS1B from ABEARD      
+>
+Your free time will run until 9:14 PM (Eastern Time Zone).
+
+Billing turned OFF.
+
+
+     ____  ____          _  ___  ____
+      /     /       /\  /  /_     /
+     /   __/__    _/  \/  /__    /  sm
+
+
+     TI INTERNATIONAL USERS NETWORK
+
+      Technical support group for:
+
+  Texas Instruments related computers
+       Myarc 9640 Geneve computer
+     Related Hardware and Software
+
+
+ Jeff Guide <TELEDATA> - System Manager
+  Art Byers <ARTBYERS> - TI NET Sysop
+More?
+ Ed Cameron <ENCAMERON> - Sysop, TI PRO
+
+Sponsored by Teledata*Guide, Lorton, VA
+
+
+
+You have 1 new Forum message.
+
+
+     ____  ____          _  ___  ____
+      /     /       /\  /  /_     /
+     /   __/__    _/  \/  /__    /
+
+    ____   ____   ____
+   /__    /   /  /___/  /   /  /\  /|
+  /      /___/  /  \   /___/  /  \/ |
+                                     sm
+
+   THE INTERNATIONAL MESSAGE EXCHANGE
+
+
+
+More?
+Welcome to the TI International Users Forum.
+Forum contains messages 10153 to 13781.
+Highest message you've read is 13776.
+
+You have 1 new message.
+Press RETURN to READ WAITING Messages.
+
+FORUM>Reply, Add, Read, "?" or Exit> 
+[H[2J13780 15-JAN 19:37 99/4A
+     RE: 4A ASSEMBLY PROGRAMMING (Re: Msg 13770)
+     From: JSYZDEK      To: ABEARD (NR)
+
+Al,
+  The Editor/Assembler manual shows CIF to be a XMLLNK routine. It also says the
+
+routine is loaded into memory by the E/A loader, so it is not available when XB
+is being used.
+
+ I read the section on XMLLNK again and the >0020 address passed to XMLLNK gets
+modified by the routine (points to a location in the XB cart?).
+
+ Anyway, I passed this along to the person who asked and will be waiting for his
+
+reply. I would be interested in your CIF routine if you are willing to share it.
+
+ Thanks,    Joe
+
+
+Enter FOLLOW for related Message(s).
+
+FORUM>Reply, Add, Read, "?" or Exit> 
+No more messages.
+
+Press RETURN to READ NEW Messages.
+
+FORUM>Reply, Add, Read, "?" or Exit> read new ns
+13777 15-JAN 01:13 Professional (TIPC)
+     RE: TI Pro CD/TI card (Re: Msg 13711)
+     From: ENCAMERON    To: FROBOTZ (NR)
+
+   The last time I saw the CSTI board advertised, it was in the SenTInel.  TIPC
+Network had it listed for $395 in the November 89 issue.  Be advised, though, it
+
+is only listed as gaining a 98% compatibility, not "totally."  The TIPC Network
+folks listed their number in November as 605 356-2910.  The ad was not seen
+after the November issue.  So, Good Luck!     Ed Cameron
+
+-*-
+
+13778 15-JAN 03:47 99/4A
+     RE: 4A ASSEMBLY PROGRAMMING (Re: Msg 13769)
+     From: JEAN_MARLEAU To: JSYZDEK
+
+The way to acces this routine in xb is:
+
+  LIMI 0
+  CLR  R0
+  MOVB R0,@>837C
+  BLWP @>2018    XMLLNK
+  DATA >20
+  LIMI 2
+
+I mean this is a way... The data >0020 in fact is modified in the BLWP in exten
+ded basic. Xbasic doesn't access the XML LNK in the same way than E/A. This is
+no t shown in the E/A manual. This routine works very well, without problem. I
+know
+ as I'm used it a lot in the conception of Multi-Mode XB (100% compatible text m
+
+ode and multicolor mode with extended ba sic cartdrige...)
+
+I hope this information can help you,
+  Jean
+
+
+-*-
+
+13779 15-JAN 04:16 9640 GENEVE
+     RE: SETDSK (Re: Msg 13773)
+     From: JERRYC       To: D24 (NR)
+
+
+Unless you specifically got 80 track drives they probably are not.  One good
+test: If anyone with 40 track drives can read your disks then your drives are 40
+
+track.  I would guess that is your problem -- your drives are only capable of 40
+
+tracks per side.
+   Jerry
+
+-*-
+
+13781 15-JAN 19:37 99/4A
+     RE: 4A ASSEMBLY PROGRAMMING (Re: Msg 13778)
+     From: JSYZDEK      To: JEAN_MARLEAU (NR)
+
+ Jean,
+    Thanks for the info. It is almost identical to the example I have seen,
+except the address for the FAC is @>834A in the E/A manual.
+
+ Joe
+
+
+-*-
+
+
+FORUM>Reply, Add, Read, "?" or Exit> ^Z
+Highest message read: 13781.
+
+TI International Users Network Menu:
+
+Announcements        Poll <The Opinion Center>
+Classifieds          Set Preferences
+Conference           Shopping
+Customer Services    Topic Descriptions
+Databases            VT-100 Holiday Graphics
+Entry Log            Who's Here
+Forum (Messages)     Workspace
+MAIL (Electronic)    Help
+Member Directory     Exit
+
+TI NET>What do you want to do? mail
+=)0dir
+
+You have 3 new messages.
+
+
+MAIL> 
+
+                                                                         NEWMAIL
+
+    # From                 Date         Subject
+ 
+    1 BOS1B::ABEARD        14-JAN-1990  Free time for ABEARD by appointment with
+
+    2 BOS1A::JERRYC        15-JAN-1990  RE: backup
+    3 BOS1B::ABEARD        15-JAN-1990  Free time for ABEARD by appointment with
+
+MAIL> del 1
+del 
+3
+2
+
+
+MAIL> 
+
+
+MAIL> 
+
+    #2          15-JAN-1990 04:11:27                                     NEWMAIL
+
+From:   BOS1A::JERRYC      
+To:     BOS1A::ABEARD
+Subj:   RE: backup
+
+
+I WAS CONSIDERING editing the line to match a 720k disk (>B40 for >2D0 size,
+>12 for sectors/track, >0202 for DSDD, and >01 for the first bitmap entry --
+but I didn't see that last one.  Sector 1 looks about the same except only
+even sectors can be pinters ( >0002, >0004, etc ).  Actually odd pointers are
+legal, there is just no routine way to create one since sectors are blocked
+two at a time in the bitmap.  This should not be a factor since you are in 
+complete control of both reading and writing to these backup files.
+
+I guess even with the bugs I should still be able to see how much compression
+occurs in the backup process.  Oh yes don't forget the tracks/side byte for
+80 trackers ( >50 for >28 )in sector zero.
+
+   Jerry
+
+
+MAIL> exit
+
+>
+TI International Users Network Menu:
+
+Announcements        Poll <The Opinion Center>
+Classifieds          Set Preferences
+Conference           Shopping
+Customer Services    Topic Descriptions
+Databases            VT-100 Holiday Graphics
+Entry Log            Who's Here
+Forum (Messages)     Workspace
+MAIL (Electronic)    Help
+Member Directory     Exit
+
+TI NET>What do you want to do? bye
+ABEARD off at 15-JAN-1990 20:34:38
+Session time: 4 minutes.
+
+
+Thank you for using DELPHI.
+
+Flip Monday for $45!  Top player wins valuable Comp-u-store gift certificates.
+ENT FLIP
+
+Wi++nning is even easier in Tymnet's $100-a-day give away -- every day in Januar
+y
+in Main Conference area.  
+
++
+
+OK
+ath
+
+OK

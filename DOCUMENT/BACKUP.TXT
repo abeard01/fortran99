@@ -1,0 +1,210 @@
+
+
+            BACKUP - Hard Disk Backup Utility for your GENEVE
+
+                             Introduction
+                             ============
+
+Worried about all of those files accumulating on that hard disk?  Yes,
+hard disk crashes can happen, I lost a 40mb about 6 months ago, fortunately
+I had it backed up and was able to restore 99% of the files.
+
+Since crashes do happen, it is useful to back them up floppies occassionally.
+I do a lot of work on the GENEVE, so I like to back mine up about every two
+weeks.  Unfortunetely, there hasn't been a real useful backup utility for
+the GENEVE (until now).
+
+BACKUP solves this problem.  It allows you to "mass dump" your hard drive
+to floppy diskettes, and later restore those files from floppy to the
+hard disk (either selectively or all).   All you need to get started is
+a bunch of blank unformatted floppy disks and a few hours that you won't
+be needing your machine.
+
+
+
+                       Backing up your Hard Drive
+                       ==========================
+
+BACKUP is called via the simple MDOS command:
+
+       BACKUP [function] [/Hharddrive] [/Ffloppydrive] [/Llisting]
+
+The [function] qualifier must be the first, and specifies what function
+you want to perform:
+
+
+        SAVE      :   Save files from hard disk to floppy disk
+        RESTORE   :   Restore files from floppy disk to hard disk
+        LIST      :   Generate a listing of a floppy based archive
+
+Of course, the command line has a few qualifiers.  You must specify what
+hard drive or hard drive directory(s) you are backing up, and which floppy
+drive you will be using for the backup operation.  For example, to back
+up drive HDS1. to floppy DSK1. you would specify:
+
+           BACKUP SAVE /HHDS1 /FDSK1
+
+Note that the /H qualifier tells which hard drive or hard drive directory
+to use.  Suppose you had a hard drive directory tree which goes something
+like this:
+
+           FORTCOMP
+              GPL
+              MDOS
+           COMMANDS
+           DSK1
+           DSK
+             FORTCOMP
+               FORT44
+               FORT45
+               FORT46
+             MYWORD
+
+(etc.).  You could backup all of these directories by using the command:
+
+           BACKUP SAVE /HHDS1 /FDSK1
+
+You could back up all of the files and directories under "HDS1.FORTCOMP"
+by specifying:
+
+           BACKUP SAVE /HHDS1.FORTCOMP /FDSK1
+
+Simple, eh?
+
+Let's take the command:
+
+           BACKUP SAVE /HHDS1 /FDSK1
+
+again.  Once the command is entered into MDOS, It will start processing
+the first file on the drive 'HDS1' (usually your AUTOEXEC file) and will
+display the line:
+
+ HDS1.AUTOEXEC                        DIS/VAR   80, SIZE     5
+ Would you like me to format a floppy disk in DSK1 (Y/N/Q)?
+
+Insert your first floppy disk into drive DSK2 and press 'Y', and ENTER.
+The floppy will be formatted and the backup operation will commence.
+
+Files are written to the floppy using a simple repeat compression algorithm.
+The percent reduction in each file size is shown after each file is backed
+up (the reduction is most noticable on short, DIS/VAR files.  It is rather
+dismal on object files and program files).
+
+The backup will continue on the floppy until the floppy disk is full.  You
+are then prompted to insert another diskette, and following a successful
+FORMAT, the backup will continue.
+
+Think of the backup as a single long file on multiple floppy diskettes.  Each
+floppy is packed to the gills with information about the backup, so the normal
+TI format for files is not used;  the archive is actually a display/fixed/128
+file which contains many other files in a compressed format.
+
+Each floppy has a single file name in the following format:
+
+                BMMDDYY-NN
+
+where:
+
+                B - Means this is a backup file
+               MM - Is the month of backup
+               DD - Is the year of backup
+               YY - Is the year of backup
+               NN - Is the backup disk number (01 to 99)
+
+
+
+
+                            Listing the Backup
+                            ==================
+
+Since the files contained within the backup archive cannot be listed using
+normal MDOS tools (ok, you might do it with FILEZAP, but it takes a pretty
+good hacker at best), BACKUP contains a LIST facility.  The LIST facility
+works as follows:
+
+                 BACKUP LIST /HHDS1 /FDSK1
+
+Backup will LIST files located on the /F floppy drive (in this case DSK1)
+which start with the name of the /H hard drive (in this case HDS1).
+
+You may list any single floppy or multiple floppies within a backup set
+(e.g. you could grab the tenth floppy dumped as part of the backup operation,
+shove it in the disk drive, and get a dump of it).
+
+
+
+
+
+                              Restoring Files
+                              ===============
+
+The last operation you might want to do is restore those backed up files
+from the floppy disks to the hard disk; this can be done either selectively
+or en-mass (just reformatted your hard disk and now you want to restore it?).
+
+Restoring files is easily accomplished using the command:
+
+                     BACKUP RESTORE /HHDS1 /FDSK1
+
+This command will RESTORE files from the floppy disk DSK1 to the hard drive
+HDS1.   If you also wanted a log to your printer, you could specify:
+
+                     BACKUP RESTORE /HHDS1 /FDSK1 /LPRN:
+
+and a listing of files restored would be listed on the printer device PRN:.
+(usually your parallel based printer).
+
+Before a file is restored, it is checked against the name specified on the
+/H option.  For example, if you just wanted to restore files in the directory:
+
+                       HDS1.IMLOST.ADIR
+
+You could specify:
+
+                      BACKUP RESTORE /HHDS1.IMLOST.ADIR /FDSK1
+
+and all files not starting with that name would be skipped.
+
+Also, the restore processor checks to see if the file you are restoring
+already exists on the hard disk.  If it does, you will see the message:
+
+                File Already Exists, Shall I Overwrite (Y/N/Q)?
+
+If you want the file to be overwritten, specify a "Y" and return.  If not,
+specify a "N" (for skip this file) or "Q" to quit restore.
+
+The restore will operate across multiple floppies (again, think of the archive
+as extending across a series of floppy disks).  You will be prompted to mount
+the next archive disk.
+
+          !!! IMPORTANT !!! Be sure to mount these disks in sequence!
+
+
+
+                          Hints on Using Backup
+                          =====================
+
+  1.  Create a log file with your backup, for example:
+
+                 BACKUP SAVE /LHDS1.B010190LO /HHDS1 /FDSK1
+
+      would create a backup log file on HDS1 called B010190LO.
+      You can print this later and keep it with your backup disks.
+
+  2.  There currently isn't any support for ds/dd drives, or quad
+      density drives.   I'll add some more after MYARC adds floppy
+      support for HFDC.
+
+  3.  BACKUP won't stand floppies that won't format properly.  Use
+      good quality floppy diskettes for your backup operation (shouldn't
+      you be using them anyway)?
+
+
+
+This utility is copyrighted 1989 by LGMA Products.  This is a BETA release,
+which means you are not allowed to GIVE IT TO ANYONE.   Eventually, this
+will be a fairware program.
+
+       Copyright 1990 by LGMA Products
+
+               a.l.beard   01-01/90

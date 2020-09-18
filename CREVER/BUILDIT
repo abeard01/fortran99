@@ -1,0 +1,3 @@
+lc1 >listfile -idh0:include/ -i:include/lattice/ -oram:version.q version.c
+lc2 -v -oversion.o ram:version.q
+blink from :lib/lstartup.obj+version.o to crever lib :lib/lc.lib,:lib/amiga.lib

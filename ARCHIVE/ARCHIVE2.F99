@@ -1,0 +1,341 @@
+	SUBROUTINE PACKFILE
+	IMPLICIT INTEGER(A-Z)
+C
+C  PACKFILE  - This routine packs a disk file into an archive file.
+C	       Disk files are read a sector at a time (using the
+C	       special assembly language sector read routine), and
+C	       are stored as two 128 byte records (meaning there is
+C	       always an even number of records in an unsqueezed
+C	       archive).
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+	DIMENSION FNAME(5),DCPB(113)
+	EQUIVALENCE (FNAME(1),FREC(1))
+C
+C  Display the file name being packed
+C
+	WRITE ( 6, 9120 ) FNAME
+	DCPBPTR = 0			! Tell GETSECT to initialize
+        SS      = -1			! So I won't drop through loop
+C					  Do until done, and no error
+	DO WHILE ((ERROR.EQ.0) .AND. (SS.NE.0) ) 
+C					  Read a sector
+	  CALL GETSECT
+C					  If no error, then write it
+C					  as two 128 byte records
+	  IF ( (ERROR .EQ. 0) .AND. (SS.NE.0) ) THEN
+	    CALL RECOWR ( 1, NORECS, IOREC, ERROR )
+	    IF ( ERROR .NE. 0 ) GOTO 8000
+	    NORECS = NORECS + 1
+	    CALL RECOWR ( 1, NORECS, IOREC(65), ERROR )
+	    IF ( ERROR .NE. 0 ) GOTO 8000
+	    NORECS = NORECS + 1
+	  ENDIF
+	ENDDO
+	RETURN
+C
+8000	CONTINUE
+	CALL DIERROR ( -1 )
+9120	FORMAT ( '+',M6.2,'Packing File',5X,5A2,M6.2 )
+	END          
+	SUBROUTINE ANALFILE
+	IMPLICIT INTEGER(A-Z)
+C
+C  ANALFILE - 	Analyze an input file for the amount that can be
+C		squeezed.  Also sets up the huffman internal arrays
+C		for the squeeze, perform the squeeze, evaluate
+C		the result, and possibly repack if squeeze wasn't
+C		possible.
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+	DIMENSION FNAME(5)
+	EQUIVALENCE (FNAME(1),FREC(1)), (INSECT,FREC(8))
+	REAL FLOAT,REDUCP
+C
+	CALL INIT			! Reset Screen Blankout
+	INPTR = 257	    		! Input pointer
+	OUPTR = 0	    		! Output pointer
+	SVRECS = NORECS			! Output Record Pointer Save
+C
+C  Analyze the input file
+C
+	WRITE ( 6, 9100 ) FNAME		! Tell him what I am doing
+	DCPBPTR = 0			! Pointer to Data Cluster Chain
+	STATE = NOHIST			! Was CALL INIT_NCR
+	CALL INIT_HUFF
+	IF ( ERROR .NE. 0 ) RETURN
+C
+C  Now move the squeezed file to the output file
+C
+	DCPBPTR  = 0			! Data Cluster Pointer
+	CNTSECT  = 0			! Count of Sectors
+	FILSTAR  = NORECS             	! File starting 128 byte record
+	WRITE ( 6, 9110 )
+C
+C  Write the header to the output file
+C
+	CALL WRT_HEAD			! Write Header
+	IF ( ERROR .NE. 0 ) RETURN
+C
+C  Move the huffman characters to the output file
+C
+	INPTR = 257			! Force a read
+        STATE = NOHIST			! No history
+        C = GETHUFF(IDUM)		! Get a huffman char
+        DO WHILE ( (C .NE. EOF) .AND. (ERROR.EQ.0))
+          CALL PUTCE(C)			! put huffman char
+          C = GETHUFF(IDUM)		! get another
+        ENDDO
+	IF ( ERROR .NE. 0 ) RETURN	! if error on above, quit
+	CALL OFLUSH			! Flush last record (if any)
+	IF ( ERROR .NE. 0 ) RETURN
+C
+C  See if the squeeze was really effective.  If not, then revert back
+C  to the normal packing (unsqueezed) method.
+C
+	INFILSIZ = INSECT * 2		! Input file size
+	OUFILSIZ = NORECS - FILSTAR	! Output file size
+	IF ( OUFILSIZ .GT. INFILSIZ ) THEN
+	  WRITE ( 6, 9130 )		! Repacking
+	  NORECS = SVRECS
+	  CALL PACKFILE			! Do it
+	ELSE
+C
+C  Since I squeezed the file, diddle with the header so that it
+C  represents a squeezed file.
+C
+	  FREC(7)  = IOR(FREC(7),'2000'X)
+	  INSECT   = OUFILSIZ
+C
+C  Figure percentage reduction
+C
+	  REDUCE = INFILSIZ - INSECT
+	  REDUCP = (FLOAT(REDUCE)/FLOAT(INFILSIZ)) * 100.0
+          WRITE ( 6, 9120 ) FNAME, INFILSIZ, INSECT, REDUCE, REDUCP
+	ENDIF
+	WRITE ( 6, 9140 )
+C
+9100	FORMAT ( '+',M6.2,'Analyzing File   ',5A2, M10.28 )
+9110	FORMAT ( '+',M6.2,'Squeezing File')
+9120	FORMAT ( '+',M12.2,'Done      File   ',5A2,
+     +		     M14.2,'# 1/2 SECTORS in  ',I4,
+     +		     M16.2,'# 1/2 SECTORS out ',I4,
+     +		     M18.2,'Reduction ',I4,'(',F6.1,'%)')
+9130	FORMAT ( '+',M12.2,'Repacking File   ',5A2,
+     +               M14.2,22X,M16.2,22X,M18.2,26X,M19.2)
+9140	FORMAT ( '+',M20.2)
+	END
+	SUBROUTINE UNPAFILE
+	IMPLICIT INTEGER(A-Z)
+C
+C  UNPAFILE - UNPACK A FILE
+C
+C  This routine is called to unpack a single file from the archive
+C  to the desired file.  This is made easy by Barry Traver's very
+C  neat and tricky methods, by opening the output file as a DIS/FIX/128,
+C  writing from the archive to the output file a record at a time, and
+C  then changing back the file attributes to the original file.
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+	DIMENSION FILEID(8),FNAME(5),IREC(64)
+	LOGICAL LASTREC
+	DATA FILEID / 16HDSKX.XXXXXXXXXX  /
+	EQUIVALENCE (FNAME(1),IHREC(1)),(FILSTA,IHREC(6)),
+     +              (IOREC(1),IREC(1))
+C
+C  Open the output archive as DISPLAY/FIXED/128 Sectors
+C
+	CALL PUTBYT ( FILEID, 4, IDISK + '0030'X )
+	DO 1000 I=1,10
+	  CALL PUTBYT ( FILEID, I+5, GETBYT(FNAME,I) )
+1000	CONTINUE
+C
+C  Display the file name for the user
+C
+	WRITE ( 6, 9120 ) FILEID, SS, OF
+C
+C  Now open it
+C
+	CALL OPEN ( 2, FILEID, 1, 0, 0, 0, 128, ERROR )
+	IF ( ERROR .NE. 0 ) THEN
+	  CALL DIERROR ( -2 )
+	  RETURN
+	ENDIF
+C
+C  Unpack according to stowage flag, squeezed or unsqueezed
+C
+C  Also, reset the "squeeze" bit if this is a squeezed file.  This
+C  is so it won't show up in the resulting file header, and possibly
+C  confuse some poor soul.  This was a version 1.0 bug.
+C
+	IF ( IAND(FILSTA,'2000'X) .NE. 0 ) THEN
+	  FILSTA = IAND(FILSTA,'DFFF'X)
+	  CALL UNSQUEEZE
+	  IF ( ERROR .NE. 0 ) RETURN
+	ELSE
+C
+C  Simple form of unpacking archive.  Just read the archive, and
+C  write to the output file.
+C
+	  DO WHILE ( .TRUE. )
+	    CALL GETREC ( LASTREC )
+	    IF ( ERROR .NE. 0 ) RETURN
+	    IF ( LASTREC ) GOTO 1200
+	    CALL RECOWR ( 2, -1, IREC, ERROR )
+	    IF ( ERROR .NE. 0 ) THEN
+	      CALL DIERROR ( -2 )
+	      RETURN
+	    ENDIF
+	  ENDDO
+1200	  CONTINUE
+	ENDIF
+C
+C  When I'm done with either archive, I must change the attributes of
+C  the archive to the original file formats.  This is done by searching
+C  the output disk drive for the file, reading the sector, and re-
+C  writing the new one.
+C
+	CALL CLOSE(2)
+	WRITE ( 6, 9130 )
+	CALL SECTRE ( IDISK, 1, FDINDEX, ERROR )
+	IF ( ERROR .NE. 0 ) THEN
+	  CALL DIERROR ( 1 )
+	  RETURN
+	ENDIF
+C
+C  Now that I read the index sector, search for the file by reading
+C  each sector sequentially.  I guess a binary search would be better
+C  here, but I'm running out of memory at this point to do anything
+C  fancy.
+C
+	DO 2000 IPTR=1,128
+	  IF ( FDINDEX(IPTR) .EQ. 0 ) THEN
+	     WRITE ( 6, 9110 ) FNAME
+	    ERROR = 9
+	    RETURN
+	  ENDIF
+	  CALL SECTRE ( IDISK, FDINDEX(IPTR), FREC, ERROR )
+	  IF ( ERROR .NE. 0 ) THEN
+	    CALL DIERROR ( FDINDEX(IPTR) )
+	    RETURN
+	  ENDIF
+C
+C  See if its the right file name
+C
+	  DO 2010 J=1,5
+	  IF ( FREC(J) .NE. FNAME(J) ) GOTO 2000
+2010	  CONTINUE
+	  GOTO 2020		! FOUND THE FILE !
+2000	CONTINUE
+	WRITE ( 6, 9110 ) FNAME
+	ERROR = 9
+	RETURN
+C
+C  Found the file!  Now lets stuff the record full of my good
+C  stuff, and write it back out
+C
+2020	CONTINUE
+	DO 2030 I=6,9
+2030	FREC(I+1) = IHREC(I)
+C
+C  Write the sector back out
+C
+	CALL SECTWR ( IDISK, FDINDEX(IPTR), FREC, ERROR )
+	IF ( ERROR .NE. 0 ) THEN
+	  CALL DIERROR ( -1 )
+	  RETURN
+	ENDIF
+C
+9110	FORMAT ( '0Error, cannot locate file ',5A2 )
+9120	FORMAT ( '+',M6.2, 'Unpacking File ',8A2,
+     +               M8.2, 'Start/End Record ',I3,I4 )
+9130	FORMAT ( '+',M12.2,'Updating Header')
+	END
+	SUBROUTINE UNSQUEEZE
+C
+C  UNSQUEEZE - Expands a squeezed file
+C
+	IMPLICIT INTEGER(A-Z)
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+C
+C  Fill an input record
+C
+	CALL INIT			! Turn off screen blanking
+	INPTR = MAXSREC			! To force a record
+	OUPTR = 0
+C
+C  Other initialization
+C
+	REPCT  = 0			! Repeat Count
+	BPOS   = 99			! Bit Position
+C
+C  Process Header.   Get original sector size & pack in header
+C
+	METHOD   = GETX16(IDUM)		! Archiving method
+	IF ( METHOD .NE. 1 ) THEN
+	  WRITE ( 6, 9100 ) METHOD
+	  RETURN
+	ENDIF
+	IHREC(7) = GETX16(IDUM)		! Original Unpacked Sector Size
+	NUMNODES = GETX16(IDUM)		! Number of nodes
+C
+	IF ( (NUMNODES.LT.0) .OR. (NUMNODES.GE.NUMVALS)) THEN
+	   WRITE ( 6, 9110 ) NUMNODES
+	   ERROR = 9
+	   CALL WAIT
+	   RETURN
+	ENDIF
+C
+C  Initialize for possible empty tree (SPEOF only)
+C
+	LCHILD(1) = -(SPEOF+2)
+	RCHILD(1) = -(SPEOF+2)
+C
+C  Get decoding tree from file
+C
+	IF ( NUMNODES .GT. 0 ) THEN
+	   DO 1020 I=1,NUMNODES
+	     LCHILD(I) = GETX16(IDUM) + 1
+	     RCHILD(I) = GETX16(IDUM) + 1
+1020       CONTINUE
+	ENDIF
+C
+	C = GETCR(IDUM)			! Get next character
+	IF ( ERROR .NE. 0 ) RETURN
+C
+C  Following loop gets a character, and puts it into the output
+C  buffer OREC.  If the output buffer exceeds one record (128
+C  bytes), then the record is written to the output file.
+C
+	DO WHILE ( C .NE. EOF )
+	  OUPTR = OUPTR + 1
+	  IF ( OUPTR .GT. MAXSREC ) THEN
+	    CALL RECOWR ( 2, -1, OREC, ERROR )
+	    IF ( ERROR .NE. 0 ) THEN
+	      CALL DIERROR ( -2 )
+	      RETURN
+	    ENDIF
+	    OUPTR = 1
+	  ENDIF
+	  CALL PUTBYT ( OREC, OUPTR, C )
+	  C = GETCR(IDUM)    ! Get next character
+	  IF ( ERROR .NE. 0 ) RETURN
+	ENDDO
+C
+C  Flush last record, if any
+C
+	IF ( OUPTR .GT. 0 ) THEN
+	  DO WHILE ( OUPTR .LT. MAXSREC )
+	    OUPTR = OUPTR + 1
+	    CALL PUTBYT ( OREC, OUPTR, 0 )
+	  ENDDO
+	  CALL RECOWR ( 2, -1, OREC, ERROR )
+	  IF ( ERROR .NE. 0 ) THEN
+	    CALL DIERROR ( -2 )
+	    RETURN
+	  ENDIF
+	ENDIF
+9100	FORMAT ('0**Error - Unrecognized archiving method ',I6)
+9110	FORMAT ('0**Error - Invalid decode tree size ',I6)
+	END

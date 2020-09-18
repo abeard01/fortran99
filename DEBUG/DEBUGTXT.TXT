@@ -1,0 +1,155 @@
+                Another FREEWARE Product - From LGMA Products
+                =============================================
+
+  In this archive is a simple debugger for MDOS.   The release of this was
+  really prompted by Clint Pulley, who asked me in a letter to make the
+  debugger a little more general than the previous one, so that it could
+  be used by other MDOS developers.
+
+  This debugger is fairly simple, and emulates a number of the commands
+  available in the TI-99 debugger, actually only the commands I feel are
+  really essential are emulated here.   I use this debugger a lot, to
+  debug my 9640 FORTRAN compiler.
+
+  I am releasing as freeware under the following conditions:
+
+    a. I'll entertain bug reports and requests for enhancements, but
+       make no promises or guarantees about anything.  In other words,
+       if it works for you, fine.  If not, don't get upset, but I don't
+       feel compelled to provide any support (remember this is free).
+
+    b. If you enhance this debugger in any way, I'd appreciate a copy.
+
+    c. Note this is copyrighted 1988/1989 by LGMA Products.  That means
+       I am giving you permission to use it and share it, but for strictly
+       non-commercial uses.
+
+    d. If you distribute this archive, it must be distributed in its
+       entirety, and not modified in any way.
+
+
+
+                             Archive Contents
+                             ================
+
+  The following files are in this archive:
+
+         GDEBUG   :   DEBUGGER SOURCE
+         VERSION  :   VERSION INFORMATION
+         DEBUGTXT :   THIS MESSAGE
+         OBJD     :   THE OBJECT MODULE
+
+
+                             Getting Started:
+                             ===============
+
+  Ok, now down to the debugger.  It is strictly for assembly language
+  programs.  To use the debugger, you must have the following code in
+  the startup of your assembly program:
+
+                     REF  DEBUG$
+
+                     LWPI >F000
+                     LI   R0,DEBUG$
+                     JEQ  NOTHER
+                     BL   *R0
+             NOTHER  EQU  $
+
+  I am getting a little fancy here.  Since I'd like to leave this code
+  in forever, and just relink with the debugger to enable it, or link
+  without the debugger to disable it, I have code that checks to see
+  if the linker provided a reference for DEBUG$.  If so, then it branches
+  to it, otherwise it skips it.
+
+  Note that the Cross-Loader I am using automatically sets any unresolved
+  references to 0, which is what causes the above to work.  I have not
+  checked into how Paul Charlton's linker works, I assume the same way.
+
+
+                         Linking Your Program:
+                         ====================
+
+  When you link your program, to use the debugger, include the file:
+
+                               OBJD
+
+  this is the entire debugger object.  If you want to relink without
+  the debugger, just leave it out.
+
+  The OBJD module is a relocatable object module, in display/fix/80 format.
+
+
+                          Using the Debugger:
+                          ==================
+
+  When the debugger starts up, you will see the message:
+
+         Debugger MDOS Version 4.039  (Tuesday 10-Jan-89 11:09:32)
+         Copyright 1988/1989 by LGMA Products
+         :
+
+  At this point you can enter single letter commands, as follows:
+
+		B       Breakpoint List/Add/Remove
+                R       Register Display/Alter
+		W       Workspace Display/Alter
+		H       Hexadecimal Arithmetic
+		Q       Execute into program (quit debugger)
+		X       Provide X Bias
+		Y       Provide Y Bias
+		Z       Provide Z Bias
+
+  Operation of each command is similar to the operation of the
+  TI-99 debugger, with the following exceptions:
+
+      1. Any value may be supplied as a decimal value, instead of
+	 a hexadecimal value by preceding the value with the letter
+         'I'.
+
+      2. The workspace register number is in hexadecimal unless it
+         is preceded by an 'I'.
+
+      3. The debugger does not "space" for you, you must do it your-
+         self after typing a command letter.
+		
+   Examples of command usage are:
+
+	        B                  List all breakpoints
+	        B-                 Remove all breakpoints
+	        B 0480-            Remove breakpoint at loc 480
+                B 0480             Add breakpoint at loc 480
+                R                  Modify Registers
+                W                  Display Workspace Registers
+                W I10              Modify Workspace Register 10
+                M 0480             Display/Modify starting at loc 0480
+                M 0480 04F0        Display locs 480 to 4f0
+                M 1000V 1010       Display VDP Memory, locs 1000 to 1010
+                M 5CX              Modify Memory at loc 5C with X Bias
+                H I100 2AC         Hex Arithmetic with decimal 100 & hex 2ac
+                Q                  Quit (execute task)
+                X I100             X bias of decimal 100
+                Y 2AC              Y bias of hexadecimal 2ac
+                Z                  Z bias of zero (reset)
+
+
+
+                          Other Notes:
+                          ===========
+
+    The only area you cannot use for your program is from >F074 to
+    >F07E (my workspace).  This routine saves and restores any other
+    memory areas it uses.   Also, the user workspace must be at >F000
+    on initial entry in this routine (can move afterward).
+
+    The code for this debugger is entirely original.  The format of the
+    commands is patterned after the TI Debugger released with the E/A
+    package.
+
+    The debugger does not allocate any memory for you, you must allocate
+    your own according to normal MDOS rules.
+
+                                                      Alan L. Beard
+                                                      LGMA Products
+                                                      11-January-1989
+
+    P.S.  Watch for the upcoming 9640 FORTRAN MDOS release!   Coming soon!

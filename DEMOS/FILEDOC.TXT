@@ -1,0 +1,118 @@
+          =======================================================
+          FileZap - A file sector inspect/editor utility for MDOS
+          =======================================================
+
+                     Copyright 1989 by LGMA Products
+                     Version 1.6  12-November-1989
+
+  This archive contains a utility program which runs under MDOS.  The utility
+  allows you to inspect or alter any MDOS disk file, including files on
+  the RAM disk.   Version 1.3 of this program includes provisions to examine
+  and alter entire disks.  MDOS 1.14 precludes operation with a hard disk
+  file, MDOS .96H or greater corrects this.   MDOS Version 1.4 corrected
+  some difficulties with the sound (good and bad beeps), and version 1.5
+  was modified to request the file name if not specified on the command
+  line (this feature added by request).   Version 1.6 added rudimentery
+  search capability, you can search for a word (e.g. 89AB) by using the
+  "/" and "N" options.
+
+  The following files are contained in this archive:
+
+             FILEDOC          -   This file
+             FILEZAP, FILEZAQ -   The MDOS executable program
+
+   Operation is easy, just put the FILEZAP and FILEZAQ files on your utility
+   disk, and type in the command:
+
+             FILEZAP <file to inspect/alter>
+
+   For example, if you put the modules FILEZAP and FILEZAQ on the disk in drive
+   A:, and you wanted to inspect/alter a file on drive B: called TEST, you could
+   type:
+
+             A:FILEZAP B:TEST
+                  or
+             DSK1.FILEZAP DSK2.TEST
+
+   You can specify and entire disk to access by specifying the disk drive
+   letter followed by a colon (:) or the disk drive name followed by a
+   period (.).  For example:
+
+             FILEZAP B:            to examine/alter B drive
+             FILEZAP DSK5.         to examine/alter ram disk
+
+   Operation from this point is via single letter commands, as displayed on
+   the screen (e.g. press F for page forward).
+
+   The style of this sector editor is patterned after the FileZap utility
+   written for the Amiga, copyright 1986 by John Hodgson.
+
+   Version 1.2 of FileZap provided mouse operation, disk sector caching
+   for improved response times, and some cosmetic changes.
+
+   Version 1.3 of FileZap provided full disk edit capability, and furthur
+   improved disk sector caching.
+
+   Version 1.4 of FileZap fixed some minor formatting mistakes when displaying
+   errors.  Fixed CALL SOUND for corrected duration in SOUND routine.
+
+   Version 1.5 of FileZap changed program so the file name is requested if
+   not specified by the user.
+
+   Version 1.6 of FileZap added a new search feature (search by word only).
+
+   To use the mouse in FileZap, make sure you have your mouse "plugged-in",
+   and you can use the three buttons for the following single letter
+   commands:
+
+            right button     :   page forward
+            left button      :   page backward
+            middle button    :   enter hex modify
+
+   Once in hex or ascii modify mode, the mouse can be used to position the
+   cursor to the desired location to modify.  Pressing the middle button
+   while in modify mode is the same as <escape>, it causes an exit from
+   modify mode.
+
+   ====================================================================
+   This program is distributed as freeware, for strictly non-commercial
+   distribution.  It is intended as an example of 9640 FORTRAN.   You
+   have permission to post this file on bulletin boards or networks
+   as long as the programs remain unmodified, and are distributed in
+   their entirety.
+   ====================================================================
+
+   Version 1.3 was born out of a suggestion by Paul Charlton during an
+   impromptu conference on Delphi.  Thanks for the suggestion, Paul!
+
+   Enjoy!     a.l.beard   18/Jan/1989     LGMA Products
+
+
+   P.S.  I have been somewhat astounded by the hit this program has made,
+   it has already generated many letters, and seems to be on the all
+   time hit parade for number of downloads from Delphi.
+
+   I am glad to see such an unexpected response to this utility, after
+   all it was just a three day programming effort in 9640 FORTRAN.  But
+   I will keep in mind furthur improvements if you provide me with
+   suggestions.
+
+   Just for the record, if you have any suggestions or comments concerning
+   this program, 99 FORTRAN, or 9640 FORTRAN, you can get in touch with
+   me via e-mail on one of the following networks:
+
+              Delphi:                            ABEARD
+                in the TI FORUM
+              BIX (Byte Information Exchange):   abeard
+                in the TI conference
+              Compuserve:                        71370,2723
+              Plink:                             ohs209
+
+   or feel free to write via regular slow mail at:
+
+              LGMA Products
+              Box 210, RD4
+              AppleButter Hill Rd.
+              Coopersburg, PA  18036
+
+                                                               al b.

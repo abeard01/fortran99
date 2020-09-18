@@ -1,0 +1,12 @@
+      COMPLEX*16 FUNCTION DCONJG(X) ! COMPLEX*16 CONJUGATE
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    26-Nov-89   E.Clausen   Initial Version by Elmer Clausen
+C
+      COMPLEX*16 X,DCMPLX
+      REAL*8 DREAL,DIMAG
+      DCONJG=DCMPLX(DREAL(X),-DIMAG(X))
+      END

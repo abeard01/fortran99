@@ -1,0 +1,36 @@
+			   Sine Wave Driver
+                            14-October-1988
+
+This is a little demonstration program which shows off the GENEVE bit-
+map mode, and the capabilities of the MDOS implementation of 99 FORTRAN.
+It draws a sine wave on the screen, complete with X and Y axis, and a
+title.
+
+The original program came from Elmer Clausen, who developed a plotting
+subroutine for 99 FORTRAN which ran under normal GPL.  This routine
+uses the same driver, but calls some of the MDOS video graphic functions,
+SETPIX and SETVEC to set pixel colors and set vectors.
+
+The archive contains the following files:
+
+          DRIDOC    :    This File
+          DRIVER    :    The 99 FORTRAN Program
+          DR,DS     :    The executable program
+
+To run the program, type in the following at the MDOS prompt:
+
+          DR
+
+Two modules will be loaded, DR and DS, and the program will execute
+automatically.
+
+I recommend for this program that you have at least MDOS version 1.08
+(subsequent or previous versions may require changes to this program).
+
+This program is copyrighted 1988 by LGMA Products.  You have permission
+to use this program for any purpose you see fit, except selling it back
+to me or selling it outright.
+
+Enjoy!     Al Beard
+           LGMA Products
+           14-October-1988

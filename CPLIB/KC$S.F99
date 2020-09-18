@@ -1,0 +1,19 @@
+      COMPLEX FUNCTION KC$(K,C)
+C KC$: INTEGER*1 ARGUMENT WITH COMPLEX EXPONENT
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    26-Nov-89   E.Clausen   Initial Version by Elmer Clausen
+C
+      COMPLEX C
+      COMPLEX*16 CD,X,CDEXP,CDLOG
+      INTEGER*1 K
+      I=K            ! GET INTEGER VALUE
+        KC$=(0.0,0.0)
+      IF(I.EQ.0)RETURN
+        CD=C
+        X=K
+        KC$=CDEXP(CD*CDLOG(X))
+      END

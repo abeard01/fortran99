@@ -1,0 +1,179 @@
+        program sc
+        implicit integer(a-z)
+c
+c  sc - fractalish terrain generator.
+c
+c       Date:     October 26, 1988 (original version on March 5, 1987)
+c       Author:   A.L.Beard     (original author was Chris Gray)
+c       Language: 9640 FORTRAN  (original language was Draco)
+c       System:   Geneve 9640
+c       Revision: 1
+c
+c  This program is an example fractal generator written in 99 FORTRAN
+c  for the MYARC GENEVE 9640.   It was taken from an example program
+c  written in Draco, by Chris Gray.
+c
+c  The color renditions should be similar to the original Draco version.
+c  The rendition is somewhat small, only 128 x 128 pixels, whereas the
+c  the original Draco version was 256 x 256.  This is due to an addressing
+c  limit in 9640 FORTRAN, an array cannot exceed 32768 bytes.
+c
+c  Revision 1 -26-Oct-1988:
+c
+c  The second version of this program differs from the first in that the
+c  color renditions have been corrected to what they were originally in-
+c  tended in the Draco version (yes, I have my 9938 manual now, and am
+c  slowly assimilating its contents into 9640 FORTRAN).   Also, I decided
+c  not to expand the pixels by a factor of two, the resulting "blown-up"
+c  display looked crude.
+c
+c  The following are comments from the original Draco program by Chris Gray:
+c
+c  The nature of the terrain can be changed by playing with the numbers
+c  in 'Range'. If you change SIZE, you must also change the number of
+c  values given for 'Range'. The created terrain with SIZE = 8 is 256 pixels
+c  by 256 pixels, which doesn't fit on a non-interlaced screen, so only the
+c  top 200 pixels are displayed. The terrain is a torus, i.e. wraps around
+c  both vertically and horizontally.
+c
+c  Feel free to use this algorithm in any games you write, so long as you
+c  give me credit for it. (I THINK I invented it, since I've never heard of
+c  anything similar, and other programs I've seen use much slower methods.)
+c
+        integer *1 cell(128,128)
+        common size,count,cell
+c
+        logical first
+c
+        size = 7                ! size of array 2**size = count
+        count = 128             ! size of array
+        call setmod ( 1 )       ! set 80 column mode
+        write ( 6, 9100 )
+        first = .true.          ! first time or not
+	call random             ! randomize
+1000    continue
+        k     = 0               ! keycode read below
+        do while ( k .ne. 32 )
+          if ( .not. first ) then
+            write ( 6, 9120 )   ! display "working" message
+          endif
+c
+          call grow             ! grow display
+c
+          if ( first ) then
+            call setmod ( 9 )   ! set graphics mode 7, 256 colors, 256 x 212
+            first = .false.
+          endif
+c
+          write ( 6, 9110 )     ! display title
+          call display          ! display function
+c
+          status = 0            ! clear status for key
+          do while ( status .eq. 0 )
+            call key ( 0, k, status )
+          enddo
+        enddo
+        call setmod ( 1 )       ! back to 80 column mode
+        stop
+9100    format ( '1',m8.28,' Fractal Scenery Generator',
+     +              m12.28,'  written in 9640 FORTRAN',
+     +            m18.24,'Space after scene terminates program',
+     +       m20.19,'Any other keypress generates another picture',
+     +              m22.28,' LGMA Products  28-Jan-89')
+9110    format ( '+', m2.9,'Fractal Scenery Generator',
+     +                m3.9,'      9640 Fortran',
+     +              m22.8,'    press space to exit',
+     +              m23.8,'any other key for new scene')
+9120    format ( '+', m22.8, 23x, m23.8, 27x, m23.15, 'Working...')
+        end
+        subroutine grow
+        implicit integer(a-z)
+c
+c  grow  :  grow the basic scenery heights
+c
+        integer *1 cell(128,128)
+        common size,count,cell
+        cell(1,1) = z'0'
+c
+        step = count
+        do 1000 i=1,size
+          nextstep = step / 2
+          do 1010 l=1,count,step
+            l1 = l + nextstep
+            l2 = l + step
+            if ( l2 .gt. count ) l2 = 1
+            do 1020 c=1,count,step
+              c1 = c + nextstep
+              c2 = c + step
+              if ( c2 .gt. count ) c2 = 1
+                cval1 = cell(l,c)
+                cval2 = cell(l,c2)
+                cval3 = cell(l2,c)
+                cval4 = cell(l2,c2)
+                call set ( l, c1, i,   (cval1+cval2)/2 )
+                call set ( l1, c, i,   (cval1+cval3)/2 )
+                call set ( l1, c1, i,  (cval1+cval2+cval3+cval4)/4 )
+1020        continue
+1010      continue
+          step = nextstep
+1000    continue
+        end
+        subroutine display
+        implicit integer(a-z)
+c
+c  display : display the resulting scenery
+c
+        integer *1 cell(128,128)
+        common size,count,cell
+c
+        integer colors(32)
+        data colors / z'0003', z'0040', z'0060', z'00a0',
+     +                z'00c0', z'00e0', z'00e9', z'00f2',
+     +                z'00f8', z'00fc', z'00dc', z'00bc',
+     +                z'009c', z'007c', z'005c', z'003C',
+     +                z'001c', z'001c', z'001d', z'001d',
+     +                z'001e', z'001e', z'001e', z'001f',
+     +                z'001f', z'003f', z'005f', z'007f',
+     +                z'009f', z'00bf', z'00df', z'00ff' /
+c
+c  do for every cell in array.  note that a cell corresponds to
+c  four pixel definitions on the screen.
+c
+        do 100 i=1,count
+          do 100 j=1,count
+            color = cell(i,j) + 1       ! get color in this cell
+            if ( color .lt. 1 ) then
+              color = 1                 ! make sure zero clamped
+            else if ( color .gt. 32 ) then
+              color = 32                ! make sure overrange clamped
+            endif
+c
+c  note that the color from 0 to 31 is converted into the byte color
+c  code needed by the setpix routine.   a 9938 color byte for graphics
+c  mode 7 is organized as:
+c
+c               +---+---+---+---+---+---+---+---+
+c               |   green   |    red    |  blue |
+c               +---+---+---+---+---+---+---+---+
+c
+            color = colors ( color )    ! now get real even mix color
+c
+c  write the pixel to the screen via the setpix routine.  note that
+c  the picture is somewhat centered in the 256 x 212 screen.
+c
+            call setpix ( j+64, i+30, color )
+100     continue
+        end
+        subroutine set ( l, c, sizer, height )
+        implicit integer(a-z)
+c
+c  set  :  set a given spot in cell
+c
+        integer *1 cell(128,128)
+        common size,count,cell
+        integer *2 range(7)
+        data range / 32, 32, 32, 22, 14, 8, 4 /
+c
+        rang = range(sizer)
+        cell(l,c) = ( height + irand(rang)) - (rang/2)
+        end

@@ -1,0 +1,464 @@
+      SUBROUTINE ALPHA ( KEYC )
+C  Read ASCII name & put in matrix
+      INCLUDE 'DSK1.CALCOM/NOLIST'
+      DOUBLE PRECISION VALUE
+      INTEGER STRING(8),IVAL(4)
+      EQUIVALENCE(IVAL(1),VALUE)
+C  Initialize pointers, & set first character
+      RETFLG=.FALSE.
+      DO 1000 I=1,8
+1000  STRING(I)=Z'0020'
+      IPTR=1
+      STRING(1)=KEYC
+C  Determine starting row.
+      CALL GETROW(SROW,SCOL,XCORD,YCORD)
+      CALL HCHAR(YCORD,XCORD,Z'0020',8)
+      ICORD=XCORD
+      CALL HCHAR(YCORD,ICORD,KEYC)
+      ICORD=ICORD+1
+C  Read a key.  If not a normal character, return.
+      DO WHILE(.NOT.RETFLG)
+        CALL NEWKEY(KEYC)
+        IF(IPTR.GT.7) THEN
+          RETFLG=.TRUE.
+          IF(KEYC.GT.15) THEN
+            KEYC=0
+          ENDIF
+        ELSEIF((KEYC.GE.33).AND.(KEYC.LE.95)) THEN
+          CALL HCHAR(YCORD,ICORD,KEYC)
+          ICORD=ICORD+1
+          IPTR=IPTR+1
+          STRING(IPTR)=KEYC
+        ELSE
+          RETFLG=.TRUE.
+        ENDIF
+      ENDDO
+C  Pack & put string in matrix
+      IPTR=1
+      DO 1010 I=1,4
+        IVAL(I)=STRING(IPTR)*256+STRING(IPTR+1)
+1010    IPTR=IPTR+2
+      MATRIX(ROW,COLUMN)=VALUE
+C  Rewrite the value
+      CALL HCHAR ( YCORD, XCORD, '  ', 8 )
+      WRITE (6,9100)YCORD,XCORD,VALUE
+9100  FORMAT ('+',MN.N,A8,M1.1)
+      END
+      SUBROUTINE GETROW ( SROW, SCOL, XCORD, YCORD )
+      INCLUDE 'DSK1.CALCOM'
+C  Get start row
+      SROW=((ROW-1)/10)*10+1
+      SCOL=((COLUMN-1)/3)*3+1
+C  Get start x-y cord from start row, column
+      YCORD=(ROW-SROW)*2+3
+      XCORD=(COLUMN-SCOL)*9+5
+      END
+      SUBROUTINE ELOGIC
+C  Edit logic model
+      INCLUDE 'DSK1.CALCOM'
+C  Display submenu, and get user entry
+998   CALL DISPHEA
+      WRITE(6,9100)TOTCOL,TOTROW,LASTCOL,LASTROW
+999   CALL NEWKEY(KEYC)
+C  If back, return
+      IF(KEYC.EQ.15)RETURN
+C  else, do function
+      KEYC=KEYC-Z'0030'
+      GOTO(1000,2000,3000,4000,5000,6000),KEYC
+      GOTO 999
+C  1 - Equations
+1000  CALL EEQUATE
+      GOTO 998
+C  2 - Spreadsheet Name
+2000  WRITE(6,9110)
+      READ (6,9120,END=998,ERR=998)SPNAME
+      GOTO 998
+C  3 - Total Column Number
+3000  WRITE(6,9130)
+      READ (6,9140,END=998,ERR=998)IVAL
+      IF(IVAL.NE.0) THEN
+        IF((IVAL.LT.2).OR.(IVAL.GT.MAXCOL)) THEN
+          WRITE(6,9160)
+          GOTO 3000
+        ENDIF
+      ENDIF
+      TOTCOL=IVAL
+      GOTO 998
+C  4 - Total Row Number
+4000  WRITE(6,9150)
+      READ (6,9140,END=998,ERR=998)IVAL
+      IF((IVAL.LT.0).OR.(IVAL.GT.MAXROW)) THEN
+        WRITE(6,9160)
+        GOTO 4000
+      ENDIF
+      TOTROW=IVAL
+      GOTO 998
+C  5 - Last Column Number
+5000  WRITE(6,9130 )
+      READ (6,9140,END=998,ERR=998)IVAL
+      IF(IVAL.NE.0) THEN
+        IF((IVAL.LT.2).OR.(IVAL.GT.MAXCOL)) THEN
+          WRITE(6,9160)
+          GOTO 5000
+        ENDIF
+      ENDIF
+      LASTCOL=IVAL
+      GOTO 998
+C  6 - Total Row Number
+6000  WRITE(6,9150)
+      READ (6,9140,END=998,ERR=998)IVAL
+      IF((IVAL.LT.0).OR.(IVAL.GT.MAXROW)) THEN
+        WRITE(6,9160)
+        GOTO 6000
+      ENDIF
+      LASTROW=IVAL
+      GOTO 998
+9100  FORMAT('+',M3.9,'Edit Logic Model', M5.3,'Press:',
+     +  M8.4,'1 Modify Equations', M10.4,'2',8X,'Spreadsheet Name',
+     + M12.4,'3',8X,'Total Column Number', M13.10,'(Now ',I3,')',
+     + M14.4,'4',8X,'Total Row Number', M15.10,'(Now ',I3,')',
+     + M16.4,'5',8X,'Last Column Number', M17.10,'(Now ',I3,')',
+     + M18.4,'6',8X,'Last Row Number', M19.10,'(Now ',I3,')' )
+9110  FORMAT('0New name:')
+9120  FORMAT(A8)
+9130  FORMAT('0New Column:')
+9140  FORMAT(I2)
+9150  FORMAT('0New Row:')
+9160  FORMAT('0Bad value')
+      END
+      SUBROUTINE EEQUATE
+C  Edit Equations
+      INCLUDE 'DSK1.CALCOM'
+      INTEGER STRING(50), IVAL(2)
+      LOGICAL SAVEPKT, ERROR
+      CALL DISPHEA
+      WRITE(6,9100)
+C  Get equation
+1000  WRITE(6,9110)
+      READ (6,9120,END=9999,ERR=9999)MROWNO
+      IF((MROWNO.LT.1).OR.(MROWNO.GT.MAXROW)) THEN
+        WRITE(6,9130)
+        GOTO 1000
+      ENDIF
+      WRITE(6,9140)MROWNO
+      READ (6,9150,END=1000,ERR=1000)STRING
+C  Release old equation, and parse new
+      LUSED=0
+      USED=POINTERS(MROWNO)
+      DO WHILE(USED.NE.0)
+        LUSED=USED
+        USED=IAND(LINKS(USED),Z'0FFF')
+      ENDDO
+C  Free entire chain
+      IF(LUSED.NE.0) THEN
+        LINKS(LUSED)=AVAIL
+        AVAIL=POINTERS(MROWNO)
+        POINTERS(MROWNO)=0
+      ENDIF
+C  Parse new equation
+      LUSED=0
+      IPTR=0
+      DO WHILE(IPTR.LT.100)
+        IPTR=IPTR+1
+        CHAR=GETCHAR(STRING,IPTR)
+        SAVEPKT=.FALSE.
+        IF(CHAR.EQ.'+ ') THEN
+          TYPE=0
+          SAVEPKT=.TRUE.
+        ELSEIF(CHAR.EQ.'- ') THEN
+          TYPE=1
+          SAVEPKT=.TRUE.
+        ELSEIF(CHAR.EQ.'/ ') THEN
+          TYPE=2
+          SAVEPKT=.TRUE.
+        ELSEIF(CHAR.EQ.'* ') THEN
+          TYPE=3
+          SAVEPKT=.TRUE.
+        ELSEIF((CHAR.GE.'0 ').AND.(CHAR.LE.'9 ')) THEN
+          IVAL(1)=(CHAR-'0 ')/256
+          CHAR=GETCHAR(STRING,IPTR+1)
+          IF((CHAR.GE.'0 ').AND.(CHAR.LE.'9 ')) THEN
+            CHAR=(CHAR-'0 ')/256
+            IVAL(1)=(IVAL(1)*10)+CHAR
+            IPTR=IPTR+1
+          ENDIF
+          TYPE=4
+          SAVEPKT=.TRUE.
+        ELSEIF(CHAR.NE.'  ') THEN
+          WRITE(6,9160)CHAR,IPTR
+          IPTR=201
+        ENDIF
+        IF(SAVEPKT) THEN
+          CALL INSERT(MROWNO,TYPE,IVAL(1),IVAL(2),ERROR)
+          IF(ERROR) THEN
+            WRITE(6,9170)
+            IPTR=201
+          ENDIF
+        ENDIF
+      ENDDO
+      GOTO 1000
+9999  CONTINUE
+9100  FORMAT('0Modify Equations')
+9110  FORMAT('0Row to modify:')
+9120  FORMAT(I2)
+9130  FORMAT('0Bad row number')
+9140  FORMAT('0Equation for',I5)
+9150  FORMAT( 50A2 )
+9160  FORMAT('0Bad Character ',A1,' @',I5)
+9170  FORMAT('0Memory overflow')
+      END
+      INTEGER FUNCTION GETCHAR (STRING, IPTR )
+C  Return char at specified loc
+      INTEGER STRING(100),ODD,IPTR,INDEX
+      INDEX=(IPTR+1)/2
+      ODD  =(IPTR/2)*2
+      IF(ODD.NE.IPTR) THEN
+        GETCHAR=IAND(STRING(INDEX),Z'FF00')+Z'0020'
+      ELSE
+        GETCHAR=IAND(STRING(INDEX),Z'00FF')*256+Z'0020'
+      ENDIF
+      END
+      SUBROUTINE INSERT ( MROWNO, TYPE, IVAL1, IVAL2, ERROR )
+C  Insert operator/operand
+      INCLUDE 'DSK1.CALCOM'
+      INTEGER IVAL(2)
+      LOGICAL ERROR
+      IVAL(1)=IVAL1
+      IVAL(2)=IVAL2
+      ERROR=.FALSE.
+      IF (AVAIL.EQ.0) THEN
+        ERROR=.TRUE.
+      ELSE
+        LUSED=0
+        USED=POINTERS(MROWNO)
+        DO WHILE(USED.NE.0)
+          LUSED=USED
+          USED=IAND(LINKS(USED),Z'0FFF')
+        ENDDO
+        IF(LUSED.EQ.0) THEN
+          POINTERS(MROWNO)=AVAIL
+        ELSE
+          LINKS(LUSED)=LINKS(LUSED)+AVAIL
+        ENDIF
+        OAVAIL=AVAIL
+        AVAIL=IAND(LINKS(AVAIL),Z'0FFF')
+        LINKS(OAVAIL)   = TYPE * 4096
+        VALUES(1,OAVAIL)=IVAL(1)
+        VALUES(2,OAVAIL)=IVAL(2)
+      ENDIF
+      END
+      SUBROUTINE SAVE
+C  Save the logic/data models to file
+      INCLUDE 'DSK1.CALCOM'
+1000  CALL DISPHEA
+      WRITE(6,9100)
+C  Get user option
+1010  CALL GETFIL(DISKNO)
+      IF(RETFLG)RETURN
+C  Save logic model if requested
+      ERRSTS=0
+      IF(DOLOG)THEN
+C  Open file
+        CALL BUILDNAM(INFILE,'-L',SPNAME,DISKNO)
+        CALL OPEN(1,INFILE,1,0,1,0,80,ERRSTS)
+        IF(ERRSTS.NE.0)GOTO 9000
+C  Write header record
+        WRITE(1,9150,ERR=9000,STATUS=ERRSTS)
+     1   SPNAME,TOTROW,TOTCOL,LASTROW,LASTCOL
+C  Write row records
+        DO 2000 I=1,MAXROW
+          WRITE(1,9160,ERR=9000,STATUS=ERRSTS)I,MATRIX(I,1)
+C  Do for each calc
+          USED=POINTERS(I)
+          DO WHILE(USED.NE.0)
+            TEMP=LINKS(USED)
+            TYPE=IAND(TEMP/4096,Z'000F')
+            WRITE(1,9170,ERR=9000,STATUS=ERRSTS)
+     1       TYPE,VALUES(1,USED),VALUES(2,USED)
+            USED=IAND(TEMP,Z'0FFF')
+          ENDDO
+2000    CONTINUE
+        CALL CLOSE(1)
+      ENDIF
+C  Write data values if requested
+      IF(DODAT) THEN
+C  Open file
+        CALL BUILDNAM(INFILE,'-D',SPNAME,DISKNO)
+        CALL OPEN(1,INFILE,1,0,1,0,80,ERRSTS)
+        IF(ERRSTS.NE.0) GOTO 9000
+C  Put each non-zero value
+        DO 3000 I=1,MAXROW
+          DO 3000 J=2,MAXCOL
+            IF(MATRIX(I,J).NE.0.0D0) THEN
+              WRITE(1,9190,ERR=9000,STATUS=ERRSTS)
+     1         I,J,MATRIX(I,J)
+            ENDIF
+3000    CONTINUE
+        CALL CLOSE(1)
+      ENDIF
+      GOTO 1000
+C  Error handler (from writes)
+9000  CONTINUE
+      WRITE(6,9140)ERRSTS,INFILE
+      CALL CLOSE(1)
+      CALL WAIT
+      GOTO 1000
+9100  FORMAT('+',M3.13,'Save Mode', M5.3,'Press:', M8.8,'1 To Save Logic',
+     + M10.8,'2',9X,'Data', M12.8,'3',9X,'Both' )
+9140  FORMAT('0Error',I4,' file'/3X,16A2)
+9150  FORMAT('L',A8,4I3)
+9160  FORMAT('C',I3,A8)
+9170  FORMAT('D',I3,2A2)
+9190  FORMAT('V',I3,I3,A8 )
+      END
+      SUBROUTINE LOADF
+C  Load the logic/data model
+      INCLUDE 'DSK1.CALCOM'
+      LOGICAL ERROR
+      DOUBLE PRECISION DVALUE
+      INTEGER IVAL(2)
+      EQUIVALENCE(DVALUE,IVAL(1))
+1000  CALL DISPHEA
+      WRITE(6,9100)
+C  Get user option
+1010  CALL GETFIL(DISKNO)
+      IF(RETFLG)RETURN
+C  Load logic model if appropriate
+      ERRSTS=0
+      IF(DOLOG) THEN
+C  Open file
+        CALL BUILDNAM(INFILE,'-L',SPNAME,DISKNO)
+        CALL OPEN(1,INFILE,2,0,1,0,80,ERRSTS)
+        IF(ERRSTS.NE.0)GOTO 9000
+        CALL INITLOGI
+C  Read header record
+        READ(1,9150,ERR=9000,STATUS=ERRSTS)TEMP,SPNAME,
+     1   TOTROW,TOTCOL,LASTROW,LASTCOL
+C  Read row records
+        RETFLG=.FALSE.
+        DO WHILE(.NOT.RETFLG)
+          READ(1,9160,ERR=9000,END=2000,STATUS=ERRSTS)
+     1     TEMP,TEMP1,DVALUE
+          IF(TEMP.EQ.'C ') THEN
+            IROW=TEMP1
+            MATRIX(IROW,1)=DVALUE
+          ELSE
+            CALL INSERT(IROW,TEMP1,IVAL(1),IVAL(2),ERROR)
+          ENDIF
+        ENDDO
+2000    CALL CLOSE(1)
+      ENDIF
+C  Read data values
+      IF(DODAT) THEN
+        CALL BUILDNAM(INFILE,'-D',SPNAME,DISKNO)
+        CALL OPEN(1,INFILE,2,0,1,0,80,ERRSTS)
+        IF(ERRSTS.NE.0)GOTO 9000
+        CALL INITDATA
+C  Read each non-zero value
+        RETFLG=.FALSE.
+        DO WHILE(.NOT.RETFLG)
+          READ(1,9190,ERR=9000,STATUS=ERRSTS,END=3000)
+     1     TEMP,IROW,ICOL,DVALUE
+          MATRIX(IROW,ICOL)=DVALUE
+        ENDDO
+3000    CALL CLOSE(1)
+      ENDIF
+      GOTO 1000
+C  Error handler (from reads)
+9000  CONTINUE
+      WRITE(6,9140)ERRSTS,INFILE
+      CALL CLOSE(1)
+      CALL WAIT
+      GOTO 1000
+9100  FORMAT('+',M3.13,'Load Mode', M5.3,'Press:',
+     +  M8.8,'1 To Load Logic', M10.8,'2',9X,'Data',
+     +  M12.8,'3',9X,'Both')
+9140  FORMAT('0Error ',I4, ' file'/3X,16A2 )
+9150  FORMAT(A1,A8,4I3)
+9160  FORMAT(A1,I3,A8 )
+9170  FORMAT(A1,I3,2A2)
+9190  FORMAT(A1,I3,I3,A8 )
+9200  FORMAT('0File not logic model')
+      END
+      SUBROUTINE BUILDNAM(INFILE,ENDCHA,STRING,DISKNO)
+      IMPLICIT INTEGER(A-Z)
+C  Build file name, given spreadsheet name and logic/data model
+      INTEGER INFILE(16), STRING(4)
+C  Build first part of string
+      INFILE(1)='DS'
+      INFILE(2)='K '+DISKNO+Z'0010'
+      INFILE(3)='. '
+      IPTR=1
+      OPTR=6
+C  Move characters from string to infile
+      DO WHILE(IPTR.LE.8)
+        CHAR=GETCHAR(STRING,IPTR)
+        IPTR=IPTR+1
+        IF(CHAR.NE.'  ') THEN
+          CALL PUTCHAR(INFILE,CHAR,OPTR)
+          OPTR=OPTR+1
+        ELSE
+          IPTR=9
+        ENDIF
+      ENDDO
+C  Move last part to infile
+      CHAR=ENDCHA
+      CALL PUTCHAR(INFILE,CHAR,OPTR)
+      OPTR=OPTR+1
+      CHAR=CHAR*256
+      CALL PUTCHAR(INFILE,CHAR,OPTR)
+      OPTR=OPTR+1
+      CHAR='  '
+      DO WHILE(OPTR.LE.32)
+        CALL PUTCHAR(INFILE,CHAR,OPTR)
+        OPTR=OPTR+1
+      ENDDO
+      END
+      SUBROUTINE PUTCHAR(STRING,CHAR,PTR)
+      IMPLICIT INTEGER(A-Z)
+C  Put character in string
+      INTEGER STRING(30)
+      ICHAR=CHAR
+      ODD=(PTR/2)*2
+      INDEX=(PTR-1)/2+1
+      IF(ODD.NE.PTR) THEN
+        STRING(INDEX)=IAND(ICHAR,Z'FF00')
+      ELSE
+        ICHAR=IAND(ICHAR/256,Z'00FF')
+        STRING(INDEX)=IAND(STRING(INDEX),Z'FF00')+ICHAR
+      ENDIF
+      END
+      SUBROUTINE GETFIL(DISKNO)
+C Get Disk Number (1 to 5)
+      INCLUDE 'DSK1.CALCOM/NOLIST'
+1000  CALL GETLOGD
+      IF ( RETFLG ) RETURN
+      WRITE(6,9100)
+      READ(6,9200,END=1040,ERR=1040)DISKNO
+      RETURN
+1040  RETFLG = .TRUE.
+      RETURN
+9100  FORMAT(//,'0Disk Number (1-5):')
+9200  FORMAT(I1)
+      END
+      SUBROUTINE GETLOGD
+C  Get user selection, 1(logic), 2(data), or 3(both),
+C  and set user flags accordingly.
+      INCLUDE 'DSK1.CALCOM/NOLIST'
+      DOLOG = .TRUE.
+      DODAT = .TRUE.
+      RETFLG = .FALSE.
+1000  CONTINUE
+      CALL NEWKEY (KEYC)
+      IF ( KEYC .EQ. 15 ) THEN
+        RETFLG = .TRUE.
+      ELSE
+        KEYC = KEYC - Z'0030'
+        GOTO ( 1100, 1200, 1300 ),KEYC
+        GOTO 1000
+1100    DODAT = .FALSE.
+        RETURN
+1200    DOLOG = .FALSE.
+1300    CONTINUE
+      ENDIF
+      END

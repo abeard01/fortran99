@@ -1,0 +1,443 @@
+	SUBROUTINE STORE
+	IMPLICIT INTEGER(A-Z)
+C
+C  STORE - STORE THE USER SPECIFIED FILES IN THE ARCHIVE
+C
+C  COMMON DECLARATIONS:
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+C
+C  EQUIVALENCES TO COMMON FOR CONVENIENCE IN DISPLAYING:
+C
+	DIMENSION IDISKN(5), FDISKN(5)
+	EQUIVALENCE (IDISKN(1),FREC(1)), (FDISKN(1),FREC(1))
+C
+1000	CONTINUE
+	IF ( SQUEEZE ) THEN
+	  WRITE ( 6, 9103 )
+	ELSE
+	  WRITE ( 6, 9100 )
+	ENDIF
+	WRITE ( 6, 9105 )
+	READ  ( 6, 9110, END=9000, ERR=9000 ) FILENM
+C
+C  OPEN THE SPECIFIED OUTPUT FILE, IN FORMAT DISPLAY/FIXED/MAXSREC
+C
+	CALL OPEN ( 1, FILENM, 1, 0, 0, 1, MAXSREC, ERROR )
+	IF ( ERROR .NE. 0 ) THEN
+	  CALL DIERROR ( -1 )
+	  GOTO 1000
+	ENDIF
+	WRITE ( 6, 9120 )
+	READ  ( 6, 9130, END=9000, ERR=9000 ) IDISK	
+C
+C  TRY AND READ THE REQUESTED DISK
+C
+	CALL SECTRE ( IDISK, 0, FREC, ERROR )
+	IF ( ERROR .NE. 0 ) THEN
+	  CALL DIERROR ( 0 )
+	  RETURN
+	ENDIF
+C
+C  Read the disk, now read the index sector which points to file headers
+C
+	CALL SECTRE ( IDISK, 1, FDINDEX, ERROR )
+	IF ( ERROR .NE. 0 ) THEN
+	  CALL DIERROR ( 1 )
+	  RETURN
+	ENDIF
+C
+C  GOOD READ ON THE DISK, NOW DISPLAY THE DISK NAME
+C
+	WRITE ( 6, 9150 ) IDISKN
+C
+C  FIND THE LAST FILE PRESENT ON THE DISK
+C
+	DO 1005 I=1,MAXSREC
+	  LASTF = (MAXSREC-I)+1
+	  IF ( FDINDEX(LASTF) .NE. 0 ) GOTO 1006
+1005	CONTINUE
+1006	CONTINUE
+C
+C  INITIALIZE THE FILES I WANT TO BLANK
+C
+	DO 1010 I=1,LASTF
+1010	WANTIT(I) = .FALSE.
+C
+C  INCLUDE ALL FILES OR NOT
+C
+	WRITE ( 6, 9160 )
+	READ  ( 6, 9170, ERR=9000, END=9000 ) YESNO
+	IF ( (YESNO .EQ. 'Y') .OR. (YESNO .EQ. 'y') ) THEN
+C
+C  HE WANTS ALL FILES.  SET ALL HEADERS TO TRUE, IF THE FILE
+C  EXISTS.
+C
+	  DO 1020 I=1,LASTF
+	    WANTIT(I) = .TRUE.
+1020	  CONTINUE
+C
+C  HE WANTS A SELECTIVE DISK LOAD.  SOLICIT EACH FILE ON THE
+C  DISK AND SET THE "WANTIT" DIRECTORY APPROPRIATELY.
+C
+	ELSE
+	  DO 1040 J=1,LASTF
+	    I = (LASTF - J ) + 1
+C					GET FILE HEADER
+	    CALL SECTRE ( IDISK, FDINDEX(I), FREC, ERROR )
+	    IF ( ERROR .NE. 0 ) THEN
+	      CALL DIERROR ( FDINDEX(I) )
+	      RETURN
+	    ENDIF
+C					DISPLAY IT FOR HIM
+	    WRITE ( 6, 9180 ) FDISKN
+C					IF HE WANTS IT, SET FLAG
+	    READ ( 6, 9170, END=9000, ERR=9000 ) YESNO
+	    IF ( (YESNO .EQ. 'Y') .OR. (YESNO .EQ.'y') ) 
+     +			WANTIT(I) = .TRUE.
+1040	  CONTINUE
+1100	  CONTINUE
+	ENDIF
+C
+C  Display the resulting archive table, and save count of number of
+C  files, to use for header size determination.
+C
+	NOHDRS = 0			! NUMBER OF HEADER RECORDS
+	WRITE ( 6, 9190 )
+C					POSSIBLE 128 FILES
+	NOLINES = 0
+	DO 1200 J=1,LASTF
+	  I = ( LASTF - J ) + 1
+C					IF HE WANTS IT (FLAG=.TRUE.)
+	  IF ( WANTIT(I) ) THEN
+C					BUMP NUMBER OF HEADERS & READ
+	    NOHDRS = NOHDRS + 1
+	    CALL SECTRE ( IDISK, FDINDEX(I), FREC, ERROR )
+	    IF ( ERROR .NE. 0 ) THEN
+	      CALL DIERROR ( FDINDEX(I) )
+	      RETURN
+	    ENDIF
+C					DISPLAY THE HEADER
+	    NOLINES = NOLINES + 1
+	    IF ( NOLINES .GT. 16 ) THEN
+	      CALL WAIT
+	      WRITE ( 6, 9190 )
+	      NOLINES = 0
+	    ENDIF
+	    WRITE ( 6, 9200 ) NOHDRS, FDISKN, FREC(8)
+	  ENDIF
+1200	CONTINUE
+	CALL WAIT
+C
+C  Now compute the first data record number.  There are 14 headers
+C  for each sector (two records) in the heade section.  Records are
+C  numbered from 0 to n, so:
+C
+C   01 to 14 headers, data section starts at record 2,
+C   15 to 28 headers, data section starts at record 4,  etc.
+C
+	NORECS = ((NOHDRS+13)/14) * 2
+C
+C  Execute the loop to pack/squeeze all of the requested files.
+C  If squeezing is requested, call ANALFILE to do the actual
+C  file analysis and squeezing.  Otherwise, call PACKFILE to
+C  simply put the files away unsqueezed.
+C
+	HPTR = 0			! HEADER POINTER
+	HREP = 0			! CURRENT HEADER RECORD
+	WRITE ( 6, 9240 )		! TELL HIM WHAT I'M DOING
+	DO 1350 J=1,LASTF		! DO LAST TO FIRST
+	  I = ( LASTF - J ) + 1		! COMPUTE ACTUAL INDEX
+	  IF ( WANTIT(I) ) THEN
+	    CALL SECTRE ( IDISK, FDINDEX(I), FREC, ERROR )
+	    CNTSECT = 0
+	    IF ( ERROR .NE. 0 ) THEN
+	      CALL DIERROR ( FDINDEX(I) )
+	      RETURN
+	    ENDIF
+C					IF SQUEEZED ARCHIVE DESIRED,
+	    IF ( SQUEEZE ) THEN
+	      CALL ANALFILE		! ANALFILE ACTUALLY DOES IT
+	    ELSE
+	      CALL PACKFILE		! NON-SQUEEZING VERSION
+	    ENDIF
+	    IF ( ERROR .NE. 0 ) RETURN
+	    CALL PUTHDR
+	    IF ( ERROR .NE. 0 ) RETURN
+	  ENDIF
+1350	CONTINUE
+C
+C  FLUSH LAST HEADER RECORD, PUT 'END!' IN LAST 4 CHARS SO I KNOW
+C  IT IS LAST.
+C
+	DO WHILE ( HPTR .LT. MAXSREC )
+          HPTR = HPTR + 1
+          HREC(HPTR) = 0
+	ENDDO
+	HREC(127) = 'EN'		! EOF sentinal
+	HREC(128) = 'D!'
+	CALL RECOWR ( 1, HREP, HREC, ERROR )
+	IF ( ERROR .NE. 0 ) GOTO 8000
+	HREP = HREP + 1
+	CALL RECOWR ( 1, HREP, HREC(65), ERROR )
+	IF ( ERROR .NE. 0 ) GOTO 8000
+	CALL CLOSE(1)
+	CALL WAIT
+	RETURN
+8000	CONTINUE
+	CALL DIERROR ( -1 )		! ERROR ON I/O, DISPLAY IT
+9000	RETURN
+C
+9100	FORMAT ( '1', M4.9,'Store Files')
+9103	FORMAT ( '1', M4.8,'Squeeze Files')
+9105	FORMAT ( '+', M9.3,'Output File?' )
+9110	FORMAT ( 10A2 )
+9120	FORMAT ( '+', M14.3, 'Input Drive (1-6)?' )
+9130	FORMAT ( I1 )
+9150	FORMAT ( '+', M16.3, 'Disk = ',5A2 )
+9160	FORMAT ( '+', M18.3, 'Include All Files (Y/N)?')
+9170	FORMAT ( A1 )
+9180	FORMAT ( '+', M18.3, 'Include ',5A2, ' (Y/N)? ', M18.28 )
+9190	FORMAT ( '1File(s) to be Archived:'/)
+9200	FORMAT ( I4,'.', 5A2, I4, ' Sectors' )
+9240	FORMAT ( '1   ***Storing Files***')
+	END
+	SUBROUTINE LIST
+	IMPLICIT INTEGER(A-Z)
+C
+C  LIST - LIST THE USER SPECIFIED FILES IN THE ARCHIVE
+C
+C  COMMON DECLARATIONS:
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+C
+	DIMENSION FILETYPS(3,6), FILESTA(5), FNAME(5)
+C
+	EQUIVALENCE (FNAME(1),IHREC(1)), (FLAGS,IHREC(6))
+	DATA FILETYPS  / 6HDISFIX, 6HPROGRM, 6HINTFIX, 
+     +                   6HDISVAR, 6HINTVAR, 6HUNKNON /
+	DATA FILESTA  / '00'X, '01'X, '02'X, '80'X, '82'X /
+C
+1000	CONTINUE
+	WRITE ( 6, 9100 )
+	READ  ( 6, 9110, END=9000, ERR=9000 ) FILENM
+C
+C  OPEN THE SPECIFIED INPUT FILE, IN FORMAT DISPLAY/FIXED/MAXSREC
+C
+	CALL OPEN ( 1, FILENM, 2, 0, 0, 0, MAXSREC, ERROR )
+	IF ( ERROR .NE. 0 ) THEN
+	  CALL DIERROR ( -1 )
+	  RETURN
+	ENDIF
+C
+C  GET EACH HEADER IN SEQUENCE, AND DISPLAY IT
+C
+	NOLINES = 0
+	HREP    = -1
+	WRITE ( 6, 9140 )
+	DO WHILE ( .TRUE. )
+	  CALL GETHDR
+	  IF ( ERROR .NE. 0 ) RETURN
+C
+C  IF ARCHIVE STARTS WITH A ZERO (NULL), THEN I'M DONE
+C
+	  IF ( FNAME(1) .EQ. 0 ) THEN
+	    CALL WAIT
+	    RETURN
+	  ENDIF
+C
+C  SEE HOW MANY LINES I'M UP TO.  NEW PAGE IF TOO MANY
+C
+	  NOLINES = NOLINES + 1
+	  IF ( NOLINES .GT. 14 ) THEN
+	    CALL WAIT
+	    WRITE ( 6, 9140 )
+	    NOLINES = 1
+	  ENDIF
+C
+C  DETERMINE THIS FILE TYPE
+C
+	  FILETYPE = IAND(ISHFT(FLAGS,-8),'00FF'X)
+C
+C  DECIDE WHETHER THE FILE WAS SQUEEZED OR NOT
+C
+	  SQFLAG   = 'N'
+	  IF ( IAND(FILETYPE,'20'X) .NE. 0 ) THEN
+	    SQFLAG = 'S'
+	  ENDIF
+C
+C  GET TEXT FOR FILE TYPE
+C
+	  FILETYPE = IAND(FILETYPE,'83'X)
+	  DO 2000 ITYPE=1,5
+	    IF ( FILETYPE .EQ. FILESTA(ITYPE)) GOTO 2010
+2000	  CONTINUE
+	  ITYPE = 6
+2010	  CONTINUE
+C
+C  GET LENGTH OF A RECORD
+C
+	  RECLENGTH = IAND ( IHREC(8), '00FF'X )
+	  SECLENGTH = IHREC(7)
+	  IF ( SQFLAG .EQ. 'N' ) SECLENGTH = SECLENGTH *2
+C
+C  NOW DISPLAY THE MESS
+C
+	  WRITE ( 6, 9150 ) FNAME, SECLENGTH, SQFLAG,
+     +                      (FILETYPS(I,ITYPE),I=1,3),
+     +                      RECLENGTH
+	ENDDO
+9000	RETURN
+C
+9100	FORMAT ( '1', M4.8,'List Files',
+     +                M9.3,'Archive File Name?' )
+9110	FORMAT ( 10A2 )
+9140	FORMAT ( '1',8X,'List Files'//
+     +           ' Filename   Len S   Format'/
+     +           ' =========  === = =========='/)
+9150	FORMAT ( 1X,5A2,I4,1X,A1,1X,3A2,1X,I3)
+	END
+	SUBROUTINE RESTORE
+	IMPLICIT INTEGER(A-Z)
+C
+C  RESTORE - Restore an archive's files
+C
+C  This routine is called when the user wishes to restore files from
+C  an archive.  It handles not only the squeezed version of the files,
+C  but also the unsqueezed (original Barry Traver) version.  Files
+C  can be restore one at a time, or an entire archive can be restored.
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+	DIMENSION OFFSETS(128),FNAME(5)
+	EQUIVALENCE (OFFSETS(1),STACK(1))
+	EQUIVALENCE (FNAME(1),IHREC(1)),(FILSTA,IHREC(6)),
+     +		(RECSTA,IHREC(7))
+C
+1000	CONTINUE
+	WRITE ( 6, 9100 )
+	WRITE ( 6, 9105 )
+	READ  ( 6, 9110, END=9000, ERR=9000 ) FILENM
+C
+C  OPEN THE SPECIFIED INPUT FILE, IN FORMAT DISPLAY/FIXED/MAXSREC
+C
+	CALL OPEN ( 1, FILENM, 2, 0, 0, 0, MAXSREC, ERROR )
+	IF ( ERROR .NE. 0 ) THEN
+	  CALL DIERROR ( -1 )
+	  RETURN
+	ENDIF
+C
+C  GET OUTPUT DISK NUMBER
+C
+	WRITE ( 6, 9120 ) 
+	READ ( 6, 9130, END=9000, ERR=9000 ) IDISK
+C
+C  INCLUDE ALL FILES?
+C
+	WRITE ( 6, 9160 ) 
+	READ ( 6, 9170, END=9000, ERR=9000 ) YESNO
+C
+	IF ( (YESNO.EQ.'Y') .OR. (YESNO.EQ.'y')) THEN
+	  DO 1050 I=1,128
+1050	  WANTIT(I) = .TRUE.
+C
+C  SELECTIVE FILE REQUESTS, PROMPT THE USER FOR ALL FILE NAMES
+C
+	ELSE
+	  DO 1100 I=1,128
+1100	  WANTIT(I) = .FALSE.
+	  HREP   = -1
+	  NOHDRS = 0
+C
+C  DO UNTIL FILE HEADERS ARE EXHAUSTED
+C
+	  DO WHILE ( .TRUE. )
+	    CALL GETHDR
+	    IF ( ERROR .NE. 0 ) RETURN
+	    IF ( FNAME(1) .EQ. 0 ) GOTO 1200
+	    NOHDRS = NOHDRS + 1
+	    WRITE ( 6, 9180 ) FNAME
+	    READ ( 6, 9170, END=9000, ERR=9000 ) YESNO
+	    IF ( (YESNO.EQ.'Y') .OR. (YESNO.EQ.'y')) 
+     +	    WANTIT(NOHDRS)=.TRUE.
+	  ENDDO
+1200	  CONTINUE
+	ENDIF
+C
+C  EXITING FROM ABOVE, THE WANTIT ARRAY HAS THE INDIVIDUAL
+C  FILES WHICH ARE DESIRED.  NOW DISPLAY THE COMPLETE LIST
+C  OF FILES TO BE EXPANDED, AND COMPUTE THE OFFSETS ARRAY,
+C  WHICH TELLS WHERE EACH FILE STARTS IN THE ARCHIVE.
+C
+	HREP = -1		! RECORD POINTER
+	NOHDRS = 0		! NUMBER OF HEADERS
+	NOLINES = 0		! NUMBER OF LINES
+	OFFSETS(1) = 0		! OFFSET INTO ARCHIVE FOR FILE
+	WRITE ( 6, 9190 )
+C
+C  LIST THE FILES WHICH ARE TO BE RESTORED
+C
+	DO WHILE ( .TRUE. )
+	  CALL GETHDR
+	  IF ( FNAME(1) .EQ. 0 ) GOTO 1300
+	  NOHDRS = NOHDRS + 1
+C
+C  DETERMINE WHETHER THIS IS A SQUEEZED FILE.  IF NOT, MULTIPLY
+C  SECTOR LENGTH OF RECORD SIZE BY 2 TO GET # RECORDS.
+C
+	  SQFLAG  = IAND(FILSTA,'2000'X)
+	  RECSIZ  = RECSTA
+	  IF ( SQFLAG .EQ. 0 ) RECSIZ = RECSIZ * 2
+	  OFFSETS(NOHDRS+1) = OFFSETS(NOHDRS) + RECSIZ
+	  IF ( WANTIT(NOHDRS) ) THEN
+	    NOLINES = NOLINES + 1
+	    IF ( NOLINES .EQ. 15 ) THEN
+	      CALL WAIT
+	      WRITE ( 6, 9190 ) 
+	      NOLINES = 0
+	    ENDIF
+	    WRITE ( 6, 9200 ) NOHDRS, FNAME, RECSIZ
+	  ENDIF
+	ENDDO
+1300	CONTINUE
+	CALL WAIT
+C
+C  Now that I've looped all headers, I can figure out how many records
+C  the headers take, and update the offsets array appropriately.
+C
+C  The offsets array tells the program at which record in the archive
+C  each data file actually starts.
+C
+	NORECS = ((NOHDRS+13) / 14) * 2
+	DO 1400 I=1,NOHDRS+1
+1400	OFFSETS(I) = OFFSETS(I) + NORECS
+C
+C  Start Expanding the files
+C
+	HREP = -1			! Force fill header buffer
+	WRITE ( 6, 9210 )		! Tell him what I'm doing
+	DO 1500 I=1,NOHDRS		! Do for each file
+	  CALL GETHDR			! Get the header, this file
+	  IF ( WANTIT(I) ) THEN		! If I want this file, then
+	    WRITE ( 6, 9210 )		! Tell him about this file
+	    SS = OFFSETS(I)		! Get starting record
+	    OF = OFFSETS(I+1) - 1	! Get # of records
+	    CALL UNPAFILE		! Unpack the file
+	    IF ( ERROR .NE. 0 ) RETURN
+	  ENDIF
+1500	CONTINUE
+	CALL WAIT
+9000	RETURN
+C
+9100	FORMAT ( '1', M4.3,'Restore Files')
+9105	FORMAT ( '+', M9.3,'Archive File Name?' )
+9110	FORMAT ( 10A2 )
+9120	FORMAT ( '+', M14.3, 'Output Drive (1-6)?')
+9130	FORMAT ( I1 )
+9150	FORMAT ( '+', M16.3, 'Disk = ',5A2 )
+9160	FORMAT ( '+', M18.3, 'Include All Files (Y/N)?')
+9170	FORMAT ( A1 )
+9180	FORMAT ( '+', M18.3, 'Include ',5A2, ' (Y/N)? ', M18.28 )
+9190	FORMAT ( '1Files to be expanded:'/)
+9200	FORMAT ( I3,'. ',5A2, ',',I4,' Records')
+9210	FORMAT ( '1',8X,'Unpacking Files')
+	END

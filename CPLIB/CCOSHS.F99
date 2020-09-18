@@ -1,0 +1,13 @@
+      COMPLEX FUNCTION CCOSH(X) ! COMPLEX HYPERBOLIC COSINE
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    10-DEC-89  E.Clausen   Initial Version by Elmer Clausen
+C
+      COMPLEX X
+      COMPLEX*16 Z,CDEXP
+      Z=X
+      CCOSH=(0.5D0,0.0D0)*(CDEXP(Z)+CDEXP(-Z))
+      END

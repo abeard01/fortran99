@@ -1,0 +1,258 @@
+                                                                15-NOV-1987
+
+                User Guide for Squeezing Archiver, V1.2 
+                ---------------------------------------
+
+  The squeezing archiver allows you to create archives of multiple files
+  which are smaller in size than the original size, and to dearchive
+  (or recreate) the original files at a later date.
+
+  Obtain the necessary files:
+  --------------------------
+
+  Three executable image files are needed to make the Squeezing Archiver
+  work, they are available for the downloading from several networks
+  including BIX and Compuserve.  The files are:
+
+             FORTSA   -  The FORTRAN V2 standalone loader
+             SARCEXE  -  Squeezing Archiver Executable, Part 1
+             SARCEXF  -  Squeezing Archiver Executable, Part 2
+
+  If you have a version 2 FORTRAN Boot disk, you don't need the FORTSA
+  module.
+
+
+  Using the FORTRAN Standalone Loader
+  -----------------------------------
+
+  If you don't have a version 2 FORTRAN boot disk, you can use the version
+  2 standalone loader which is available in the public domain.   This
+  file is available on BIX and COMPUSERVE as the following name:
+
+                            99STAND.ARC
+
+  Note this TRAVER archive contains the following files:
+
+                            README
+                            FORTSA
+
+  README is a disclaimer from LGMA products.  FORTSA is an EDITOR/ASSEMBLER
+  standalone runtime module.
+
+  To boot the standalone module, enter the editor/assembler (item 2 on
+  TI menu), and select item (5), run program file.  Enter the name of:
+
+                            DSK1.FORTSA
+
+  for the name of the program.  The program will load, and the screen
+  will be displayed:
+
+                              99 FORTRAN
+                        Standalone LOAD Module
+
+               Executable Program File Name?
+
+  Enter a file name of:
+
+               DSK1.SARCEXE
+
+  The squeezing archiver will load this file, the file SARCEXF, and
+  (barring errors) will automatically start up the squeezing archiver.
+
+
+  Squeezing Archiver Menu
+  -----------------------
+
+  The squeezing archiver main menu will be displayed as follows:
+
+                    99 Squeezing ARCHIVER, V1.2
+                           by Alan Beard
+                       based on software by:
+                      R.Greenlaw/Barry Traver
+
+
+                      1.  Store Files
+                      2.  Squeeze Files
+                      3.  Restore Files
+                      4.  List Files
+                      5.  Exit
+
+                 What is your choice (1 2 3 4)
+
+  Enter a selection, 1, 2, 3, 4, or 5, and depress the ENTER button.
+
+
+
+  Storing/Squeezing Files
+  -----------------------
+
+  Item 1 (Store) and item 2 (squeeze) allow creation of an archive from
+  non-archived standard TI files.  The STORE function 1 stores the files
+  in a "non-compressed" mode, compatible with the TRAVER archiving method.
+  The SQUEEZE function 2 compresses the input files using huffman encoding
+  techniques.  Item 2 will run much slower than item 1, but the resulting
+  archive will be 0 to 60% smaller than the original files.
+
+  Selecting item 1 or 2 results in the message:
+
+           Output File?
+
+  being displayed.  Enter the desired file name of the archive to be created.
+  For example, to create an archive named SARC on disk 2, use the name:
+
+           DSK2.SARC
+
+  The message:
+
+           Input Drive (1-6)?
+
+  will be displayed.  Enter the number of the disk drive which contains the
+  input files to be archived.
+
+  The name of the diskette in the selected input disk drive will be displayed,
+  along with the question:
+
+           Disk = xxxxxxxxxx
+
+           Include All Files (Y/N)?
+
+  If you want all of the files on the input drive to be included in the
+  output archive, answer with the letter Y, and ENTER.  If not, enter
+  N, and ENTER.
+
+  If you selectively include files (by selecting NO), then the prompt:
+
+           Include yyyyyyyyyy (Y/N)?
+
+  will be displayed for each file "yyyyyyyyyy" on the input disk drive.
+  If you want the file to be included, enter the letter Y, ENTER.  If
+  not, N, ENTER.
+
+  Before archiving the files, you are presented with a list of the
+  files to be archived, and thier sector length (one less than the
+  sector length displayed with the Disk Manager).  Press ENTER to
+  start the archiving process.
+
+  As each file is processed (archived), a menu is displayed showing the
+  start/end sector of the file, and which sector is currently being
+  processed.  If this file is a fractured file, the message "Fractured
+  File" is displayed on the screen.  
+
+  A non-squeezed file is displayed as "Packing File".  A squeezed file
+  actually goes through each file twice,  one for analyzing and one
+  for squeezing.   If at the end of the squeeze process it is determined
+  that the squeezed file is larger than the original, then the file
+  is "re-packed", or stored unsqueezed.  If the file was successfully
+  squeezed, a display is shown of the number of 1/2 sectors (128
+  byte records) saved, and the percentage save factor.
+
+  When the process is complete, the message:
+
+         Press ENTER to Continue
+
+  is displayed.  Pressing ENTER returns you to the squeezing archiver
+  main menu.
+
+
+  Restore Files
+  -------------
+
+  To restore files (unpack, or dearchive), select item 3 and ENTER on the
+  squeezing archiver main menu.  This causes the message:
+
+              Archive File Name?
+
+  to be displayed.  Enter the file name of the archive.  For example, to
+  unpack an archive located on disk 2, with a file name of SARC, enter
+  the name:
+
+              DSK2.SARC
+
+  The message:
+
+              Output Drive (1-6)?
+
+  is displayed.  Enter the number of the disk drive which will contain
+  the unpacked (or unsqueezed) files.
+
+  The prompt:
+
+              Include All Files (Y/N)?
+
+  is displayed.  If you want all files in the input archive to be restored,
+  then enter Y, ENTER.  If you want to selectively load from the archive,
+  enter N, ENTER.
+
+  If you selectively load, then the prompt:
+
+              Include yyyyyyyyyy (Y/N)?
+
+  will be displayed for each file in the input archive.  Enter the letter
+  Y (ENTER) or N (ENTER) to pick which files to restore.
+
+  When all files have been selected, a list of the files to be restored
+  is displayed, along with the number of input records (1/2 sectors).
+  Press ENTER to start the unpacking process.
+
+  A display similar to the one when squeezing/storing files is displayed
+  for each file being unpacked.  When the restore process is complete,
+  the message:
+
+              Press ENTER to Continue
+
+  is displayed.  Pressing ENTER will return you to the squeezing archiver
+  main menu.
+
+
+  Listing an Archive
+  ------------------
+
+  To list the contents of an archive, enter the number 4 and ENTER on
+  the squeezing archiver main menu.  This brings up the prompt:
+
+              Archive File Name?
+
+  on the screen.  Enter the name of the input archive file.  For example,
+  if the archive was located on disk drive 2 and had a name of SARC, then
+  the file name would be:
+
+              DSK2.SARC
+
+  Each file on the archive would then be listed, including the FILENAME, the
+  length (in input records, or 1/2 sectors), whether the file is squeezed
+  or not (S/N) and the format of the file (e.g. DIS/VAR 80, PROGRM, etc.).
+
+
+  Special Operating Notes:
+  -----------------------
+
+  1. If you are going to upload the archive to a telecommunications
+     network, please write protect it.  This is to "work around" difficulties
+     of certain telecommunications programs with DIS/FIX/128 files.
+
+  2. It is ok to have the archive file on a RAM disk (e.g. DSK3, DSK5, RD,
+     etc.).   The archiver may or may not read the input files (for
+     storing/squeezing) or output files (for unpacking) properly.  This
+     is because the archiver performs its own sector I/O, with a little
+     assist from the DSR routine.  It is suggested for simplicity that
+     archiving/dearchiving operations be kept to regular disk drives.
+
+  3. If you are creating an archive for use with the TRAVER archiver,
+     use the "store" option (not the "squeeze") option to create it.
+     The TRAVER archiver cannot read the squeezed archive properly.
+
+  4. The squeezing archiver appears to operate properly on both the
+     TI-99/4A and the MYARC Geneve (using TI-99 emulation mode at
+     speed 5).
+
+Send comments, suggestions, gripes, complaints, myrrh, gold and silver to:
+
+                   Alan L. Beard
+                   Box 210, RD4
+                   AppleButter Hill Road
+                   Coopersburg, PA  18036
+
+I can also be reached on BIX (Byte Information Exchange) as user abeard,
+or on COMPUSERVE (less frequently) as user 71370,2723.
+
+Enjoy.

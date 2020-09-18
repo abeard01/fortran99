@@ -1,0 +1,16 @@
+      COMPLEX*16 FUNCTION DE$(D,E)
+C DE$: REAL*8 ARGUMENT WITH COMPLEX*16 EXPONENT
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    26-Nov-89   E.Clausen   Initial Version by Elmer Clausen
+C
+      REAL*8 D
+      COMPLEX*16 X,E,CDEXP,CDLOG
+        DE$=(0.0D0,0.0D0)
+      IF(D.EQ.0.0D0)RETURN
+        X=D
+        DE$=CDEXP(E*CDLOG(X))
+      END

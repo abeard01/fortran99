@@ -1,0 +1,11 @@
+      COMPLEX FUNCTION CTAN(X) ! COMPLEX TANGENT
+      COMPLEX X
+      COMPLEX*16 Z,Y,CDSIN,CDCOS
+      Z=X
+      Y=CDCOS(Z)              ! DENOMINATOR
+      IF(Y.EQ.(0.0D0,0.0D0))THEN
+         CTAN=(1.0E99,0.0)    ! ERROR VALUE
+      ELSE
+         CTAN=CDSIN(Z)/Y      ! TAN=SIN/COS
+      ENDIF
+      END

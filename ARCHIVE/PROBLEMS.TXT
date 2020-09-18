@@ -1,0 +1,23 @@
+#: 116303 S3/99 Programming
+    03-Nov-87  21:20:01
+Sb: #116266-SQ ARCHIVER SRC
+Fm: Jerry Coffey <EMB> 74716,3525
+To: Al Beard 71370,2723 (X)
+
+Al,
+   Version 1.1 seems to go both ways in squeeze mode.  I was able to restore
+the source code with it.  Also successfully squeezed and restored all 775
+sectors of FUNLWRITER v4 (saved 110 sectors).  The LIST command still shows
+some file header data from a Traver archive shifted 2 bytes to the left (2
+leftmost chars dropped and other data read as gibberish).
+   LISTing a "STORED" SARC file from the standard archiver shows the opposite
+shift (2 leading "blanks" or unprintable chars preceeding the filename) in the
+files that fail to restore.  This is generating the I/O errors that prevent
+restoration.  I think I'll look at the header sections of STOREd and ARCHIVEd
+versions of Funl and make some notes on the differences.  I think the header
+glitch may be the only impediment to compatibility, but then I still don't know
+exactly what I'm seeing.
+   Later, Jerry
+ ---- THE ABOVE PREPARED OFF-LINE -- I guess its almost there if you can find
+why the byte shift in some (not all) file header data. I get version 3 from
+Jeff tomorrow (he forgot it today).

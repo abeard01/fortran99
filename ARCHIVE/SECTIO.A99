@@ -1,0 +1,311 @@
+        TITL  'ARCHIVE SUPPORT SUBROUTINES'
+        IDT   'SUPPOR'
+*
+*  SUPPORT - This module contains support assembly language subroutines
+*	     for the packing archive.  It supports either functions 
+*	     which cannot be performed in FORTRAN, or routines which
+*	     are much more efficient in assembly language.
+*
+*  The module contains the following routines:
+*
+*
+*       INIT   - Initialization subroutine (called once per command)
+*	RECORE - Read a 128 byte record from the specified file
+*	RECOWR - Write a 128 byte record to the specified file
+*       SECTRE - Read a sector from the specified disk
+*  	SECTWR - Write a sector to the specified disk
+*  	GETBYT - Return a byte in an array
+*	PUTBYT - Put a byte into an array
+*
+*
+*  RECORD READ/WRITE:
+*
+*        CALL RECORE ( LABEL, RECORD #, BUFFER, ERROR )
+*	 CALL RECOWR ( LABEL, RECORD #, BUFFER, ERROR )
+*
+*  WHERE:
+*
+*        LABEL    - IS THE FORTRAN I/O LABEL (E.G. 1 OR 2)
+*	 RECORD#  - IS THE RECORD NUMBER FOR RELATIVE I/O. USE
+*		    -1 FOR SEQUENTIAL I/O
+*	 BUFFER   - IS THE CPU RAM BUFFER ADDRESS 64 WORDS
+*	 ERROR    - IS ANY ERROR CODE RETURNED.  0=NO ERROR
+*
+*  SECTOR READ/WRITE:
+*  =================
+*
+*  CALLING SEQUENCE:
+*
+*        CALL SECTRE ( DISK #, SECTOR #, BUFFER, ERROR )
+*        CALL SECTWR ( DISK #, SECTOR #, BUFFER, ERROR )
+*
+*  WHERE:
+*
+*        DISK #   - IS THE DISK NUMBER (1-3) TO READ
+*        SECTOR # - IS THE SECTOR # (0-?)
+*        BUFFER   - IS THE CPU RAM BUFFER ADDRESS, 128 WORDS
+*        ERROR    - IS ANY ERROR CODE RETURNED.  0 MEANS NO ERROR.
+*
+*
+	DEF  INIT		INITIALIZATION
+        DEF  SECTRE             SECTOR READ
+        DEF  SECTWR             SECTOR WRITE
+	DEF  RECORE		RECORD READ
+	DEF  RECOWR		RECORD WRITE
+*
+*  EQUATES:
+*
+DISCRU  EQU  >1100              DISK DSR CRU ADDRESS
+CRUSTA  EQU  >4000              CRU ADDRESS START
+SUBADR  EQU  >400A              SUBROUTINE SEARCH ADDRESS
+WSP     EQU  >8300              MY WORKSPACE ADDRESS
+BLASCR  EQU  >83D6		SCREEN BLANKOUT COUNTDOWN TIMER
+GPLWSP  EQU  >83E0              GPL WORKSPACE
+VDPAD2  EQU  >201E		VDP BUFFER ADDRESS, VERSION 2.0 OF 99 FORTRAN
+VDPAD3  EQU  >202E              VDP BUFFER ADDRESS, VERSION 3.0 OF 99 FORTRAN
+VMBR    EQU  >2050              VDP MULTI-BYTE READ
+VMBW    EQU  >2048              VDP MULTI-BYTE WRITE
+SECTSU  EQU  >0110              SECTOR I/O SUBROUTINE (DSR) NAME
+WRITBI  EQU  >0001		WRITE BINARY FUNCTION CODE
+READBI  EQU  >0006		READ BINARY FUNCTION CODE
+LBRANC  EQU  >0460		LONG BRANCH INDICATOR
+IO	EQU  >2074		LOW MEM ENTRY INTO I/O FUNCTION
+*
+*  INIT - INITIALIZATION.  SETUP VARIOUS PARAMETERS FOR ARCHIVER
+*
+INIT	EQU  $
+	DATA 0			NO ARGUMENTS
+	DATA BASADR		BASE ADDRESS
+	LI   R5,1		SET SCREEN TO NO BLANK
+	MOV  R5,@BLASCR		SAVE IT
+	MOV  @IO,R5		GET VERSION 3.0 OR 2.0 FLAG
+	CI   R5,LBRANC		IS THIS VERSION 3
+	JNE  VERS30		BRIF YES
+	LI   R5,VDPAD2		VDP VERSION 2 END ADDRESS
+	JMP  VERSC1
+VERS30	EQU  $
+	LI   R5,VDPAD3		VDP VERSION 3 END ADDRESS
+VERSC1	EQU  $
+	MOV  R5,@VDPADR
+	MOV  @BASADR,R3		RETURN
+	B    *R11
+*
+*  RECORD WRITE.  USED SINCE 99 FORTRAN DOESN'T SUPPORT BINARY WRITE
+*
+RECOWR  EQU  $			RECORD WRITE
+	DATA -4			4 ARGUMENTS
+	DATA BASADR		BASE ADDRESS
+	LI   R5,WRITBI		WRITE BINARY FUNCTION CODE
+	JMP  REWRCO
+*
+*  RECORD READ.  USED SINCE 99 FORTRAN DOESN'T SUPPORT BINARY READ
+*
+RECORE  EQU  $			RECORD READ
+	DATA -4			4 ARGUMENTS
+	DATA BASADR
+	LI   R5,READBI		READ BINARY FUNCTION CODE
+*
+REWRCO	EQU  $			READ/WRITE COMMON
+	LI   R6,FUNSTA		GET FUNCTION STACK ADDRESS
+	MOV  @ARECNO,R7		GET RANDOM RECORD NUMBER
+	MOV  *R7,R7
+	JLT  SEQUEN		SEQUENTIAL
+	AI   R5,>0800		SET RANDOM BIT
+SEQUEN  EQU  $
+	MOV  R5,*R6+		SAVE IN STACK
+	MOV  @ALABEL,R5		GET I/O LABEL
+	MOV  *R5,*R6+		SAVE IN FUNCTION STACK
+	MOV  @ABUFFE,*R6+	BUFFER ADDRESS
+	INCT R6			SKIP # BYTES TO READ/WRITE
+	MOV  R7,*R6+		RANDOM RECORD #
+	MOV  @IO,R5		GET 1ST WORD I/O ENTRY
+	LI   R4,FUNSTA		FUNCTION STACK ADDRESS
+	CI   R5,LBRANC		IS THIS A LONG BRANCH?
+	JNE  VERS3		BRIF NO, MUST BE VERSION 3 99 FORTRAN
+VERS2	EQU  $
+	BL   @IO		ELSE, VERSION 2 99 FORTRAN
+	JMP  IODONE
+VERS3	EQU  $
+	BLWP @IO
+IODONE	EQU  $
+	B    @RTNFUN
+*	
+SECTWR  EQU  $
+	DATA -4			4 ARGUMENTS
+	DATA BASADR
+	MOV  @IO,R5		IS THIS VERSION 3.0?
+        MOV  @VDPADR,R0         PUT DATA IN VDP RAM
+        MOV  @ABUFFE,R1         FROM USER BUFFER
+        LI   R2,>0100
+        BLWP @VMBW
+        CLR  R5                 SET WRITE FLAG
+        JMP  SECTCO
+*
+SECTRE  EQU  $
+        DATA -4                 4 ARGUMENTS
+        DATA BASADR             TEMPORARY STORAGE
+        LI   R5,1               SET READ FLAG
+SECTCO  EQU  $
+        MOV  R5,@RWFLAG         SAVE READ/WRITE FLAG
+        LIMI 0                  DISABLE INTERRUPTS
+        LI   R12,DISCRU         GET CRU ADDRESS
+        SBO  0                  TURN ON DISK ROM
+        CB   @XAA,@CRUSTA
+        JNE  ERR1
+        LI   R3,SUBADR          SUBROUTINE SEARCH LIST POINTER
+DSR1    EQU  $
+        MOV  R3,R2
+        MOV  *R2,R2             GO DOWN THE SEARCH LIST
+        JEQ  ERR1               BRIF DIDN'T FIND IT
+        MOV  R2,R3              SAVE LIST POINTER
+        INCT R2
+        MOV  *R2+,@VR9          SAVE LIST POINTER
+        MOV  *R2,R5
+        CI   R5,SECTSU          IS THIS MY SUBROUTINE?
+        JNE  DSR1               BRIF NO, KEEP LOOKING
+        MOV  R3,@VD2            SAVE SEARCH LIST PTR
+        SBZ  0                  TURN OFF DISK ROM
+*
+* DO SECTOR I/O USING SUBROUTINE >10 OR >11
+*
+* THE SECTOR NUMBER IS PASSED IN ASECTO.
+*
+DSR2    EQU  $
+        MOV  @VD2,@>83D2        SEARCH LIST POINTER
+        MOV  @V56,@>8356
+        MOV  @ADISKN,R5         GET DRIVE NUMBER (1-3)
+        MOV  *R5,R5
+        SWPB R5
+        A    @RWFLAG,R5
+        MOV  R5,@>834C          DRIVE NUMBER, READ/WRITE FLAG
+        MOV  @VDPADR,@>834E     VDP BUFFER ADDRESS
+        MOV  @ASECTO,R5         GET SECTOR NUMBER
+        MOV  *R5,@>8350
+***                             ********************************
+        LWPI >83E0              SWITCH TO GPL WSP
+        LI   R12,DISCRU         CRU ADDRESS OF THE DISK G W
+        MOV  R12,@>83D0         LIKE DSRLNK
+        SBO  0                  TURN ON DISK ROM           P S
+        MOV  @VR9,R9            GET SUBROUTINE ADDRESS
+        LI   R1,1               VERSION NUMBER             L P
+        BL   *R9                GO TO SUBROUTINE
+        JMP  IOERR              JMP IF ERROR
+        SBZ  0                  TURN OFF DISK ROM
+        LWPI WSP                RESTORE OUR WORK SPACE REGS
+***                             *******************************
+        LIMI 2                  LET IN SOME INTERRUPTS IF ANY
+        NOP
+        LIMI 0
+        MOVB @>8350,R0          ERROR FLAG FROM SUBROUTINE >10
+        JNE  IOERR2             JMP IF AN ERROR
+        MOV  @RWFLAG,R5         GET READ/WRITE FLAG
+        JEQ  RTNFU0
+        MOV  @VDPADR,R0         MOVE SECTOR FROM VDP RAM
+        MOV  @ABUFFE,R1         TO CPU RAM AT DESIRED ADDRESS
+        LI   R2,256
+        BLWP @VMBR              READ THE SECTOR
+RTNFU0  EQU  $
+        LI   R1,0               GOOD RETURN
+        JMP  RTNFUN
+IOERR   SBZ  0                  TURN OFF DISK ROM
+        LWPI WSP                RESTORE OUR REGISTERS
+IOERR2  EQU  $
+        SWPB R0
+        ANDI R0,>00FF
+        MOV  R0,R1
+        INC  R1
+        JMP  RTNFUN
+ERR1    EQU  $
+        LI   R1,8               COULDN'T FIND DSR ERROR
+*
+RTNFUN  EQU  $
+        LIMI 2                  MAKE SURE INTERRUPTS ARE RE-ENABLED
+        MOV  @AERROR,R5         GET ERROR LOCATION
+        MOV  R1,*R5             SAVE ANY ERROR
+        MOV  @BASADR,R3         RESTORE BASE ADDRESS
+        MOV  @RETADR,R11        RESTORE RETURN ADDRESS
+        B    *R11               RETURN
+*
+*  GETBYT - Get a byte from the specified array
+*
+*  This routine returns a byte, given a byte offset, from the 
+*  specified array.  This is much quicker in assembly rather than
+*  in FORTRAN due to the superior lookup byte manipulation facilities
+*  in assembly language.
+*
+*  Calling Sequence:
+*
+*       BYTE = GETBYT ( ARRAY, POINTER )
+*
+	DEF   GETBYT
+*
+GETBYT  EQU   $
+	DATA  -2		2 ARGUMENTS
+	DATA  BASADR		BASE ADDRESS OF TEMPS
+	MOV  @AARRAY,R2		GET ARRAY ADDRESS START
+	DEC  R2			ZERO OFFSET
+	MOV  @APOINT,R1		ADDRESS OF POINTER
+	A    *R1,R2		+ OFFSET
+	CLR  R5
+	MOVB *R2,R5
+	SWPB R5
+	MOV  @BASADR,R3		RESTORE BASE ADDRESS
+	MOV  R5,R5		SET STATUS
+	B    *R11		RETURN
+*
+*  PUTBYT - Put a byte into an array
+*
+*  Calling Sequence:
+*
+*	CALL PUTBYT ( ARRAY, POINTER, CHARACTER )
+*
+*
+	DEF   PUTBYT
+*
+PUTBYT  EQU   $
+	DATA  -3		3 ARGUMENTS
+	DATA  BASADR		BASE ADDRESS
+	MOV   @AARRAY,R2	GET ARRAY ADDRESS START
+	DEC   R2		ZERO OFFSET
+	MOV   @APOINT,R1	ADDRESS OF POINTER
+	A     *R1,R2		+ OFFSET
+	MOV   @ACHAR,R5		CHARACTER ADDRESS
+	MOV   *R5,R5		GET CHARACTER
+	SWPB  R5
+	MOVB  R5,*R2		MOVE THE CHARACTER
+	MOV   @BASADR,R3	RESTORE BASE
+	B     *R11
+*
+*  LOCAL DATA AREA
+*
+BASADR  DATA  0                 BASE ADDRESS OF CALLER
+RETADR  DATA  0                 MY RETURN ADDRESS
+*
+ALABEL  EQU   $			FORTRAN LABEL
+AARRAY  EQU   $			ARRAY ADDRESS
+ADISKN  DATA  0                 DISK NUMBER
+*
+ARECNO  EQU   $			RECORD NUMBER
+APOINT  EQU   $			POINT TO ARRAY
+ASECTO  DATA  0                 SECTOR NUMBER
+*
+ACHAR   EQU   $			CHARACTER TO READ/WRITE
+ABUFFE  DATA  0                 BUFFER
+*
+AERROR  DATA  0                 ANY RETURNED ERROR
+*
+XAA     BYTE >AA                I'M HERE CRU BYTE
+        EVEN
+VR9     DATA 0                  SAVE FOR SUBROUTINE ADDRESS
+VD2     DATA 0                  SEARCH LIST POINTER
+V56     DATA  >0790             8356=PTR TO NAME LENGTH IN PAB
+RWFLAG  DATA 0                  0=WRITE, 1=READ
+VDPADR  DATA 0			VDP BUFFER ADDRESS (1 SECTOR)
+*
+FUNSTA  EQU  $			I/O FUNCTION STACK
+	DATA 0			FUNCTION CODE
+	DATA 0			I/O LABEL
+	DATA 0			ADDRESS TO READ/WRITE
+	DATA 128		128 BYTES
+	DATA 0			RELATIVE RECORD #
+        END

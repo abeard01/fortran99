@@ -1,0 +1,607 @@
+      program filezap
+      implicit integer(a-z)
+c
+c  filezap : an MDOS utility to inspect and alter disk files
+c
+c  usage:
+c
+c               FILEZAP <file to inspect/alter>
+c
+c  FILEZAP allows you to inspect and alter the file sector by sector,
+c  under user control.   An entire disk can be inspected/altered by
+c  specifying the name of the disk, e.g.:
+c
+c               FILEZAP A:
+c               FILEZAP DSK2:
+c
+c  Note that the binary read function of MDOS does not yet work with
+c  hard drives (as of MDOöööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööööö
+c                                       on R, recover record
+          else if ( k1 .eq. 'R' .or. k1 .eq. 'r' ) then
+            lsector = -1                ! force new sector load
+            refresh = .true.
+c                                       on space, hex modify mode
+          else if ( k1 .eq. ' ' ) then
+            call modhex
+            refresh = .true.
+c                                       on *, ascii modify mode
+          else if ( k1 .eq. '*' ) then
+            call modasc
+            refresh = .true.
+c
+          else if ( k1 .eq. '/' ) then
+            first = .true.
+            call search ( first )
+            if ( psector .ne. isector .or. boffset .ne. soffset ) then
+              refresh = .true.
+            endif
+c
+          else if ( (k1 .eq. 'n' .or. k1 .eq. 'N') .and.
+     +              ( .not. first ) ) then
+            soffset = boffset
+            call search ( first )
+            if ( psector .ne. isector .or. boffset .ne. soffset ) then
+              refresh = .true.
+            endif
+          endif
+        enddo
+9999    write ( 6, 9160 )
+        stop
+c
+9100    format ( ' Usage:   FILEZAP <file name>    or'/
+     +           '          FILEZAP <disk name>')
+9110    format ( ///' **Error ',i3, ' accessing file ',80a1/)
+9120    format ( ///' Enter file name or disk name to edit:')
+9121    format ( 80a1 )
+9125    format ('1        FileZap 1.6',
+     +              m1.63,'LGMA Products')
+9130    format ('+',m3.63,'End rec :',i5,
+     +              m5.63,'File : ',8a1,
+     +              m6.63,15a1,
+     +              m7.63,'EOF : ',i3)
+9131    format ('+',m18.5,'Commands: S) Starting record',
+     +              m18.38,'E) Ending record',
+     +              m19.15,'F) Forward record',
+     +              m19.38,'B) Backward record',
+     +              m20.15,'U) Update record',
+     +              m20.38,'R) Recover record',
+     +              m21.15,'/) Search',
+     +              m21.38,'N) Search Next')
+9132    format ('+',m22.9,'<SPACE> : enter HEX modify',
+     +              m22.37,'* : enter ASCII modify',
+     +              m23.13,'<n>CR : goto record n',
+     +              m23.38,'^C : exit program',
+     +              m18.65,'Mouse Usage:',
+     +              m20.64,'Right  = Forward',
+     +              m21.64,'Left   = Backward',
+     +              m22.64,'Center = Modify')
+9133    format ('+',m8.63, 'Program File')
+9134    format ('+',m8.63, 'Disp/Fixed ',i3)
+9135    format ('+',m8.63, 'Disp/Var ',i3)
+9136    format ('+',m8.63, 'Int/Fixed ',i3)
+9137    format ('+',m8.63, 'Int/Var ',i3)
+9140    format ( '+', mn.1, z2, ' : ', 4(z8,1x), ' : ',2a8, m1.1 )
+9150    format ( '+', m2.63, 'Cur rec :',i5)
+9160    format ( '+', m24.79, // )
+9170    format ('+',m3.63,'End rec :',i5,
+     +              m5.63,'Disk: ',8a1,
+     +              m6.63,10a1)
+9180    format ( '+', m7.63, 'Sect/Track : ',i4,
+     +                m8.63, 'Track/Side : ',i4,
+     +                m9.63, '# Sides :    ',i4,
+     +               m10.63, 'Density :    ',i4)
+9190    format ( '+', mn.n, '*' )
+        end
+      subroutine search ( first )
+      implicit integer(a-z)
+c
+c  search  :  search for a given hexadecimal value; starting at
+c             the current sector isector; and proceeding to the
+c             end of the file specified by lastsect
+c
+      include 'FILECOM/NOLIST'
+c
+      logical *2 first
+      integer *2 vsector(128)
+      equivalence (vsector, sector)
+c
+      write ( 6, 9140 )
+c                                 if first time; then
+      if ( first ) then
+        len = 0
+        do while ( len .eq. 0 )
+          write ( 6, 9100 )
+          read  ( 6, 9110, end=9999, err=9999 ) len, svalue
+          psector = isector
+          offset = 0
+        enddo
+      else
+        offset = offset + 1
+      endif
+c
+c  start the search at current sector, offset=0
+c
+      if ( offset .gt. 127 ) then
+        offset = 0
+        psector = psector + 1
+        if ( psector .ge. lastsect ) return
+      endif
+c
+c  do for each sector until value found, search aborted, or end of file
+c
+      write ( 6, 9105 )
+      boffset = offset * 2
+      do while ( psector .le. lastsect )
+c
+c  see if user requesting abort; if so; then display message and exit
+c
+        call key ( 0, k, status )
+        if ( status .ne. 0 ) then
+          write ( 6, 9135 )
+          first  =  .true.
+          psector = -1
+          boffset = -1
+          return
+        endif
+c
+c  the user is not requesting an abort.   Display the current sector
+c  and offset being processed.
+c
+        write ( 6, 9120 ) psector, boffset, svalue
+        call gread ( psector-1, error )
+        if ( error .ne. 0 ) return
+c
+c  search this sector
+c
+        do while ( offset .lt. 128 )
+          write ( 6, 9125 ) boffset
+          if ( vsector(offset+1) .eq. svalue ) then
+            isector = psector
+            first   = .false.
+            return
+          endif
+          offset = offset + 1
+          boffset = boffset + 2
+        enddo
+c
+c  value not found on this sector.  Try the next sector
+c
+        offset  = 0
+        boffset = 0
+        psector = psector + 1
+      enddo
+c
+c  on end of file, don't allow any furthur "next".  display message
+c  not found and return
+c
+      first   = .true.          ! disallow any furthur "search next"
+      psector = -1
+      boffset = -1
+      write ( 6, 9130 )
+9999  return
+c
+9100  format ( '+', m11.63, 'Search For:', m12.65 )
+9105  format ( '+', m11.63, 14x, m12.63, 14x, m11.63 )
+9110  format ( q, z4 )
+9120  format ( '+', m13.63, 'Sector ',i5,
+     +              m14.63, 'Offset    ',z2,
+     +              m15.63, 'Value   ',z4 )
+9125  format ( '+', m14.73, z2 )
+9130  format ( '+', m16.63, 'Value Not Found')
+9135  format ( '+', m16.63, 'Search Aborted')
+9140  format ( '+', m10.63, 15x, m12.63, 15x, m13.63, 15x,
+     +              m14.63, 15x, m15.63, 15x, m16.63, 15x,
+     +              m16.63, 15x, m17.63, 15x, m10.63 )
+      end
+        subroutine modhex                      
+        implicit integer(a-z)
+c
+c  modhex - modify hexadecimal values
+c
+c  This subroutine allows the user to modify the sector in hexadecimal
+c  format (z2).
+c
+        include 'FILECOM/NOLIST'
+c
+        integer *1 achar
+        logical *2 first, second
+c
+c  write header:
+c
+        write ( 6, 9100 )
+c
+c  basic sector modification loop.  Position cursor to hexadecimal value,
+c  blank the two character position which had the value, and enter cursor
+c  polling loop.
+c
+        bsector = 1                 ! current byte being modified
+        ichar   = 0                 ! last character read
+c
+        do while ( ichar .ne. z'001b' )
+          location = bsector - 1
+          xpos = ( location ) / 16
+          ypos = ( location ) - ( xpos * 16 )
+          apos = 45 + ypos          ! ascii character position
+          xpos = xpos + 1           ! actual screen position
+          ipos = ypos / 4           ! position in group of four bytes
+          ypos = ( ypos * 2 ) + 6 + ipos
+c
+c  blank the current two characters at the cursor position.  Also, display
+c  the current location being modified on the right hand side of screen.
+c
+          write ( 6, 9110 ) xpos, ypos, xpos, apos, location
+c
+c  make sure the mouse buttons are unlatched from previous mouse
+c  press
+c
+          do while ( left .or. middle .or. right )
+            call getmsr ( dxpos, dypos, left, middle, right )
+          enddo
+c
+c  do until a keypress, mouse button press, or mouse movement
+c
+          status = 0
+          ichar  = 0
+          dxpos  = 0
+          dypos  = 0
+          do while ( (status .eq. 0) .and. (.not. middle) .and.
+     +               (dxpos .eq. 0) .and. (dypos .eq. 0 ) )
+            call key ( 0, ichar, status )
+            if ( status .eq. 0 ) then
+              call getmsr ( dxpos, dypos, left, middle, right )
+            else
+              dxpos = 0
+              dypos = 0
+            endif
+          enddo
+c
+          if ( middle ) ichar = z'001b'
+          if ( ichar .eq. 3 ) stop
+c
+c  test special characters, up, down, left, right, escape, and
+c  number keys
+c
+          first = .false.           ! first hex character seen
+c
+c                                   cursor down
+          if ( ichar .eq. z'008a' .or. dypos .gt. 0 ) then
+            achar = sector(bsector)
+            if ( achar .lt. ' ' .or. achar .gt. 'z' ) achar ='.'
+            write ( 6, 9140 ) xpos, ypos, sector(bsector),
+     +                        xpos, apos, achar, xpos, apos
+            if ( dypos .le. 0 ) dypos = 1
+            bsector = bsector + ( 16 * dypos )
+            do while ( bsector .gt. 256 )
+              bsector = bsector - 16
+            enddo
+c
+c                                   cursor right
+          else if ( ichar .eq. z'0089' .or. dxpos .gt. 0 ) then
+            achar = sector(bsector)
+            if ( achar .lt. ' ' .or. achar .gt. 'z' ) achar = '.'
+            write ( 6, 9140 ) xpos, ypos, sector(bsector),
+     +                        xpos, apos, achar, xpos, apos
+            if ( dxpos .le. 0 ) dxpos = 1
+            bsector = bsector + dxpos
+            if ( bsector .gt. 256 ) bsector = 256
+c
+c                                   cursor up
+          else if ( ichar .eq. z'008b' .or. dypos .lt. 0 ) then
+            achar = sector(bsector)
+            if ( achar .lt. ' ' .or. achar .gt. 'z' ) achar = '.'
+            write ( 6, 9140 ) xpos, ypos, sector(bsector),
+     +                        xpos, apos, achar, xpos, apos
+            if ( dypos .ge. 0 ) dypos = -1
+            bsector = bsector + ( 16 * dypos )
+            do while ( bsector .lt. 1 )
+              bsector = bsector + 16
+            enddo
+c
+c                                   cursor left
+          else if ( ichar .eq. z'0088' .or. dxpos .lt. 0 ) then
+            achar = sector(bsector)
+            if ( achar .lt. ' ' .or. achar .gt. 'z' ) achar = '.'
+            write ( 6, 9140 ) xpos, ypos, sector(bsector),
+     +                        xpos, apos, achar, xpos, apos
+            if ( dxpos .ge. 0 ) dxpos = -1
+            bsector = bsector + dxpos
+            if ( bsector .lt. 1 ) bsector = 1
+c
+c                                   hexadecimal character
+          else if ( ichar .ge. z'0030' .and. ichar .le. z'0039') then
+            hexval1 = ichar - z'0030'
+            write ( 6, 9130 ) xpos, ypos, hexval1
+            first = .true.
+c
+c                                   hexadecimal character
+          else if ( ichar .ge. z'0041' .and. ichar .le. z'0046') then
+            hexval1 = (ichar - z'0041') + z'000a'
+            write ( 6, 9130 ) xpos, ypos, hexval1
+            first = .true.
+          endif
+c
+c  if first hexadecimal character read, then try for second
+c
+          if ( first ) then
+            second = .false.
+c
+            do while ( .not. second .and. ichar .ne. z'001b')
+c
+c  make sure mouse is unlatched
+c
+              do while ( left .or. middle .or. right )
+                call getmsr ( dxpos, dypos, left, middle, right )
+              enddo
+c
+              status = 0
+              dxpos  = 0
+              dypos  = 0
+              do while ( status .eq. 0 .and. (.not. middle) )
+                call key ( 0, ichar, status )
+                if ( status .eq. 0 ) then
+                  call getmsr ( dxpos, dypos, left, middle, right )
+                endif
+              enddo
+c                                       if middle mouse, then esc
+              if ( middle ) ichar = z'001b'
+c                                       backdoor exit, cntrl/c
+              if ( ichar .eq. 3 ) stop
+c
+              if ( ichar .ge. z'0030' .and. ichar .le. z'0039' ) then
+                hexval1 = (hexval1 * 16 ) + (ichar - z'0030')
+                second  = .true.
+              else if ( ichar .ge. z'0041' .and. ichar .le. z'0046' )
+     +                                      then
+                hexval1 = (hexval1 * 16 ) + ((ichar - z'0041') +
+     +                  z'000a')
+                second  = .true.
+              else if ( ichar .eq. z'0089' ) then
+                second  = .true.
+              else if ( ichar .eq. z'000d' ) then
+                second  = .true.
+              endif
+            enddo
+c
+c  If second character or second character terminator seen, update sector
+c
+            if ( second ) then
+              sector(bsector) = hexval1
+              achar = sector(bsector)
+              if ( achar .lt. ' ' .or. achar .gt. 'z' ) achar = '.'
+              write ( 6, 9140 ) xpos, ypos, sector(bsector),
+     +                          xpos, apos, achar,
+     +                          xpos, ypos
+              bsector = bsector + 1
+              if ( bsector .gt. 256 ) bsector = bsector - 1
+            endif
+          endif
+        enddo
+        write ( 6, 9150 )
+        return
+c
+9100    format ( '+', m13.63, 'Modify : HEX',
+     +                m14.63, '<ESC> to exit',
+     +                m15.63, '  or Middle',
+     +                m16.63, ' Mouse Button',
+     +                m11.63, 'Loc : ')
+9110    format ( '+', mn.n, '_ ', mn.n, '*', m11.68, z2)
+9130    format ( '+', mn.n, z1, '_' )
+9140    format ( '+', mn.n, z2, mn.n, a1, mn.n )
+9150    format ( '+', m13.63, 13x, m14.63, 13x, m11.63, 13x,
+     +                m15.63, 13x, m16.63, 13x, m1.1)
+        end
+        subroutine modasc
+        implicit integer(a-z)
+c
+c  modasc - modify ascii values
+c
+c  This subroutine allows the user to modify the sector in ascii
+c  format (a1), which means just typing on the keyboard.
+c
+        include 'FILECOM/NOLIST'
+c
+c  write header:
+c
+        integer *1 achar
+c
+        write ( 6, 9100 )
+c
+c  basic sector modification loop.  Position cursor to hexadecimal value,
+c  blank the two character position which had the value, and enter cursor
+c  polling loop.
+c
+        bsector = 1                 ! current byte being modified
+        ichar   = 0                 ! last character read
+c
+        do while ( ichar .ne. z'001b' )
+          location = bsector - 1
+          xpos = ( location ) / 16
+          ypos = ( location ) - ( xpos * 16 )
+          apos = 45 + ypos          ! ascii character position
+          xpos = xpos + 1           ! actual screen position
+          ipos = ypos / 4           ! position in group of four bytes
+          ypos = ( ypos * 2 ) + 6 + ipos
+c
+c  blank the two characters at the current cursor position.  Also, display
+c  the location being modified on the right hand side of screen.
+c
+          write ( 6, 9110 ) xpos, ypos, xpos, apos, location
+c
+c  make sure that any mouse buttons have been released
+c
+          do while ( left .or. middle .or. right )
+            call getmsr ( dxpos, dypos, left, middle, right )
+          enddo
+c
+c  wait for keypress, or middle mouse button press, or mouse movement
+c
+          status = 0
+          dxpos  = 0
+          dypos  = 0
+          ichar  = 0
+          do while ( (status .eq. 0) .and. (dxpos .eq. 0)
+     +         .and. (dypos .eq. 0)  .and. (.not. middle ) )
+            call key ( 0, ichar, status )
+            if ( status .eq. 0 ) then
+              call getmsr ( dxpos, dypos, left, middle, right )
+            endif
+          enddo
+c
+          if ( middle ) ichar = z'001b'         ! middle is escape
+          if ( ichar .eq. 3 ) stop              ! always abort on cntrl/c
+c
+c  test special characters, up, down, left, right, escape, and
+c  number keys
+c
+c                                   cursor down
+          if ( ichar .eq. z'008a' .or. dypos .gt. 0 ) then
+            achar = sector(bsector)
+            if ( achar .lt. ' ' .or. achar .gt. 'z' ) achar ='.'
+            write ( 6, 9140 ) xpos, ypos, sector(bsector),
+     +                        xpos, apos, achar, xpos, apos
+            if ( dxpos .le. 0 ) dxpos = 1
+            bsector = bsector + ( 16 * dxpos )
+            do while ( bsector .gt. 256 )
+              bsector = bsector - 16
+            enddo
+c                                   cursor right
+          else if ( ichar .eq. z'0089' .or. dxpos .gt. 0 ) then
+            achar = sector(bsector)
+            if ( achar .lt. ' ' .or. achar .gt. 'z' ) achar = '.'
+            write ( 6, 9140 ) xpos, ypos, sector(bsector),
+     +                        xpos, apos, achar, xpos, apos
+            if ( dxpos .le. 0 ) dxpos = 1
+            bsector = bsector + dxpos
+            if ( bsector .gt. 256 ) bsector = 256
+c                                   cursor up
+          else if ( ichar .eq. z'008b' .or. dypos .lt. 0 ) then
+            achar = sector(bsector)
+            if ( achar .lt. ' ' .or. achar .gt. 'z' ) achar = '.'
+            write ( 6, 9140 ) xpos, ypos, sector(bsector),
+     +                        xpos, apos, achar, xpos, apos
+            if ( dypos .ge. 0 ) dypos = -1
+            bsector = bsector + ( 16 * dypos )
+            do while ( bsector .lt. 1 )
+              bsector = bsector + 16
+            enddo
+c                                   cursor left
+          else if ( ichar .eq. z'0088' .or. dxpos .lt. 0 ) then
+            achar = sector(bsector)
+            if ( achar .lt. ' ' .or. achar .gt. 'z' ) achar = '.'
+            write ( 6, 9140 ) xpos, ypos, sector(bsector),
+     +                        xpos, apos, achar, xpos, apos
+            if ( dxpos .ge. 0 ) dxpos = -1
+            bsector = bsector + dxpos
+            if ( bsector .lt. 1 ) bsector = 1
+c                                   hexadecimal character
+          else if ( ichar .ge. z'0020' .and. ichar .le. z'007f') then
+c
+c  if first hexadecimal character read, then try for second
+c
+            sector(bsector) = ichar
+            achar = ichar
+            if ( achar .lt. ' ' .or. achar .gt. 'z' ) achar = '.'
+            write ( 6, 9140 ) xpos, ypos, sector(bsector),
+     +                        xpos, apos, achar,
+     +                        xpos, ypos
+            bsector = bsector + 1
+            if ( bsector .gt. 256 ) bsector = bsector - 1
+          endif
+        enddo
+        write ( 6, 9150 )
+        return
+c
+9100    format ( '+', m13.63, 'Modify : ASCII',
+     +                m14.63, '<ESC> to exit',
+     +                m11.63, 'Loc : ',
+     +                m15.63, '  or Middle',
+     +                m16.63, ' Mouse Button')
+9110    format ( '+', mn.n, '_ ', mn.n, '*', m11.68, z2)
+9140    format ( '+', mn.n, z2, mn.n, a1, mn.n )
+9150    format ( '+', m13.63, 14x, m14.63, 13x, m11.63, 13x,
+     +                m15.63, 13x, m16.63, 13x, m1.1)
+        end
+        subroutine beepbad
+c
+c  beepbad : issue a bad beep tone, so the user will know he did something
+c            wrong.
+c
+        call sound ( 300, 110, 0 )
+        end
+        subroutine beepgood
+c
+c  beepgood : issue a good beep tone, so the user will know that
+c             something has happened right.
+c
+        call sound ( 300, 500, 5 )
+        end
+        subroutine gread ( nsector, error )
+        implicit integer(a-z)
+c
+c  gread : reads the sector requested into the "sector" array.  It
+c          first searches my sector buffers to see if the sector
+c          is in the cache, in this way helping to eliminate multiple
+c          reads.
+c
+        include 'FILECOM/NOLIST'
+c
+c  see if sector in sector buffers
+c
+        do 1000 i=1,maxsect
+        if ( sectnum(i) .eq. nsector ) then
+          do 1010 j=1,256
+1010      sector(j) = sectors(j,i)
+          return
+        endif
+1000    continue
+c
+c  drop through do loop means that sector is not in sector cache.
+c  See if any empty cache spaces in sector cache, if so then read
+c  the sector into there.
+c
+        do 1020 i=1,maxsect
+        if ( sectnum(i) .eq. -1 ) then
+          nextsect = i
+          goto 1030
+        endif
+1020    continue
+c
+c  No empty sectors in cache.  Must deallocate one.  Do this via the
+c  revolving pointer.
+c
+        nextsect = nextsect + 1
+        if ( nextsect .lt. 0       ) nextsect = 1
+        if ( nextsect .gt. maxsect ) nextsect = 1
+c
+c  An empty sector was found in the cache, make it the next sector
+c  to process.
+c
+1030    continue
+        call bread ( file, nsector, 1, sectors(1,nextsect), error )
+        if ( error .ne. 0 ) return
+c
+c  Good read on the new sector.  Set the sector number so I will remember
+c  where the sector is in sector cache, and move the sector data to
+c  the user sector array.
+c
+        sectnum(nextsect) = nsector
+        do 1040 i=1,256
+1040    sector(i) = sectors(i,nextsect)
+        end
+        subroutine flush ( nsector )
+        implicit integer(a-z)
+c
+c  flush  :  flush is called when a sector is written back to disk.
+c            It removes the record of the sector from the sector
+c            cache, which will force the next read to come from the
+c            disk.
+c
+        include 'FILECOM/NOLIST'
+c
+        do 1000 i=1,maxsect
+          if ( sectnum(i) .eq. nsector ) then
+            sectnum(i) = -1
+          endif
+1000    continue
+        return
+        end

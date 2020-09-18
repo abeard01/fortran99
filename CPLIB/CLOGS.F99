@@ -1,0 +1,15 @@
+      COMPLEX FUNCTION CLOG(X) ! COMPLEX LOGARITHM
+C
+C  Copyright 1989 by LGMA Products
+C
+C  Update History:
+C
+C    26-Nov-89   E.Clausen   Initial Version by Elmer Clausen
+C
+      COMPLEX X
+      COMPLEX*16 DCMPLX
+      REAL*8 A,B,DLOG,DSQRT,DATAN2
+      A=X                      ! REAL PART OF X
+      B=AIMAG(X)               ! IMAG PART OF X
+         CLOG=DCMPLX(DLOG(DSQRT(A*A+B*B)),DATAN2(B,A))
+      END

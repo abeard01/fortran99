@@ -1,0 +1,28 @@
+c
+c  bakcom :  backup program common declaration
+c
+        character  logfile, argv, command, hardfile, flopfile
+        character  irec, device, fullfile, sectors, outbuf, thisfile
+        character  date, arcname, repeatc, soh, repsent, vsector(15360)
+        character  options
+        integer *1 cmdlen, method, fileinfo
+        integer *2 iout, error, argc, iptr, nofiles, itype, rtype
+        integer *2 rsize, isize, outptr, tracks, skew, interlace
+        integer *2 density, sides, backno, cursect, repeatn, secttrak
+        integer *2 nosectd, nosectf
+        logical *2 logging, mounted, fastscan, flush, overwrit, skipfile
+        integer *4 filread, filwrite
+        real    *8 maxinput, maxoutput
+        common error, argv(40,5), iout, command(81), argc,
+     +         logfile(40), logging, hardfile(40), flopfile(40),
+     +         irec(256), iptr, device(10), method, fileinfo(20),
+     +         nofiles(20), fullfile(40), rsize, isize, itype,
+     +         rtype, sectors(256,60), outptr, outbuf(8192),
+     +         mounted, tracks, skew, interlace, density, sides,
+     +         date(8), arcname(16), backno, cursect, repeatc,
+     +         repeatn, soh, repsent, filread, filwrite, fastscan,
+     +         secttrak, nosectd, nosectf, flush, thisfile(40),
+     +         maxinput, maxoutput, overwrit, skipfile, options(40)
+c
+        equivalence (cmdlen, command(1)), (vsector, sectors)
+c

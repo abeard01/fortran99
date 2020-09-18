@@ -1,0 +1,10 @@
+assign errors:   sys:fortran/gerrors
+assign listings: sys:fortran/glistings
+assign objects:  sys:fortran/gobjects
+assign equates:  sys:fortran/equates
+date >now
+crever
+a99 >errors:debug -oobjects:objd -llistings:debug debug
+date >end
+type errors:debug
+

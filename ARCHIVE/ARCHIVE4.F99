@@ -1,0 +1,534 @@
+	SUBROUTINE GETHDR
+	IMPLICIT INTEGER(A-Z)
+C
+C  GETHDR - Get a header routine
+C
+C  This routine gets the next header in the archive.  It is passed
+C  a record number (HREP) and a pointer within record (HPTR).  It
+C  returns an updated pointer HPTR which points to the next archive
+C  record in the array HREC.
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+C
+C  If header pointer past 14th header record, and this is not the
+C  last header sector, then:
+C
+	IF ( HREP .LT. 0 ) THEN
+	  CALL FILHDR
+	  IF ( ERROR .NE. 0 ) RETURN
+	  HPTR = 1
+	ELSE IF ( HPTR .GT. 117 ) THEN
+	  IF ( HREC(127) .NE. 0 ) THEN
+	    DO 1000 I=1,9
+1000	    IHREC(I) = 0
+	    RETURN
+	  ENDIF
+	  CALL FILHDR
+	  IF ( ERROR .NE. 0 ) RETURN
+	  HPTR = 1
+C					There is more in this record
+	ELSE
+	  HPTR = HPTR + 9
+	ENDIF
+C
+C  Move this file's header record to IHREC array, to shorten code
+C  in calling routines
+C
+	DO 1010 I=1,9
+	J = HPTR + (I - 1)
+1010	IHREC(I) = HREC(J)
+	END
+	SUBROUTINE FILHDR
+	IMPLICIT INTEGER(A-Z)
+C
+C  FILHDR - Fills the header buffer (HREC) with the next two
+C 	    128 byte records from the input archive file.
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+C
+	HREP = HREP + 1
+	CALL RECORE ( 1, HREP, HREC, ERROR )
+	HREP = HREP + 1
+	IF ( ERROR .EQ. 0 ) CALL RECORE ( 1, HREP, HREC(65), ERROR)
+	IF ( ERROR .NE. 0 ) THEN
+	  CALL DIERROR ( -1 )
+	ENDIF
+	END
+	SUBROUTINE PUTHDR
+	IMPLICIT INTEGER(A-Z)
+C
+C  PUTHDR - This routine packs away a mini disk file name header
+C	    into a header record.
+C
+C   A header record contains up to fourteen 18 byte file descriptors.
+C   A mini-file descriptor includes the disk file name (10 bytes), the
+C   file status flag (1 byte), the maximum records per sector (1 byte),
+C   The total sectors used (2 bytes), the EOF offset (1 byte), and the
+C   logical record length (1 byte).
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+C
+C   See if past end of header.  If so, start another
+C
+	IF ( HPTR .GT. 117 ) THEN
+C					Zap last 2 bytes
+	  HREC(127) = 0
+	  HREC(128) = 0
+C					WRITE IT
+	  CALL RECOWR ( 1, HREP, HREC, ERROR )
+	  HREP = HREP + 1
+	  IF ( ERROR .EQ. 0 ) CALL RECOWR (1,HREP,HREC(65),ERROR)
+	  HREP = HREP + 1
+	  HPTR = 0
+          IF ( ERROR .NE. 0 ) THEN
+	    CALL DIERROR ( -1 )
+	    RETURN
+	  ENDIF
+	ENDIF
+C
+C  MOVE THE FILE NAME
+C
+	DO 1000 I=1,5			! 10 CHARACTER FILE NAME
+	  HPTR = HPTR + 1
+	  HREC(HPTR) = FREC(I)
+1000	CONTINUE
+C
+C  MOVE THE MISC INFORMATION
+C
+	DO 1010 I=7,10
+	  HPTR = HPTR + 1
+	  HREC(HPTR) = FREC(I)
+1010	CONTINUE
+	END
+	SUBROUTINE DIERROR ( LABEL )
+	IMPLICIT INTEGER(A-Z)
+C
+C  DIERROR -  AN ERROR OCCURRED.  DISPLAY IT TO THE USER.
+C	      PASSED PARAMETER LABEL = -1, ITS A FORTRAN I/O ERROR
+C					   AND FILE NAME IN FILENM.
+C	      OTHERWISE, LABEL IS THE SECTOR NUMBER IN ERROR.
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+	DIMENSION HFNAME(5)
+	EQUIVALENCE (HFNAME(1),IHREC(1))
+C
+	DIMENSION ERRTXT(5,8)
+	DATA ERRTXT / 10HBAD DEVICE, 10HWRITE PROT,
+     +                10HBAD OPEN A, 10HILL OPERAT,
+     +                10HNO BUFFER , 10HPAST EOF  ,
+     +                10HDEV ERROR , 10HFILE ERROR  /
+C
+	INDEX = IAND(ERROR-1,7) + 1
+	IF ( LABEL .EQ. -1 ) THEN
+	  WRITE ( 6, 9100 ) ERROR, (ERRTXT(I,INDEX),I=1,5),
+     +			           FILENM
+	ELSE IF ( LABEL .EQ. -2 ) THEN
+	  WRITE ( 6, 9100 ) ERROR, (ERRTXT(I,INDEX),I=1,5),
+     +                             HFNAME
+	ELSE
+	  WRITE ( 6, 9110 ) ERROR, (ERRTXT(I,INDEX),I=1,5),
+     +			    IDISK, SS
+	ENDIF
+	CALL WAIT
+	RETURN
+9100	FORMAT ( '0**Error ',I6,'-',5A2,' on'/
+     +           '   file ',10A2 )
+9110	FORMAT ( '0**Error ',I6,'-',5A2,' on'/
+     +           '   disk/sector',I1,'/',I4)
+	END
+	SUBROUTINE GETSECT
+	IMPLICIT INTEGER(A-Z)
+C
+C  GETSECT   - THIS ROUTINE GETS THE NEXT SECTOR OF THE DATA CLUSTER.
+C	       DATA CLUSTER IS POINTED TO BY DCPBPTR.  THE SECTOR
+C	       WITHIN THE CLUSTER IS POINTED TO BY SS.  IF DCPBPTR
+C	       IS ZERO, THEN NO DATA HAS BEEN READ UP TO NOW.
+C
+C	       TO INFORM THE USER WHAT IS GOING ON, THE DATA CLUSTER
+C	       START AND END SECTOR ARE DISPLAYED, AS WELL AS WHAT
+C	       SECTOR I AM CURRENTLY DEALING WITH.
+C
+C	       TWO VARIABLES ARE PARTICULARY IMPORTANT IN THIS ROUTINE:
+C
+C	         DCPBPTR - POINTER TO DATA CHAIN (INITIALLY 0)
+C		 SS      - SECTOR NUMBER
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+C
+	DIMENSION FNAME(5)
+C
+C  IF DCPBPTR IS ZERO, THIS IS SETUP TIME!  ALSO, IF NO MORE SECTORS
+C  IN DATA CLUSTER, THIS IS ALSO SETUP TIME!
+C
+	IF ( DCPBPTR .EQ. 0 ) THEN
+	  WRITE ( 6, 9110 )		! CLEAR FRACTURED FILE MESSAGE
+	  DCPBPTR = 1			! DATA CHAIN POINTER INIT
+	  CALL GETDCPB			! GET DATA CHAIN POINTER
+	  IF ( SS .EQ. 0 ) RETURN	! FILE EMPTY
+	  PREVOFF = OF			! SAVE PREVIOUS OFFSET
+	  OE = SS + OF
+	  WRITE ( 6, 9130 ) SS, OE
+	ELSE
+	  SS = SS + 1			! INCREMENT SECTOR
+	  OF = OF - 1			! DECREMENT OFFSET
+	  IF ( OF .LT. 0 ) THEN		! IF NEGATIVE, THEN DONE THIS DC
+	    CALL GETDCPB		! GET NEXT DATA CHAIN
+	    IF ( SS .EQ. 0 ) RETURN	! IF SECTOR 0, THEN DONE
+	    WRITE ( 6, 9120 )		! ELSE, FRACTURED FILE
+	    TEMP    =  OF
+	    OF      =  OF - PREVOFF - 1
+	    PREVOFF =  TEMP
+	    OE      =  SS + OF
+	    WRITE ( 6, 9130 ) SS, OE
+	  ENDIF
+	ENDIF
+C
+C  READ A SECTOR OF THIS DATA CLUSTER (IF NOT END OF FILE).
+C
+	WRITE ( 6, 9140 ) SS
+	CALL SECTRE ( IDISK, SS, IOREC, ERROR )
+	CNTSECT = CNTSECT + 1
+	IF ( ERROR .NE. 0 ) THEN
+	  CALL DIERROR ( SS )
+	  RETURN
+	ENDIF
+9110	FORMAT ( '+',M9.2, 14X, M10.2 )
+9120	FORMAT ( '+',M9.2, 'Fractured File')
+9130	FORMAT ( '+',M8.2, 'Start/End Sector',2I4 )
+9140    FORMAT ( '+',M10.2,'Sector',I17  )
+	END          
+	SUBROUTINE GETDCPB
+	IMPLICIT INTEGER(A-Z)
+C
+C  GETDCP - Gets a data chain pointer
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+	DIMENSION DCPB(113)
+	EQUIVALENCE (DCPB(1),FREC(15))
+C
+C  DO FOR EACH DATA CHAIN POINTER.  EACH DATA CHAIN POINTER IS
+C  3 BYTES LONG THAT POINT TO THE CLUSTERS OF SECTORS USED BY
+C  A FILE, AND ALSO INDICATE THE HIGHEST LOGICAL OFFSET (TOTAL 
+C  NUMBER OF SECTORS USED SO FAR).  THE DCPB ARRAY POINTS TO
+C  THIS DATA CHAIN.
+C
+C  THE DATA CHAINS ARE PACKED IN A VERY INCONVENIENT FORMAT.
+C  (ITS REALLY A PAIN, WHY DO THEY MAKE IT SO TOUGH?).  THE
+C  FORMAT IS:
+C
+C  | ss2 : ss1 |   | of1 : ss3 |   | of3 : of2 |  gets changed to
+C  | ss3 : ss2 : ss1 |     | of3 : of2 : of1 |
+C
+C  Note that the offset is an accumlating offset, and is really
+C  the total number of sectors used in the data cluster so far.
+C
+	BYTE1 = GETBYT ( DCPB, DCPBPTR )	! GET BYTE 1
+	DCPBPTR = DCPBPTR + 1
+	BYTE2 = GETBYT ( DCPB, DCPBPTR )	! GET BYTE 2
+	DCPBPTR = DCPBPTR + 1
+	BYTE3 = GETBYT ( DCPB, DCPBPTR )	! GET BYTE 3
+	DCPBPTR = DCPBPTR + 1
+C
+C  SS IS SECTOR NUMBER START, THIS DATA CLUSTER.  OF IS OFFSET
+C  (# OF SECTORS TO READ).
+C
+	SS = ( IAND(BYTE2,'000F'X) * 256 ) + BYTE1
+	OF = ( BYTE2/16 ) + ( BYTE3*16 )
+	END
+	INTEGER FUNCTION GETHUFF(IDUM)
+	IMPLICIT INTEGER(A-Z)
+C
+C  Get an encoded byte or EOF.  Reads from specified stream AS NEEDED.
+C
+C  There are two unsynchronized bit-byte relationships here.
+C  The input stream bytes are converted to bit strings of
+C  various lengths via the variable named C.
+C  These bit strings are concatenated without padding to
+C  become the stream of encoded result bytes, which this
+C  function returns one at a time.  The EOF (end of file) is
+C  converted to SPEOF for convenience and encoded like any
+C  other input value.  True EOF is returned after that.
+C
+C  The original GETHUFF() called a seperate function,
+C  GETBIT(), but that more readable version was too slow.
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+C
+	RBYTE = 0		! Resultant byte value
+	NEED  = 8		! Number of bits
+C
+C  Loop to build a byte of encoded data
+C  Initialization forces read the first time
+C
+	DO WHILE ( .TRUE. )
+	  IF ( CBITSREM .GE. NEED ) THEN
+C
+C  Current code fullfills our need
+C
+	    IF ( NEED .EQ. 0 ) THEN
+	      GETHUFF = IAND(RBYTE,'00FF'X)
+	      RETURN
+	    ENDIF
+C
+C  Take what we need
+C
+	    RBYTE = RBYTE + ISHFT(CCODE,8-NEED)
+C
+C  and leave the rest
+C
+	    CCODE = ISHFT(CCODE,-NEED)
+	    CBITSREM = CBITSREM - NEED
+	    GETHUFF = IAND(RBYTE,'00FF'X)
+	    RETURN
+	  ENDIF
+C
+C  We need more than the current code
+C
+	  IF ( CBITSREM .GT. 0 ) THEN
+C
+C  Take what there is
+C
+	    RBYTE = RBYTE + ISHFT(CCODE,8-NEED)
+	    NEED = NEED - CBITSREM
+	  ENDIF
+C
+C  No more bits in current code string
+C
+	  IF ( CURIN .EQ. SPEOF ) THEN
+C
+C  The end of file token has been encoded.  If result byte has
+C  data return it and do EOF next time.
+C
+	    CBITSREM = 0
+	    IF ( NEED .EQ. 8 ) THEN
+	      GETHUFF = EOF
+	    ELSE
+	      GETHUFF = IAND(RBYTE,'00FF'X)
+	    ENDIF
+	    RETURN
+	  ENDIF
+C
+C  Get an input byte
+C
+	  CURIN = GETCNR(IDUM)
+	  IF ( CURIN .EQ. EOF ) CURIN = SPEOF
+C
+C  Get the new bytes data
+C
+	  CCODE = CODE(CURIN+1)
+	  CBITSREM = CODELEN(CURIN+1)
+	ENDDO
+	END
+	SUBROUTINE PUTWE ( C )
+	IMPLICIT INTEGER(A-Z)
+C
+C  PUTWE - Puts a word in output buffer
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+C
+C  1ST byte
+C
+	CALL PUTCE ( C )
+	IF ( ERROR .NE. 0 ) RETURN
+C
+C  2ND byte
+C
+C  Note use of ishft here rather than division.  This fixed a rather
+C  nasty bug which surfaced in version 3.0 when the bug with integer
+C  signed division was corrected.
+C
+	C1  = ISHFT ( C, -8 )
+	CALL PUTCE ( C1 )
+	END
+	SUBROUTINE PUTCE ( C )
+	IMPLICIT INTEGER(A-Z)
+C
+C  PUTCE:  Output functions with error reporting
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+C
+	OUPTR = OUPTR + 1
+	IF ( OUPTR .GT. MAXSREC ) THEN
+	  CALL OFLUSH
+	  IF ( ERROR .NE. 0 ) RETURN
+	  OUPTR = 1
+	ENDIF
+	CALL PUTBYT ( OREC, OUPTR, C )
+	END
+	SUBROUTINE OFLUSH
+	IMPLICIT INTEGER(A-Z)
+C
+C  OFLUSH - Flush the output buffer
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+C
+	IF ( OUPTR .NE. 0 ) THEN
+C
+C  ZERO FILL END OF RECORD
+C
+	  DO WHILE ( OUPTR .LT. MAXSREC )
+            OUPTR = OUPTR + 1
+	    CALL PUTBYT ( OREC, OUPTR, 0 )
+	  ENDDO
+C
+C  WRITE THE RECORD, & BUMP RECORD POINTER
+C
+	  CALL RECOWR ( 1, NORECS, OREC, ERROR )
+	  IF ( ERROR .NE. 0 ) THEN
+            CALL DIERROR ( -1 )
+	    RETURN
+	  ENDIF
+	  NORECS = NORECS + 1
+	ENDIF
+	OUPTR = 0
+	END
+	SUBROUTINE GETREC (LASTREC)
+	IMPLICIT INTEGER(A-Z)
+C
+C  GETREC - GETS THE NEXT RECORD IN THE ARCHIVE, BASED ON THE
+C	    CURRENT START RECORD (SS) AND END OFFSET (OF)
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+	DIMENSION IREC(64)
+	EQUIVALENCE (IREC(1),IOREC(1))
+	LOGICAL LASTREC
+C
+	IF ( SS .LE. OF ) THEN
+	  WRITE ( 6, 9100 ) SS
+	  CALL RECORE ( 1, SS, IREC, ERROR )
+	  IF ( ERROR .NE. 0 ) THEN
+	    CALL DIERROR ( -1 )
+	    RETURN
+	  ENDIF
+	  SS = SS + 1
+	  LASTREC = .FALSE.
+	ELSE
+	  LASTREC = .TRUE.
+	ENDIF
+C
+9100    FORMAT ( '+',M10.2,'Record',I14  )
+	END
+	INTEGER FUNCTION GETX16(IDUM)
+	INTEGER GETC
+C
+C  GETX16 - Get 16 bit word from input file
+C
+	I = GETC(IDUM)
+	GETX16 = I + (GETC(IDUM)*256)
+	END
+	INTEGER FUNCTION GETCR(IDUM)
+C
+C  Get bytes with decoding - this decodes repitition, calls GETUHUFF
+C  to decode file stream into byte level code with only repetition
+C  encoding.
+C
+C  The code is simple passing through of bytes except that DLE is
+C  encoded as DLE-zero, and other values repeated more than twice
+C  are encoded as value-DLE-count.
+C
+	IMPLICIT INTEGER(A-Z)
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+C
+	IF ( REPCT .GT. 0 ) THEN
+C
+C  Expanding a repeat count
+C
+	  REPCT = REPCT - 1
+	ELSE
+C
+C  Nothing unusual
+C
+	  C = GETUHUFF(IDUM)
+	  IF ( C .NE. DLE ) THEN
+C
+C  Its not THE special delimiter
+C
+	    VALUE = C
+	    IF ( VALUE .EQ. EOF ) REPCT = LARGE
+	  ELSE
+C
+C  Special token
+C
+	    REPCT = GETUHUFF(IDUM)
+	    IF ( REPCT .EQ. 0 ) THEN
+C	      DLE, zero represents DLE
+	      VALUE = DLE
+	    ELSE
+C	      Begin expanding repetition
+	      REPCT = REPCT - 2    	! 2nd time
+	    ENDIF
+	  ENDIF
+	ENDIF
+	GETCR = VALUE
+	END
+	INTEGER FUNCTION GETUHUFF(IDUM)
+C
+C  Decode file stream into a byte level code with only
+C  repetition encoding remaining.
+C
+	IMPLICIT INTEGER(A-Z)
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+C
+C  Follow bit stream in tree to a leaf
+C
+	I = 1	     ! Start at root of tree
+	DO WHILE ( .TRUE. )
+	  BPOS = BPOS + 1
+	  IF ( BPOS .GT. 7 ) THEN
+	    CURIN = GETC(IDUM)
+	    BPOS = 0
+C
+C  Move a level deeper into the tree
+C
+	    IF ( IAND(CURIN,1) .EQ. 0 ) THEN
+	      I = LCHILD(I)
+	    ELSE
+	      I = RCHILD(I)
+	    ENDIF
+	  ELSE
+	    CURIN = CURIN/2
+	    IF ( IAND(CURIN,1) .EQ. 0 ) THEN
+	      I = LCHILD(I)
+	    ELSE
+	      I = RCHILD(I)
+	    ENDIF
+	  ENDIF
+C
+C  The next statement was changed from the original I .LT. 0, this
+C  bug caused nulls in the output stream to be missed.
+C
+	  IF ( I .LE. 0 ) GOTO 1000
+	ENDDO
+1000	CONTINUE
+C
+C  Decode fake index to original data value
+C
+	I = -I
+	IF ( I .EQ. SPEOF ) I = EOF
+	GETUHUFF = I
+	END
+	INTEGER FUNCTION GETC(IDUM)
+C
+C  GETC - Get a byte from input file
+C
+	IMPLICIT INTEGER(A-Z)
+C
+	INCLUDE 'DSK1.ARCCOM/NOLIST'
+	DIMENSION IREC(64)
+	EQUIVALENCE (IREC(1),IOREC(1))
+	LOGICAL LASTREC
+C
+	INPTR = INPTR + 1
+	IF ( INPTR .GT. MAXSREC ) THEN
+	  INPTR = 1
+	  CALL GETREC ( LASTREC )
+	  IF ( ERROR .NE. 0 ) RETURN
+	  IF ( LASTREC ) THEN
+	    GETC = EOF
+	    RETURN
+	  ENDIF
+	ENDIF
+	GETC = GETBYT ( IREC, INPTR )
+	END
