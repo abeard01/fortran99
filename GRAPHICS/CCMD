@@ -1,0 +1,5 @@
+assign ob: sys:fortran/ggrlib
+assign li: sys:fortran/glistings
+assign equates: sys:fortran/equates
+assign fortpar: sys:fortran/equates/gplfortpar.eq9
+a99 -pc -oob:wchar  -lli:wchars   wchars

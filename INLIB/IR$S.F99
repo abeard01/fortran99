@@ -1,0 +1,18 @@
+      REAL FUNCTION IR$(I,R)
+C
+C  IR$:  Integer with Single Precision Real Exponent 
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C  08-Aug-88    v4.0   Removed extra RETURN statement
+C
+      DOUBLE PRECISION U,V,DEXP,DLOG,DBLE
+      IF(I)1,1,2
+C ERROR VALUE
+1     IR$=1.0E99
+      RETURN
+2     U=DBLE(FLOAT(I))
+      V=DBLE(R)
+      IR$=SNGL(DEXP(V*DLOG(U)))
+      END

@@ -1,0 +1,19 @@
+	logical function lcoinc ( s, y, x, t )
+c
+c  lcoinc : coincidence function for sprite & location
+c
+	integer s, y, x, t, y1, x1
+c
+	call positi ( s, y1, x1 )
+c
+	if ( iabs(y1-y) .le. t ) then
+	  if ( iabs(x1-x) .le. t ) then
+	    lcoinc = .true.
+	  else
+	    lcoinc = .false.
+	  endif
+	else
+	  lcoinc = .false.
+	endif
+	return
+	end

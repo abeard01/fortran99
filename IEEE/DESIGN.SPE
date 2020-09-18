@@ -1,0 +1,106 @@
+
+
+1.0 Title:       Design Specification for Floating Point Co-Processor; TI-99
+                 and MYARC GENEVE 9640 FORTRAN implementation.
+
+
+1.1 References:  Hardware Design Specification by Tony Lewis, et al
+
+
+1.2 Purpose:     The purpose of this document is to describe the software
+                 implementation of the MC68881 floating point co-processor
+                 on the TI-99/4A and MYARC GENEVE computers.
+
+1.3 Introduction:
+
+1.3.1 The Problem
+
+    The TI-99 and MYARC 9640 GENEVE computers currently use a floating
+    point method called RADIX 100.   This method essentially stores
+    floating point numbers as modified binary coded decimal numbers,
+    with the exponent stored as the first byte in excess 64 notation.
+
+    This method has advantages in terms of round-off and ease of implemetation
+    of the floating point add, subtract, multiply, divide, and compare
+    routines.   It has several serious disadvantages, as follows:
+
+     a. RADIX 100 is SLOW.  It is one of the reasons that a BASIC
+        program on the TI-99 is slower then most competitive systems.
+
+     b. The amount of storage for each floating point variable is
+        large to get the type of precision needed.  Most other computers
+        can do reasonable floating point with two words of storage
+        for each variable, RADIX 100 requires at least three words
+        for each variable to gain reasonable speed.
+
+   Also, RADIX 100 notation is the primary reason why intensive floating
+   point programs written in 99/9640 FORTRAN cannot perform as well
+   speed wise as systems such as an IBM PC/AT.
+
+1.3.2 Co-Processor Implementation
+
+   A method to improve floating point processing has been available
+   for different processors for some time.   This method involves
+   adding a floating point co-processor chip to the system, and
+   appropriate software which takes advantage of the new co-processor.
+
+   One such chip is the MC68881 Motorola Floating Point Co-Processor.
+   The chip is interfacable to the existing TI-99 and MYARC GENEVE
+   by means of suitable hardware components and by taking advantage
+   of the peripheral mode of the chip.
+
+   The MC68881 is slightly more expensive than some other chips (prices
+   range from $120-$180), but has several advantages over competing
+   chips:
+
+    a. It implements the full IEEE floating point
+
+    b. It is well documented from Motorola
+
+    c. Motorola has provided support on the design and implementation
+       of such a chip in a TI-99 environment
+
+    d. The chip incorporates all of the auxiliary functions desirable
+       for floating point processing (e.g. SIN, COS, ATN).  Other
+       chips are strictly "4-bangers", and provide essentially only
+       add, subtract, multiply, divide.
+
+
+1.4 Implementation
+
+   The Floating Point Co-Processor will be integrated into both a
+   MYARC 9640 GENEVE and a TI-99/4A environment, by means of a plug-in
+   card in the peripheral expansion box (PEB).   Software will be pro-
+   vided to extend 99 and 9640 FORTRAN to operate with the card.
+
+1.4.1 Hardware Implementation
+
+   The hardware will be implemented on a standard type PEB plug in
+   card (66 pin connector, standard operating voltages of +16v, +8v,
+   -16v).
+
+   Details of the hardware implementation have been developed in a
+   seperate document by Tony Lewis.
+
+
+1.4.2 Software Implementation
+
+   The IEEE floating point co-processor will be implemented as an extension
+   to 99 and 9640 FORTRAN.   A new compilation option will be added to
+   99/9640 FORTRAN, the IE option.   When the IE option is selected,
+   then the compiler through software emulation (not using the co-processor)
+   will generate:
+
+     a. Floating point REAL *4 and REAL *8 constants in IEEE standard
+        format.
+
+     b. The floating point negate routine will now call the routines:
+
+              IANEG$  -  IEEE REAL *4 NEGATE ROUTINE
+              IDNEG$  -  IEEE REAL *8 NEGATE ROUTINE
+
+   In addition, seperate runtime libraries will be provided:
+
+     a. The FL library will contain the co-processor versions of:
+
+             RA

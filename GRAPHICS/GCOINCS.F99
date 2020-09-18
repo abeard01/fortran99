@@ -1,0 +1,20 @@
+	integer function gcoinc ( s, sl, sh, t )
+c
+c  gcoinc :  coincidence function for groups of sprites.
+c	     returns lowest numbered sprite found which
+c	     overlaps the target sprite
+c
+	integer s, sl, sh, t, sp
+	logical x, coinc
+c
+	do 100 sp=sl,sh
+	  x = coinc ( s, sp, t )
+	  if ( x ) then
+	    gcoinc = sp
+	    return
+	  endif
+100	continue
+c
+	gcoinc = 0		! no coincidence found
+	return
+	end

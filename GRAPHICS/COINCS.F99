@@ -1,0 +1,20 @@
+	logical function coinc ( s1, s2, t )
+c
+c  coinc - coincindence function for two sprites, s1 and s2
+c
+c  from unknown user
+c
+c  Copyright 1989 by LGMA Products
+c
+c   10-Dec-89       INITIAL VERSION
+c
+	integer s1, s2, t, y1, y2, x1, x2
+c
+	call positi ( s1, y1, x1 )
+	call positi ( s2, y2, x2 )
+	if ( iabs ( y1-y2 ) .le. t ) then
+	  coinc = .true.
+	else
+	  coinc = .false.
+	endif
+	end

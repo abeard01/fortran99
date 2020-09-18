@@ -1,0 +1,6 @@
+      INTEGER FUNCTION MOD(I,J)
+C
+C  MOD : MODULO (REMAINDERING)
+C
+      MOD=I-(I/J)*J
+      END

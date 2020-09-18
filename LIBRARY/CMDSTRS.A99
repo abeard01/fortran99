@@ -1,0 +1,120 @@
+	TITL  'CMDSTR - RETURN COMMAND STRING'
+	IDT   'CMD'
+*
+*  CMDSTR - Return initial command string
+*
+*  This routine is called by FORTRAN under MDOS, and returns the
+*  command line options specified on the command line by MDOS.
+*
+*  This routine is illegal under GPL mode.
+*
+*  Calling Sequence:
+*
+*	CALL CMDSTR ( array [,error] )
+*
+*  Where:
+*
+*	ARRAY:	  is the array which will contain the ascii string
+*		  of data.  The first byte of the array initially
+*		  contains the maximum length of the string, upon
+*		  return, it will contain the extracted length.
+*
+*	ERROR:	  is 0 if no error encountered, -1 otherwise.
+*
+*  Change History:
+*
+*  v4.0   16-MAR-1988:   Initial Version.
+*  v4.1   19-JUL-1989:   Make the ,error qualifier optional, i.e. don't
+*			 wipe out location 0 if qualifier is in error.
+*
+*  DEFINITIONS:
+*
+	DEF  CMDSTR
+*
+*  EQUATES:
+*
+	COPY "FORTPAR:"
+*
+	UNL
+	COPY "EQUATES:FORTEX.EQ9"
+	IF   GENEVE
+	COPY "EQUATES:KEY.EQ9"
+	ENDIF
+	LIST
+*
+*  MAIN ENTRY:
+*
+CMDSTR	EQU  $
+	DATA -2			2 ARGUMENTS
+	DATA TEMPS		TEMP DATA AREA
+	IFEQ GENEVE
+	BLWP *R10		GENERATE ERROR UNDER GPL MODE
+	DATA ERROR
+	DATA 'NG'		NOT A GENEVE
+	ENDIF
+	MOV  @AARRAY,R1		GET ADDRESS OF ARRAY
+	INC  R1
+*
+*******************************************************************************
+*
+*  CMDSTR - Get command string (take from PD source from Paul Charlton)
+*
+*
+*      convert command args into string
+*
+*      IN:  R1 points to string buffer (byte after length byte)
+*           length byte must have max length of buffer
+*
+*      OUT:  ok     R0=0  equal flag SET
+*            error  R0=-1 equal flag RESET
+*
+	MOV  @CMDADR,R2		get MDOS pointer to command string
+	JEQ  NO#STR		zero length string
+	CB   @2(R2),@-1(R1)	compare lengths of strings
+	JHE  BADLEN		string too long for the buffer
+	MOV  R1,R5		cursor to caller's string buffer
+	DEC  R5
+	MOVB @2(R2),R6		count of chars to move
+	SRL  R6,8
+	INCT R6
+*
+NXTNOD	MOV  R2,R3		cursor within node
+	INCT R3
+	MOV  R2,R4
+	AI   R4,8		pointer to end of node
+*
+NODL1	MOVB *R3+,*R5+
+	DEC  R6
+	JEQ  NODJ1
+	C    R3,R4
+	JL   NODL1
+	MOV  *R2,R2		this link never zero if valid string
+	JMP  NXTNOD
+*
+NODJ1	CLR  R0
+	JMP  NODRET
+*
+NO#STR	CLR  R0
+	MOVB R0,@-1(R1)
+	MOVB R0,*R1
+	JMP  NODRET
+*
+BADLEN	SETO R0
+*
+NODRET	EQU  $
+	MOV  @AERROR,R1		Set user status
+	JEQ  NODRE1		BRIF NO VARIABLE HERE
+	MOV  R0,*R1
+NODRE1	EQU  $
+ 	MOV  @TEMPS,R3
+ 	MOV  @TEMPS+2,R11
+	B    *R11
+*
+*  DATA AREA
+*
+TEMPS	BSS  4			TEMP SAVE
+AARRAY	BSS  2			ARRAY
+AERROR	BSS  2			ANY ERROR RETURNED
+*
+BLANK	DATA '  '		A BLANK
+	END

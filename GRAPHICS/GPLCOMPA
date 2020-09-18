@@ -1,0 +1,21 @@
+assign ob: sys:fortran/ggrlib
+assign li: sys:fortran/glistings
+assign equates: sys:fortran/equates
+assign fortpar: sys:fortran/equates/gplfortpar.eq9
+a99 -pc -oob:charpa -lli:charpas  charpas
+a99 -pc -oob:char   -lli:chars    chars
+a99 -pc -oob:color  -lli:colors   colors
+a99 -pc -oob:clear  -lli:clears   clears
+a99 -pc -oob:delspr -lli:delsprs  delsprs
+a99 -pc -oob:gchar  -lli:gchars   gchars
+a99 -pc -oob:getmod -lli:getmods  getmods
+a99 -pc -oob:gvidtb -lli:gvidtbs  gvidtbs
+a99 -pc -oob:magnif -lli:magnifs  magnifs
+a99 -pc -oob:motion -lli:motions  motions
+a99 -pc -oob:positi -lli:positis  positis
+a99 -pc -oob:screen -lli:screens  screens
+a99 -pc -oob:setpix -lli:setpixs  setpixs
+a99 -pc -oob:setvec -lli:setvecs  setvecs
+a99 -pc -oob:spchar -lli:spchars  spchars
+a99 -pc -oob:sprite -lli:sprites  sprites
+a99 -pc -oob:wchar  -lli:wchars   wchars

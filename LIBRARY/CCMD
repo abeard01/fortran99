@@ -1,0 +1,5 @@
+assign ob: sys:fortran/nonmath
+assign li: sys:fortran/listings
+assign equates: sys:fortran/equates
+assign FORTPAR: sys:fortran/equates/MDOSFORTPAR.EQ9
+a99 -oob:cmdstr -lli:cmdstrs  cmdstrs

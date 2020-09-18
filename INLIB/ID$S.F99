@@ -1,0 +1,16 @@
+      DOUBLE PRECISION FUNCTION ID$(I,D)
+      DOUBLE PRECISION D,DEXP,DLOG,DBLE
+C
+C  ID$:  INTEGER WITH DOUBLE PRECISION EXPONENT
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+      IF(I)1,1,2
+C ERROR VALUE
+1     ID$=1.0D99
+      RETURN
+2     ID$=DEXP(D*DLOG(DBLE(FLOAT(I))))
+      RETURN
+      END

@@ -1,0 +1,123 @@
+	TITL 'IK$ - INTEGER TO INTEGER EXPONENTATION'
+	IDT  'IK$'
+*
+*  This routine computes the exponent of an integer number with
+*  and integer exponent.
+*
+*  It is called by the FORTRAN runtime when a construct of the type:
+*
+*		    base ** power
+*
+*  is used, where base and power are both integer arguments.
+*
+*  Revision History:
+*
+*   17-April-1987:  Revised to handle negative base arguments
+*
+	DEF  IK$
+*
+*  REGISTER VARIABLES
+*
+BASE	EQU  0
+ANS	EQU  2
+NEGFLA	EQU  3
+*
+IK$	EQU  $
+	DATA -2	    		2 ARGUMENTS
+	DATA TEMPS
+	CLR  NEGFLA	    	! CLEAR THE NEGATE FLAG AT END
+	MOV  @BASEAR,R6
+	MOV  *R6,R5		LOAD BASE & POWER
+	JEQ  IK$3
+	JGT  IK$C
+	MOV  @POWARG,NEGFLA   	! Get the power
+	MOV  *NEGFLA,NEGFLA
+	SRA  R5,8
+	ANDI NEGFLA,1		! If its odd, then must negate at end
+	ABS  R5			! Make the argument positive
+IK$C	EQU  $
+	MOV  R5,BASE      	TEST FOR SPECIAL CASES
+	MOV  @POWARG,R6
+	MOV  *R6,R5
+	SRA  R5,8
+	JLT  IK$4
+	MOV  R5,R1
+	LI   ANS,1	 	INITIALIZE ANSWER TO 1
+IK$1	EQU  $
+	MOV  R1,R5
+	JEQ  IK$6	  	DONE IF POWER=0
+	CLR  R4	    		IF NOT SHIFT R5 TO TEST
+	SRL  R5,1	  	RIGHT-MOST BIT
+	JNC  NOTBIT
+	SETO R4	    		SET BIT IF CARRY
+NOTBIT	EQU  $	     		(DOUBLE WORD SHIFT)
+	MOV  R5,R1	 	SAVE SHIFTED R5
+	MOV  R4,R4
+	JEQ  IK$2
+	MOV  ANS,R4		MULTIPLY APPROPRIATE POWER OF BASE
+	MPY  BASE,R4      	INTO ANS
+	MOV  R4,R4	 	IF >0, OVERFLOW
+	JNE  IK$5
+	MOV  R5,ANS		ELSE, SAVE RESULT
+IK$2	EQU  $	     		RAISE BASE TO NEXT POWER
+	MOV  R1,R5
+	JEQ  IK$6
+	MOV  BASE,R4      	1,2,4,8,... FOR NEXT
+	MPY  BASE,R4      	BIT TO BE SHIFTED, RESTORE
+	MOV  R4,R4
+	JNE  IK$5	  	BRIF BASE OVERFLOW
+	MOV  R5,BASE
+	JMP  IK$1
+IK$3	EQU  $
+	MOV  @POWARG,R6		IF BASE=0, THEN TEST POWER
+	MOV  *R6,R5
+	SRA  R5,8
+	JLT  IK$A
+IK$7	EQU  $
+	CLR  R5	    		IF POWER .GE. 0 THEN ANS=0
+	JMP  BRETUR
+IK$A	EQU  $	     		IF POWER .LT. 0 THEN ANS=
+	LI   R5,>8001		NEGATIVE MAX
+	JMP  BRETUR
+IK$9	EQU  $
+	LI   R5,>8000
+	JMP  BRETUR
+IK$4	EQU  $
+	CLR  R4
+	SRL  R5,1
+	JNC  NOTBI1
+	SETO R4
+NOTBI1	EQU  $			IF POWER .LT. 0 THEN
+	MOV  BASE,R5		TEST BASE
+	CI   R5,1
+	JEQ  BRETUR		IF BASE .EQ. 1, THEN ANS .EQ. 1
+	CI   R5,-1	 	IF BASE .EQ. -1, THEN ANS=+1 (EVEN POWER)
+	JNE  IK$8
+	MOV  R4,R4
+	JLT  IK$5	  	ELSE, OVERFLOW, RETURN 0
+	LI   R5,1
+	JMP  BRETUR
+IK$5	EQU  $	     		IF OVERFLOW, CHECK SIGN & RETURN + OR - MAX
+	MOV  R4,R4
+	JLT  IK$9
+	JMP  IK$A
+IK$6	EQU  $	     		NORMAL RETURN
+	MOV  ANS,R5
+	JMP  BRETUR
+IK$8	EQU  $	     		ERROR RETURN
+	JMP  IK$7
+BRETUR	EQU  $
+	MOV  NEGFLA,NEGFLA
+	JEQ  BRETU1		! Brif no need to negate
+	NEG  R5	    		! Negate result
+BRETU1	EQU  $
+	MOV  @TEMPS,R3    	RESTORE BASE
+	MOV  R5,R5	 	! Set status on result
+	B    *R11	  	& RETURN
+*
+*  DATA AREA:
+*
+TEMPS	BSS  4
+BASEAR	BSS  2	     		BASE
+POWARG	BSS  2	     		POWER
+	END

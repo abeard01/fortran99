@@ -1,0 +1,74 @@
+                                                             27-NOV-88
+
+                   MDOS Graphics Library Function Checkoff
+                   =======================================
+                              MDOS Version 1.14
+
+MDOS Function           Subroutine(s)           Status
+=============           =============           ====================
+
+ 0 SetVideoMode          SETMOD                  OK
+ 1 GetVideoMode          GETVID                  OK - note: routine wipes out
+                                                 registers 0 thru 7, vs. 0
+                                                 thru 2 documented.
+ 2 SetCurPos             SETCUR                  OK
+ 3 GetCurPos             GETCUR                  OK
+ 4 SetDisPage            SETPAG                  OK
+ 5 GetDisPage            GETPAG                  OK
+ 6 ScrollWinUp           SCRLUP                  OK
+ 7 ScrollWinDown         SCRLDN                  OK
+ 8 ScrollWinLeft         SCRLLE                  OK
+ 9 ScrollWinRight        SCRLRI                  OK
+ A Screen                SCREEN                  OK
+ B GCharColor            GCHAR                   OK
+ C SetBorderColor        SETBRD                  OK
+ D SetColPalette         SETCOL                  MDOS 1.14 non-functional
+                                                 substituted own routine
+ E SetPixelColor         SETPIX                  MDOS 1.14 non-functional
+                                                 substituted own routine
+ F GetPixelColor         GETPIX                  OK
+10 SetVectorColor        SETVEC                  OK
+11 ColorSRCH             CLRSRC                  MDOS 1.14 not returning
+                                                 status (always says found),
+                                                 right search not working.
+12 HBlockMove            HBLKMV                  OK
+13 HBlockCopy            HBLKCP                  OK
+14 LBlockMove            LBLKMV                  not tested
+15 LBlockCopy            LBLKCP                  not tested
+16 BScrollUp             BLKSUP                  OK
+17 BScrollDown           BLKSDN                  OK
+18 BScrollLeft           BLKSLE                  OK
+19 BScrollRight          BLKSRI                  OK
+1A SpriteDef             SPRITE                  OK
+1B SpriteDel             SPRDEL                  OK
+1C SpriteLocate          none                    not tested
+1D SpriteMotion          MOTION                  OK
+1E SpriteColor           part of SPRITE          OK
+1F SpritePattern         none                    not tested
+20 SpriteMagnify         MAGNIF                  OK
+21 SpritePosition        POSITI                  OK
+22 SpriteCoinc           none                    not tested
+23 SpritePatDefGet       SPCHAR                  OK (def function, no get 
+                                                  tested)
+24 CharPatDefGet	 CHAR, CHARPA            OK - Not for GRAPHIC modes
+25 SetTextWindow         SETTWN                  OK
+26 GetTextWindow         GETTWN                  OK
+27 WriteTTY              (normal CRT I/O)        "Funnys", get ghost line at
+                                                 top of screen sometimes,
+                                                 pg up/dn has problems.
+28 RestoreCharacters     RESCHA                  MDOS 1.14, Locks up system
+29 SetTextColor          -----                   OK
+2A WriteCharString       none                    OK
+2B PrintScreen           none                    not tested
+2C HCharColor
+2D VCharColor
+2E HChar                 HCHAR                   See VChar
+2F VChar                 VCHAR                   Only works in modes 0,1,3
+                                                 Other modes, something gets
+                                                 clobbered and machine locks up
+                                                 on task termination.
+30 SetMouse              SETMOU                  OK
+31 GetMouse              GETMSE                  OK
+32 GetMouseRel           GETMSR                  OK
+33 MakeSound             SOUND                   OK
+34 SoundStatus           SOUSTA                  not working for sound

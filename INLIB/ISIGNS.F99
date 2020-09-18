@@ -1,0 +1,17 @@
+      INTEGER FUNCTION ISIGN(I1,I2)
+C
+C  ISIGN:  Return Sign of Argument
+C
+C  Change History:
+C
+C  17-July-87   V3.0   Initial Release (From Elmer Clausen)
+C
+C ABSOLUTE VALUE
+      I=I1
+      IF(I.LT.0)I=-I
+      IF(I2)1,2,2
+1     ISIGN=-I
+      GO TO 3
+2     ISIGN=I
+3     RETURN
+      END

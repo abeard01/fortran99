@@ -1,0 +1,6 @@
+assign ob: sys:fortran/grlib
+assign li: sys:fortran/listings
+assign equates: sys:fortran/equates
+assign fortpar: sys:fortran/equates/mdosfortpar.eq9
+a99 -pc -oob:setvec -lli:setvecs  setvecs
+

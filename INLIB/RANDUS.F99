@@ -1,0 +1,12 @@
+      SUBROUTINE RANDU(IX,Y)
+c
+c  randu - highly uniform random distribution of numbers
+c
+      INTEGER*4 IX
+      REAL*8 Y
+      IX=IX*65539
+      IF(IX)5,6,6
+    5 IX=IX+2147483647+1
+    6 Y=IX
+      Y=Y*0.4656613D-9
+      END

@@ -1,0 +1,15 @@
+      SUBROUTINE GAUSS(IX,S,AM,V)
+c
+c  gauss - produce a normal gaussian number distribution
+c
+      INTEGER*4 IX
+      REAL*8 Y,S,AM,V
+      V=0.0D0
+      DO 50 I=1,12
+      IX=IX*65539
+      IF(IX)5,6,6
+    5 IX=IX+2147483647+1
+    6 Y=IX
+   50 V=V+Y
+      V=(V*0.4656613D-9-6.0D0)*S+AM
+      END

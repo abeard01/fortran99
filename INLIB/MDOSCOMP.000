@@ -1,0 +1,6 @@
+assign ob: sys:fortran/nonmath
+assign li: sys:fortran/listings
+a99 -pc -oob:ii$    -lli:ii$s   ii$s
+a99 -pc -oob:ij$    -lli:ij$s   ij$s
+a99 -pc -oob:ik$    -lli:ik$s   ik$s
+a99 -pc -oob:mima1  -lli:mima1s mima1s

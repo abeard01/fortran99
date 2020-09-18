@@ -1,0 +1,73 @@
+                                                          15-Feb-89
+
+Tony,
+
+I have looked over your design, and am quite impressed with your easy to
+understand flowchart and logic diagram.  I do have several comments (they
+are suggestions) to your excellent design:
+
+  1. I would prefer to see the f.p. chip as a memory mapped device (e.g.
+     the sound chip) rather than a DSR.  The DSR would be good if extensive
+     programming were needed to access the device, or if the device needed
+     to be accessed as a peripheral (e.g. via an OPEN statement in BASIC).
+     Treating it as a memory mapped device would simplify the programming 
+     immensely, since a minimum DSR requires setup on initialization, entry
+     points, etc.
+
+  2. Speaking of initialization, does any software initialization need to
+     be done upon restart (bootup) of the card?
+
+  3. I think that translation from IEEE to RADIX 100 (the TI-99 format)
+     and back again would be pretty much out of the question, it would
+     probably take longer than doing the math operation in software to
+     begin with!    What I had in mind was an option on my FORTRAN compiler,
+     which would generate "co-processor" IEEE code as an option (could 
+     generate three versions, RADIX 100, IEEE no-coprocessor, IEEE coprocessor).
+     Of course, all of the MATH libraries would change in each case, and
+     some runtime support for string-IEEE and vice versa.
+
+     C99 currently supports floating point with difficulty.  I don't think
+     anyone serious about floating point will use C99 to any great degree.
+
+     Another possibility is BASIC, which currently supports floating point
+     quite well.   The basic RADIX 100 math library is buried in ROM and
+     GROM.  (basic add/sub/mult/div and string-RADIX 100 is in ROM, all
+     trig functions, whatever are in GROM).   Of course, on the GENEVE
+     these are "disk" files, so they could be patched to use the co-
+     processor instead of the ROM'd code.   On the TI-99, it might be
+     possible to replace the ROM with a custom ROM.
+
+     I had heard that one way to do this is to just put another EPROM chip
+     on the data lines at the same address, the type of chip TI used in
+     the console is easily "overwhelmed" by the new chip.
+
+     MYARC is planning under MDOS to have a replacement MDOS math library
+     with their floating point chip.   
+
+     Paul Charlton issued specs on how anyone could do this, then it would
+     be possible on the GENEVE to replace the MDOS f.p. library with a
+     IEEE version, and then the someday to be released Advanced BASIC would
+     automatically use the f.p. chip.   Keep in mind that MDOS doesn't use
+     DSR's (which is why the HFDCC doesn't work yet in MDOS, but does on
+     TI-99, MDOS has to be changed to get HFDCC to work, whereas TI-99 
+     used DSR on the HFDCC board).   So the DSR code on the EEPROM, if
+     we were to go this way, would only be used in TI-99 or GENEVE operating
+     in TI-99 mode.
+
+     (Sorry to ramble a bit.   These are really implementation details, but
+     they give you some indication of what I had in mind).
+
+
+  4. If we went memory mapped on the chip, then the following could probably
+     be eliminated from the card:
+
+        o RAM
+        o EEPROM
+        o DIP switch and comparator
+        o Possibly some CRU interface logic?
+
+The design really looks great.   I would like to see as low cost as possible
+(the TI-99 crowd is really a cheap bunch, they are spoiled I guess), and
+TI-99/GENEVE compatibility.  The software looks straightforward to implement.
+
+   Keep it going.    al b.

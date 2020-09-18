@@ -1,0 +1,4 @@
+OPTION N,>0000
+INCLUDE OBJ2.X99
+SAVE sys:fortran/gexecute/fort42d,FORT2,FORT2E,>2000
+END
