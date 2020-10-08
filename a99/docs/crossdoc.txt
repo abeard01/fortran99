@@ -1,0 +1,1103 @@
+31-May-1989
+
+           TI 99/4A and GENEVE 9640 Cross-Assembler/Cross Loader
+           -----------------------------------------------------
+
+       This is the source and documentation for the TI-99/4A and MYARC
+GENEVE 9640 cross assembler and cross loader.   The assembler portion was
+developed from an assembler written by Dr. Bruce E. Wampler of the University
+of New Mexico.  This was posted on BIX (Byte Information Exchange) by Ron
+Lepine, and extensively modified by Al Beard (co-moderator of the TI-99
+conference) to produce object in TI-99/4A format.  
+
+        In release 2.3, a companion cross-LOADER was included.  This LOADER
+produces a TIFILES XMODEM file suitable for downloading directly to
+the TI-99/4A and MYARC GENEVE.  
+
+        The latest version has extensions to support TIC, the FAIRWARE
+C compiler for the TI-99/4A and MYARC Geneve.   Programs are more compatible
+if long ref and def names can be used, hence the assembler and loader now
+support longnames of 31 characters or less.
+       
+        I have dropped in this version (version 2.9) the FAIRWARE requirement,
+it didn't raise a single dime, and I don't want to bother with it anymore.
+Keep in mind that this program is copyrighted, which means you can use it,
+copy it, but you can't in any way sell it or use it for commercial applications.
+
+        As a final disclaimer, if this program works for you, fine.  If
+it doesn't, too bad.   If you let me know what is wrong, I'll try to look
+at it, but I don't guarantee this program will work for you and your
+application.
+
+===============================================================================
+
+a99.doc
+
+
+         TI-99/4A, TMS9900, TMS99000, & MYARC Geneve Cross Assembler
+
+                              User's Guide
+
+
+1.  Overview
+
+     This is the guide for the TMS99x series of microprocessors Cross
+Macro Assembler.  This assembler was taken originally from the TI-990
+Cross Macro Assembler used by the University of New Mexico Computer
+Science Department for CS-255.
+
+     A cross assembler is an assembler that runs on one computer (e.g. a
+TI-PRO, an IBM PC, or AMIGA) and assembles code intended to run on another
+computer (the TI-99/4A, MYARC Geneve, TMS9900 or TMS99000).
+
+     Creating and running a TI-99/4A Assembly Language Program requires the 
+following procedures:
+
+ 1.  Create Assembly Language source program on PC or UNIX or whatever.
+
+ 2.  Assemble the program using the a99 cross assembler.
+
+ 3.  Download the hex object code file using some type of downloader
+     program.  It must be downloaded into a DISPLAY/FIXED 80 file.
+
+ 4.  Load the program using the editor/assembler load and run option,
+     or the mini-memory load and run option, or the BASIC/Extended BASIC
+     CALL LOAD subroutine.
+
+    Alternately, the module can be created in a LOAD module using the cross-
+loader, and downloaded via some XMODEM package (e.g. FASTERM) into a
+PROGRAM file suitable for running on the MYARC GENEVE or TI-99/4A.
+
+    This manual describes the use of a99, the cross assembler.  It does
+not describe in detail the TMS9900 assembly language instruction set or
+addressing modes, refer to the TI-99/4A editor/assembler manual for
+a description of this.
+
+ 
+2.  a99 - The TMS99x Cross Assembler
+
+2.1  Running a99
+
+     A99 is a -c- program which is contained within several source modules,
+as follows:
+
+             a99.h       header file
+             a99main.c   main program
+             a99pass1.c  pass 1 source
+             a99pass2.c  pass 2 source
+             a99psop.c   psuedo-operands
+             a99proto.h  header file for subroutine definitions
+             loader.c    the loader source program
+
+     It is written using standard -c- constructs, so it should be compatible
+with most -c- compilers.  The version included in the archive file was 
+compiled on an AMIGA, using Lattice -C-, and on a TI-PRO, also using Lattice
+-C-.
+
+    Ron Lepine has spent considerable effort in ensuring that a99 will
+compile on a variety of C compiler products, so the chance of you getting
+it working with your C compiler is good.
+
+    A source file input into the cross assembler must have an extension of
+'.a99'.  The `.a99' is not specified when a99 is run.  A99 optionally
+creates 2 output files, the filename specified on a -l switch, with the
+extension of '.l99', and the filename specified on a -o switch, with the
+extension of '.x99'.
+
+   A99 provides a parameter switch (-p) which allows options to be turned
+on for the assembly.  These options are:
+
+         m -  extended Mode, provides long ref/def names (>6 chars)
+         n -  No register definitions (don't define R0, R1, etc.)
+         c -  Produce compressed object format (default=uncompressed)
+         g -  Provide TMS9995 extensions, including the instructions:
+                    MPYS - Signed Multiply
+                    DIVS - Signed Divide
+                    LST  - Load Status Register
+                    LWP  - Load Workspace Pointer
+         h - Provide TMS99105A and TMS99110A extensions, which include
+             the TMS9995 extensions, and also the instructions:
+                    BIND - Branch Auto-Increment
+                    BLSK - Branch and Link through Stack
+                    TMB  - Test Memory Bit
+                    TCMB - Test and Clear Memory Bit
+                    TSMB - Test and Set Memory Bit
+                    AM   - Add Double
+                    SM   - Subtract Double
+                    SLAM - Shift Left Arithmetic Double
+                    SRAM - Shift Right Arithmetic Double
+                    LDS  - Long Distance Source
+                    LDD  - Long Distance Destination
+                    AR   - Add Real
+                    SR   - Subtract Real
+                    MR   - Multiply Real
+                    DR   - Divide Real
+                    LR   - Load Real
+                    STR  - Store Real
+                    CIR  - Convert Integer to Real
+                    CRI  - Convert Real to Int
+                    NEGR - Negate Real
+                    CRE  - Convert Real to Ext Int
+                    CER  - Convert Ext Int to Real
+                    CR   - Compare Reals
+                    MM   - Multiply Multiple
+
+   A typical a99 command line to assemble the program newops.a99, create
+a listing file in file newops.l99, create an object file in file newops.x99,
+and compile with the TMS99105A/TMS99110A extensions would be:
+
+              a99 -pch -lnewops -onewops newops
+
+  A99 is a two pass assembler. At the end of the first pass, it displays the
+value of the last memory location used.  It displays the number of errors
+detected at the end of the second pass.
+
+2.2  Errors
+
+     A99 will detect most syntax errors.  Offending lines are displayed on 
+the terminal screen, followed by the error message.  In addition, the 
+offending lines are marked in the '.l99' listing file.
+
+2.3  Instruction set
+
+     A99 supports the complete instruction set as described in the TI-99/4A 
+Editor/Assembler User's Guide.
+
+     If the -pg parameter is chosen, then four additional opcodes are
+recognized for the TMS9995 microprocessor.
+
+     If the -ph parameter is chosen, then 24 new opcodes for the TMS99105A/
+TMS99110A processors, as well as the four additional TMS9995 instructions
+are recognized.
+
+     Refer to the TI TMS9995 Data Manual, and the TMS99105A/TMS99110A manuals
+for a description of the new instructions..
+
+
+2.4  Operand Addressing Modes
+
+     A99 supports all TI-990 addressing modes.  The symbols R0-R15 are 
+predefined for registers (if the -pn option was not chosen).  Any symbols 
+used as operands may use the rules for labels described below.  In addition,
+expressions as described below may also be used.  For example, "CLR @VAR+4"
+is a legal operation which refers to the contents of the 2nd word following
+the label VAR.  (VAR+0 is the word at VAR, VAR+2 is the 1st word, VAR+4 the
+2nd following word.)
+
+
+2.5  Upper and Lower Case
+
+     A99 is totally case insensitive.  Thus `ABC' is treated as being identical
+to `abc'.  This is true for opcodes, operands, and labels. 
+
+
+2.6  Labels
+
+     A99 allows labels to be up to 128 characters long.  Labels can begin 
+with any character except: 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, >, @, (, ), *, ;, -, 
+', ", comma, space,tab, or :.  Following characters may use 0 to 9 and in 
+addition.  Labels are defined by appearing in the label field, which is a 
+symbol beginning in  column 1.  Labels are terminated by a space or tab, as 
+well as a colon.  If a label is followed by a colon, it need not begin in
+column 1, but must be the first symbol on the line.  The following are valid 
+labels:           
+               SHORT:
+               A_LABEL_WITH_UNDERSCORE
+               TEMP$
+
+
+2.7  Comments
+
+     Comment lines are indicated by the first character in the line being a 
+semi-colon or an asterick.  Comments may be included on the same line as an 
+instruction by preceding them by a blank or a semi-colon.
+
+     There are certain cases were you must precede the comment with a semi-
+colon.  In particular, if the first character of your comment beings with
+a comma (,) or colon (:), then it must be preceded by a semi-colon.    
+
+
+2.8  Expressions
+
+     More general expressions are allowed in a99.  The operations +, -, *, /, 
+| (logical or), and & (logical and) are supported.  Expressions may not use 
+parens, and are evaluated strictly left to right. (* does not have precedence 
+over +, for example.)   In general, expressions may use any symbol defined 
+anywhere in the program, as well as constants.  Hex constants begin with >. 
+
+     Restrictions:  the current version of a99 does not allow spaces between 
+expression symbols and operators.  Symbols used in an expression in an "EQU" 
+directive must not be forward references.
+
+
+2.9  AORG <address>
+
+     The AORG statement works exactly the same as in the 99/4 assembler.
+If AORG is omitted, the assembly is assumed to be relocatable as if the
+statement RORG 0 preceded any object code generation.
+
+
+2.10 RORG <address>
+
+     The RORG statement works exactly the same as in the 99/4 assembler.
+If RORG is omitted, a99 defaults to a starting relocatable address of >0000.
+
+     You should not mix AORG mode with RORG mode.
+
+
+2.11  BSS <blocksize>
+
+     This reserves a block of of memory of <blocksize> bytes.  If <blocksize> 
+is odd, it will NOT be rounded up to an even size.
+
+
+2.12  DATA <valuelist>
+
+     This reserves a word of storage for each item in the list.  Items are 
+separated by commas.  Unlike the UNIBUG assembler, you may have several 
+values following the DATA statement, each taking one word of memory.
+
+
+2.13  END
+
+     Denotes the end of the program.  Every program must have an END statement.
+
+
+2.14  <label> EQU <value>
+
+     This directive will give <value> to the symbol <label>.  The value may 
+be any expression, but must not use any symbols defined after the EQU 
+statement (a forward reference is not allowed, in other words).  It is 
+possible, however, to use the <label> of the EQU anywhere in the program.
+
+
+2.15  TEXT    /string/
+
+     This reserves storage for the given string.  The string is delimeted
+by two matching characters, e.g.:
+
+       "string"   or  /string/  or  'string'
+
+If double single quotes are included in the string, they will be interpreted
+as a single quote, i.e.:
+
+       'don''t do it'
+
+
+2.16  BYTE <valuelist>
+
+     This reserves a byte of storage for each item in the list.  Items are 
+separated by commas.  Note it is possible to leave the location counter odd 
+with this statement (as with the TEXT directive).  This allows you to freely 
+mix TEXT and BYTE expressions.
+
+
+2.17 DORG <address>
+
+     The DORG statement works exactly the same as in the 99/4 assembler.
+It differs from AORG in that object code generation is suppressed.
+
+
+2.18 DEF <label>[,<label> ... [,<label>]
+
+     Provides an external definition.  Most useful to indicate an entry point 
+into the program for the load and run option.  Multiple labels are allowed
+per one DEF statement.  Each label must be sepereated by a comma, and the
+DEF list must be terminated by a blank or tab.
+
+
+2.19 IDT <ident>
+
+     An up to six character program identifier can be provided.  Merely
+includes it in the object file.
+
+
+2.20 PAGE 
+
+    Causes a page eject on the listing file.
+
+
+2.21 TITL <up-to-50-character-title>
+
+     An up to 50 character title line can be included within quotes.  This 
+line will be put at the top of each listing page.
+
+
+2.22 REF <label>[,<label>] ... [,<label>]
+
+     Provides an external reference.  The <label> field must be specified
+in another program using the DEF statement.   Multiple labels are allowed
+per one REF statement.  Each label must be sepereated by a comma, and the
+REF list must be terminated by a blank or tab.
+
+
+2.23 RT
+
+     The RT psuedo instruction provides a convenient means of executing
+a standard TI return from subroutine.  It actually generates the same
+code as the instruction:
+
+                     B  *R11
+
+2.24 COPY
+
+     The COPY psuedo instruction provides a means for including source
+files with the compilation.  This is useful say, to create a small module
+which "INCLUDES" or "COPIES" other modules in its address space.  It is
+also useful to COPY in common equate files (e.g. what was created for
+the MYARC GENEVE).
+
+     The SYNTAX of the command is:
+
+                     COPY "<filename>"
+
+where <filename> is the DOS full file name (not the TI-99 file name).  For
+example, on the Amiga, an equates file called "vid.eq9" exists in directory
+"df2:equates/", so the COPY directive would be:
+
+                     COPY "df2:equates/vid.eq9"
+
+A COPY'd file may not contain another COPY command, or an error will
+result.
+
+
+2.25 IFxx <expression> / ELSE / ENDIF
+
+The IFxx/ELSE/ENDIF statements allow you to create modules with conditionally
+assembled code.  The <expression> is evaluated, and if the expression is
+non-zero, then the following code is assembled.  If the expression is
+zero, then the following code is not assembled, until an ELSE or ENDIF
+statement is encountered.
+
+This is especially useful in writing code for two different machines or
+operating systems.  Only one source module need be maintained, and the
+proper code for each operating system can be generated by merely setting
+an equate in the program or in an equate file.
+
+For example, to generate code for MDOS or GPL, one could create a flag
+set to one or zero, e.g.:
+
+      MDOS   EQU  0             ; MDOS=1, GPL=0
+
+and then generate two sets of code, i.e.:
+
+             IFEQ  MDOS
+             XOP  @DKEYOP       ; In MDOS, call keyboard XOP
+             ELSE
+             BLWP @KSCAN        ; In GPL, call keyboard scan
+             ENDIF
+
+Note that if the MDOS flag is set to non-zero, then the XOP code will
+be generated, else the KSCAN routine will be called.  The ELSE condition
+is optional, however the ENDIF statement must be present.
+
+The following conditionals, when TRUE, will cause any following code to
+be assembled up to any following ELSE or ENDIF statement:
+
+       IF         -  if expression NOT 0
+       IFEQ       -  if expression 0
+       IFNE       -  if expression not 0 (same as IF)
+       IFLT       -  if expression less than 0
+       IFLE       -  if expression less than or equal to 0
+       IFGT       -  if expression greater than 0
+       IFGE       -  if expression greater than or equal to 0
+
+3.  Macros
+
+     A macro is a facility for text replacement.  A single line of source
+assembly code that uses a macro will be replaced by possibly many lines of 
+assembly code defined in the body of the macro definition.  Thus, to use a 
+macro, it must first be defined, then "called" from within the assembly 
+language program.  While a macro may be considered to be somewhat like a 
+subroutine, there is a major difference.  When a subroutine is called, the 
+PC changes value, and the program begins executing code in a different place 
+in memory.  When a macro is called, the code from the macro body is actually 
+substituted at the place of the call.  This substitution process is called 
+expanding the macro.  Macros may have parameters that can be substituted 
+within the body when the macro is expanded.  Figure 1 illustrates a macro 
+definition and call: 
+
+         SOURCE CODE                    EXPANDED CODE
+        AORG    >300                    AORG    >300
+JLSEQ   MACRO           ; "Jump <="
+        JLT     %1      ; %1 is param
+        JEQ     %1
+        ENDM            ; end
+;                               ;
+        C       R1,R2   ; compare       C       R1,R2
+        JLSEQ   LBL1    ; jmp <=        JLT     LBL1    [expansion]
+                                        JEQ     LBL1
+        A       R1,R2                   A       R1,R2
+LBL1    ...                     LBL1    ...
+
+                   Figure 1.  A Macro Example
+
+This macro allows a jump on arithmetic less than or equal using one line of 
+assembly source code.  It is expanded at assembly time to two actual 
+instructions, JLT and JEQ, using the parameter provided in the call: LBL1.  
+The macro definition starts with the directive MACRO and ends with the 
+directive ENDM.  Parameters in the definition are denoted with a %, and 
+provided in the call just like an ordinary operand.
+
+3.1  Macro Definition
+
+     A macro is defined with an initial line of the form:
+
+                   MACRONAME   MACRO. 
+
+     The macro name may be any standard label, and must be present with the 
+MACRO directive.  When assembling, the macro definition table is checked last.
+Thus, it is not legal to define a macro with the same name as a valid 
+instruction such as MOV or INC since a99 will match the regular MOV 
+instruction first and never get to the macro definition table.
+
+
+3.2  Macro body
+
+     The body of a macro consists of any number of legal TI assembly language 
+instructions.  There must not be calls to other macros within the body of a 
+macro definition.  Nested macros are not allowed.  The macro is ended with 
+the ENDM directive.   Macros definitions appear in the .l99 file with dashes 
+in place of the usual address/value fields.
+
+3.3  Macro Formal Parameters
+
+     Any macro definition may use up to 9 parameters.  Parameters are 
+implicitly defined, and can appear in the body of the macro definition as 
+the symbols %1 to %9.  Any given parameter may be used as often as needed 
+within the macro body.  Parameters will be expanded whenever they are found 
+within the macro body, regardless of the context. Thus, you may not use an 
+unprotected % in a macro body (See Protected values, below).  Parameters 
+must be used in order from %1 to %9.
+
+3.4  Local Labels
+
+     It is sometimes necessary to use labels within a macro definition.  If 
+a standard label were used, it would result in a multiple definition of a 
+label error whenever the macro was called more than once.  A99 allows local 
+labels to be defined within the body of a macro that will be expanded to 
+unique labels whenever the macro is called.  Local labels have the form ?x.
+The ? denotes a local label, and the x is any letter from a to z that the 
+programmer chooses. Thus, any one macro may have up to 26 local labels.  
+Labels may be re-used in different macro definitions - ?a can be used in 
+more than one macro definition. When local labels are expanded, the ?x 
+portion remains constant, and two additional letters are automatically 
+appended to generate a unique label of the form ?xyz.  Each time any macro 
+is called, the label generator produces a new label, whether labels are used
+or not.  Thus, the very first macro call will have generated labels of the 
+form ?xaa, the second macro call ?xab, and so on.  Thus up to 676 macro 
+calls may appear in any one program -- far more than will ever be needed for 
+this class.  The ? is a special character, just like the % and may require 
+protection.
+
+3.5  Protected Values
+
+     Sometimes you may want to protect portions of the macro body.  For 
+example, you may have a string with a ? or % within the macro body definition.
+If such values are left as is, they would be confused with parameters or 
+local labels.  Square brackets ([ and ]) may be used to protect any portion 
+of a macro body.  Thus a string text[?] would be expanded to text? with no 
+label expansion of the ?.
+
+
+3.6  Invoking a Macro
+
+     A macro is invoked by using the macro name followed by any parameters.  
+A macro call will look just like a regular instruction in the source code, 
+and may be followed by up to 9 operands.   The operands in the order given 
+are then substituted for the formal parameters %1 to %9 in the macro body 
+as the macro is expanded.
+
+3.7  LIST Directive
+
+     The LIST assembler directive is used to control the listing of generated 
+code for macro calls and TEXT directives.  These directives affect only the 
+.l99 file, and in no way change the code generated in the .x99 object code file.
+
+    LIST    TEXT
+    LIST    NOTEXT  ; default
+
+The TEXT and NOTEXT options control how generated code for TEXT directives is 
+listed in the .l99 file.  With NOTEXT, the default, the starting address of 
+the string is given, along with the number of bytes the string takes in the 
+value field.  Using the LIST TEXT option has a99 list the address and value of
+each word of data generated by the TEXT directive in the .l99 file.  The
+NOTEXT option makes the .l99 file much smaller.
+
+    LIST    MOBJECT
+    LIST    MNEVER
+    LIST    MONCE   ; default
+    LIST    MALWAYS
+
+These LIST options control the .l99 expansion of macro calls.  The MOBJECT
+option is the defaulted option and causes the MACRO not to be expaned in
+the listing, only the original source line and the resultant object are
+listed.  The MNEVER option forces a99 to never list the expanded code 
+produced by a macro call.  The default MONCE option will have a99 list the 
+full expansion of a macro the first time it is called.  Subsequent calls to 
+the same macro will not be expanded in the listing.  The MALWAYS option will 
+have a99 show the full macro expansion every time a macro is called.  This 
+option is most useful for debugging to make sure the parameter expansion and 
+label generation works as expected.  Comments present in the original macro 
+definition will be removed from the expanded code.  Expanded code is also 
+formatted on tab stops. This automatic provision means that strings may have 
+some spaces replaced with tab stops.  This can be avoided by being sure 
+string defined with TEXT directives inside the macro body use double 
+quotation marks:
+
+                         "STRING".
+
+Other forms of the LIST statement:
+
+      LIST
+      LIST "file_name"
+
+These directives serve two distinct purposes.  The LIST statement with no
+arguments restores output to the listing file which had been previously
+disabled using the UNL (unlist) command.  The list statement with a file
+name enclosed in double quotation marks will cause the listed output to
+be redirected from the file specified on the -l command line switch to
+the file_name specified.
+
+=======================================================================*/
+
+
+                 TI-99/4A, TMS9900, and TMS99000 Cross Loader
+
+                               User's Manual
+
+
+  1.0 Overview
+
+      The TI-99/4A and MYARC Geneve Cross Loader simulates the "CALL LOAD"
+  and PROGRAM SAVE facilities on the TI-99/4A.  It differs somewhat in
+  that:
+
+      1. Programs can be loaded anywhere in memory, including the
+         Geneve locations of 0400-F000.
+
+      2. Program load module format is compatible with MYARC Geneve
+         MDOS format transient commands (Program File).
+
+      3. Instead of producing a "pure" program file, a file with a
+         TIFILES header is produced.  This allows for downloading the
+         file directly to the Geneve or TI-99/4A using a standard
+         AmigaDOS or MSDOS XMODEM facility, and FASTTERM, 4A/TALK,
+         MASS80COL, or TELCO.
+
+    Before using the cross-loader, you must assemble your program(s)
+  using the TI-99/4A cross-assembler, creating one or more .X99 file(s)
+  (object files).  Once you have the object assembled, you must create
+  a loader command file, containing the following statements:
+
+          OPTION, INCLUDE, SAVE, END
+
+    The following commands are optional:
+
+          SEGBOUND, PAGEBOUND, RELATIVE
+
+  2.0 Commands
+
+      A loader command file consists of multiple commands, intended to
+   describe the type of object to be created (OPTION), which object (.X99)
+   files are to be included (INCLUDE), the name and format of the resulting
+   SAVE file (SAVE), and the module termination.
+
+  2.1 OPTION command
+
+     The OPTION command tells the loader whether to create a TI-99/4A
+   program file, a GENEVE fast memory file, or a GENEVE slow memory
+   file, as follows:
+
+         OPTION N         (not GENEVE, produce TI-99/4A GPL Object)
+         OPTION G         (Geneve SLOW memory, normal MDOS mode)
+         OPTION F         (Geneve FAST memory, fast MDOS mode)
+
+   The OPTION command has an optional second parameter which specifies
+   the start load address for relocatable object, i.e.:
+
+         OPTION N,>A000   would start TI-99/4A load at address >A000
+         OPTION G,>0400   would start MDOS compatible load at address >0400
+
+   The parameter is optional.  If unspecified, and relative loads are
+   performed, the cross-loader will start loading the relative object
+   at location >A000 (for TI-99 object), or >0400 (for MDOS object).
+
+  2.2 INCLUDE command
+
+     The INCLUDE command may be specified one or more times, and defines
+   an object module (a .X99 file) to be included.  Note that this loader
+   only recognizes TI-99 aorg'd uncompressed object, such as is produced
+   by the cross-assembler.  The format of the include file is:
+
+          INCLUDE filename
+
+   where: filename is the DOS name of the file to be included.  It must
+   be terminated by a blank.  For example, to include the object modules
+   TEST.X99 and TEST1.X99 that are located in the Amiga directory
+   df2:objects/, the commands would be:
+
+          INCLUDE df2:objects/test.x99
+          INCLUDE df2:objects/test1.x99
+
+   2.3 PAGEBOUND and SEGBOUND commands
+
+     The PAGEBOUND and SEGBOUND commands allow you to "round-up" where
+   the next module is to be loaded.  This wastes space in the overall
+   executable program, but makes debugging much easier, since an odd
+   offset need not be added to the listing.
+
+     The commands are:
+
+          PAGEBOUND      -  rounds the program counter to next >100
+          SEGBOUND       -  rounds the program counter to next >800
+
+     There are no parameters.
+
+     For example, if the following commands were given:
+
+          INCLUDE OBJD.X99
+          PAGEBOUND
+          INCLUDE OBJ1.X99
+
+     Module OBJ1 would start at the next page boundry following OBJD.  If
+   module OBJD ended at location >0E6A, then module OBJ1 would start at
+   location >0F00.
+
+   2.4 SAVE command
+
+     The SAVE command actually causes the PROGRAM file to be produced.
+   It defines the name of the program image file(s) (with XMODEM headers),
+   and the start and end addresses to use in the program image.  The
+   syntax is:
+
+          SAVE filename,start_address,end_address[,length]
+
+   The filename parameter specifies the DOS filename to create.  The
+   start_address and end_address parameters define the starting and
+   ending addresses to include in the program file.  They may be specified
+   as hexadecimal addresses (by preceding them with a greater than symbol,
+   e.g. >A000), or as program symbol DEF'd names (e.g. START,SEND).  For
+   example, to create a program file called TEST.P99, with a start address
+   and ending address of >A000 and >B123, the command could be:
+
+               SAVE TEST.P99,>A000,>B123
+
+   Note that this is rather hard-code-ish.  It is recommended that symbols
+   be DEF'd in your program pointing to the start and end of the file,
+   as follows:
+
+                DEF     START
+                DEF     SEND
+
+         START  EQU     $
+
+                 .
+                 .  program body
+                 .
+
+        SEND    EQU     $
+                END
+
+    Then the command could be specified as:
+
+                SAVE TEST.P99,START,SEND
+
+    The SAVE command observes the TI-99 restriction of 8k program modules.
+  If more than 8k is being saved, then multiple output modules will be
+  created, each with its own TIFILES header. If more than one file needs
+  to be created, then the last character of the filename (character preceding
+  ".", or last character of filename if filename doesn't include a ".") will
+  be incremented for each file, in the same manner as the TI-99 SAVE facility.
+
+  The last parameter on the end is the maximum size program files to create.
+  If not specified, the default is >2000 bytes per program module.  If your
+  loader on the TI-99 can accept more, use a larger default.  For example,
+  If you want each module to be >4000 bytes maximum, then specify:
+
+               SAVE TEST.P99,START,SEND,>4000
+
+  Note that MDOS currently has a restriction of 15.5k per module (according
+  to Paul Charlton).
+
+  2.5  END Command
+
+    The END Command is used to terminate the cross-loader.  It has no
+   parameters and is specified as:
+
+               END
+
+     Upon encountering the END statement, the cross loader displays the
+   contents of the REF/DEF symbol table.  The list is in the order in
+   which the REF/DEF's where encountered in the object module(s).  
+   REF's are indicated with the letter 'R', and DEF'd symbols with the
+   letter 'D'.  Following a list of all of the defined symbols, a
+   REF list of unresolved symbols is listed (if any).  The number
+   of unresolved symbols is also displayed.
+
+   The following is an example of the REF/DEF symbol list:
+
+                Symbol File (REF/DEF entries)
+                  Total Entries = 2
+                1. CRASH  D A000 0200
+                2. CEND   D A058 0
+                NO unresolved references
+
+   The six character def name, the REF(R) or DEF(D) status of the symbol,
+   and the symbol location (e.g. A000) is displayed.  The next hex number
+   is the current contents of that memory location.
+
+  2.6  RELATIVE command
+
+    The "RELATIVE" command is used for linking the TIC C compiler, and
+    has little use elsewhere.  The RELATIVE command has a single parameter:
+
+                RELATIVE >hex_value
+
+    where:
+
+                >hex_value - is the relative offset to subract from each
+                             relative object definition.
+
+    For example, the command "RELATIVE >A000" would cause the value >A000
+    to be subtracted from all relative references in the object.
+
+
+  3.0  Example
+
+   An example command file called test.c99 would be:
+
+        OPTION G,>0400                  (produce GENEVE slow memory)
+        INCLUDE "test.a99"              (include first module)
+        PAGEBOUND                       (start next at page boundry)
+        INCLUDE "test1.a99"             (include second module)
+        SAVE TEST.P99,START,SEND        (save it)
+        END
+
+   The command file would be invoked by:
+
+        loader test.c99
+
+   and would result in the program file:
+
+        test.p99
+
+   The file could then be downloaded to the MYARC geneve using FASTERM,
+   or MASS80COL (using XMODEM).  This will cause a program file (e.g.
+   TEST) to be created on the disk.  Type TEST under MDOS to execute your
+   program.
+
+   A TI-99 compatible file (MYARC GENEVE GPL Mode) could be created by
+   the command file:
+
+        OPTION N,>A000                  (Not a GENEVE)
+        INCLUDE "test.a99"              (include first module)
+        PAGEBOUND                       (start next at page boundry)
+        INCLUDE "test1.a99"             (include second module)
+        SAVE TEST.P99,START,SEND        (save it)
+        END
+
+===========================================================================
+
+                       Example Program Notes:
+                       =====================
+
+  Included in the archive is an example program taken from the editor/
+  assembler user's manual.  This program creates a crash sound (forever
+  repeating).  I started here with two source modules:
+
+                example.a99  -  The program source
+                example.c99  -  The command file for the loader
+
+  and performed the following steps:
+
+    1. Assembled the example.a99 program, creating the list file example.l99,
+       and the object file example.x99, using the command:
+
+                a99 -oexample -lexample example
+
+    2. Linked the example program using the loader command:
+
+                loader example.c99
+
+       This created the XMODEM compatible object module example.p99.
+
+    3. Downloaded the example.p99 to the TI-99/4A using VT100 (on Amiga
+       side) and 4A/Talk (on TI-99/4A side), creating a program file
+       called DSK1.EXAMPLE on the TI-99 disk.
+
+    4. Executed DSK1.EXAMPLE using item 5 on the Editor/Assembler menu.
+       It loaded & ran automatically, and created the CRASH sound.
+
+
+
+==============================================================================
+The following documents what was changed for each version of the assembler:
+
+Version 2.0:
+-----------
+
+ The CS-255 TI-990 cross macro assembler was modified to use somewhat TI-99/4A
+compatible code.  The following changes were made over the original Wampler 
+code:
+
+   o The object output was modified to be consistent with the un-compressed 
+     form of the TI-99/4A assembler.
+
+   o The psuedo opcodes PAGE, TITL, IDT, DEF, BYTE, EVEN, and DORG 
+     were added.
+
+   o The listing was modified to include line numbering, page numbering.
+
+   o A restriction was removed on the AORG address.
+
+   o Astericks were now allowed to indicate comment lines.
+
+   o The requirement for a semicolon to indicate the start of a comment 
+     on a line was removed.
+
+   o Text string handling was reworked, so that TEXT and BYTE statements 
+     can be intermixed without the assembler adding extra pads to null out 
+     odd strings.
+
+   o The RT instruction was included.
+
+   o The number of symbols was increased to 2000, the total symbol table space
+     increased to 10000 characters.
+
+The following items were added in version 2.1:
+                                  -----------
+   o The REF statement
+
+   o The UNL (unlist) statement was added which turns the listing off.
+
+   o The LIST statement was expanded in the following manner:
+
+        - A LIST statement with no arguments turns the listing on
+          (undos the UNL statement)
+
+        - A LIST statement with a file name enclosed in double
+          quotes (e.g. "df0:listing2") will cause furthur output
+          for the listing to be directed to the specified disk file.
+          Useful when you are trying to keep a listing file down
+          to a certain maximum size.
+
+        - A new MACRO list option MOBJECT was added, which will
+          output from a macro the original source line, and then
+          any object.  This made very nice listings for pseudo
+          languages built with MACROs.  This mode was made the 
+          default macro list mode.
+
+   o Two compilation time switches were added, the -l (specify listing
+     file) and -o (specify object file).  The object and listing file
+     are not now produced by default; they are only produced if specified
+     by the -l and -o switches.  It is not necessary to use the file
+     extension on the -l and -o switches, they are automatically provided
+     by the assembler.  The following would be a perfectly valid command
+     line:
+
+             a99 -ltest -otest test
+
+     which specifies taking input from the input file test.a99, write the
+     listing file to the file test.l99, and write the object file to
+     test.x99.
+
+   o The BSS was changed not to round up the next address produced (forcing
+     an EVEN directive).  This was for compatibility with the standard
+     TI-99/4A assembler.
+
+   o The TEXT directive was changed to correctly recognize the existance
+     of two quotes meaning a single quote, e.g.:
+
+                TEXT 'Don''t do it'
+
+   o A minor change was made so the last record (: 99/4 Assembler) was
+     padded with blanks, so that the resulting downloaded record to the
+     TI-99/4A was clean (no garbage).
+
+   o The symbol table was hashed instead of using a sequential lookup.
+     This really improved execution speed on large files, 3800 line
+     file on Lattice AMIGA took 6 min on 2.0, took 2 min on 2.1
+     hashed version.
+
+   o Allowed MACRO lines to have comments starting with blanks 
+
+   o Increased MACRO space in header file from 20 to 200 (You
+     may want to decrease this, it does greatly increase the
+     resulting object size of the program.
+
+   o Changed the way local branch names are assigned within macros.
+     The old method bumped the name on every macro call, regardless
+     of whether any local labels were used, causing an unecessary
+     overflow error about every 1400 macro invocations.
+
+   o And, oh yes, split the program into three seperate files, since
+     it got too big to compile with one.  It is now contained within
+     files a99main.c (the main program), a99pass1.c (sort of pass 1
+     routines) and a99pass2.c (sort of pass 2 routines).  The file
+     a99.h remains the header file with the parameters.
+
+The following items were added in version 2.2:
+                                  -----------
+Several minor changes were made to correct problems found by Ron Lepine.
+Decreased number of macros from 200 to 80.  Removed check for "extra
+operands present".  Check was not necessary since anything past the 
+required operands is now considered a comment.
+
+The following items were added in version 2.3 (November 30, 1987):
+                                  -----------
+
+   o Added COPY directive, which operates as an INCLUDE file directive.
+     This was mainly done so I could include EQUATE files for the
+     MYARC Geneve.
+
+The following items were added in version 2.4 (December 20, 1987):
+                                  -----------
+   o Added IF/ELSE/ENDIF statements.  This was done so I could write
+     conditional code for GENEVE (e.g. IF GENEVE, ELSE, ENDIF).
+
+   o UNL (UNLIST) code now works properly.
+
+The following items were added in version 2.6 (March 3, 1988):
+                                  -----------
+   o Added more conditionals, IFEQ, IFNE, IFGT, IFGE, IFLT, IFLE.
+
+   o Added relative object code generation.
+
+   o Added RORG directive
+
+   o Added multiple REFS/DEFS per REF/DEF line (compatibility with
+     TI-99 assembler)
+
+   o Changed the emtref routine so that REF's which are included
+     in source but not used in the body of the program will not
+     be emitted into object, and a warning issued.  Problem was
+     REF's rorg'd to location 0 in object, and location 0 was
+     getting wiped out when loader was run.  This has a side
+     effect that the first location in a program cannot be a
+     ref'd value.
+
+   o Added a new parameter option line (-p) with parameters for
+     no register definitions (n), MYARC 9640 GENEVE extensions (g),
+     and TMS99000 extensions (h).  Thanks to Tony Lewis for his
+     help in defining these.
+
+   o Changed the opcode lookup algorithm to be a binary search instead
+     of a sequential search.  Resulted in a 25% improvement in assembly
+     times over previous release.
+
+  The following items were changed in version 2.7 (15-AUG-1988):
+  -------------------------------------------------------------
+
+   o Fixed form feed on listings (bug found by Ron).  This minor fix
+     was released in the 2.6 MSDOS version of the cross-assembler.
+
+   o Allowed relocatable arguments of internal opcodes, e.g. LWPI
+     instruction now allows relocatable (RORG'd) workspace pointer.
+
+   o Many cleanups of compilation warnings by Ron Lepine.
+
+   o Fixed up the TIME definition to be standard across many systems
+
+   o Changed the last object record (: 99/4a assembler) to have
+     a sequence number.  Corrected some difficulties I was having
+     with TI-99 kermit.
+
+   o Fixed the ELSE construct, previously worked erratically.
+
+   o Fixed the RT instruction, don't know how it got broke.
+
+  The following items were changed in version 2.9 (31-MAY-1989):
+  -------------------------------------------------------------
+
+   o Added a new "compress" option, to produce TI-99 compressed object
+     code.  This permits an almost 3/1 reduction in object code size,
+     and allows the assembler/loader to run even faster.
+
+   o Fixed the last ":" colon record to fill out to 80 characters
+
+   o The object code format now is strict 80 characters.  The old format
+     had 80 characters and a n/l, 80 characters and a n/l.  The new
+     format is just 80 characters without a n/l.   This was required
+     since compress mode may include a n/l in the middle of the object!
+     (or any other non-printable character).
+
+The assembler will now produce code in the same manner as the
+standard TI/994A assembler, with the following general restrictions:
+
+   o No compressed object
+
+   o An inconsistency has been noted with code of the form:
+
+              ABC  EQU  $-GHI
+
+     be careful!  A good alternate form to work around the bug might
+     be:
+
+              ABC  EQU  ABC-GHI
+
+  Version 2.10:
+  ------------
+
+  Added extended assembler feature, allowing ref/def names of 7 to 31 chars.
+  Corrected some problems with listing and object when no listing or
+  object file requested.   Changed def's to always capitalize def'd names
+  in object files.
+
+  Version 2.13 (29dec90)
+  ----------------------
+
+  Added support for new extended X opcode, that allows for overlay subroutines
+  in TIC C compiler (has little use elsewhere), and for new SEGMENT command.
+
+
+The following documents the releases of the companion loader:
+
+  Version 1.0 (30-November-1987)
+  ------------------------------
+
+  INITIAL RELEASE.  Not extensively tested with multiple program files.
+
+  Version 1.1 (09-December-1987)
+  ------------------------------
+
+  Fixes to multiple object program generation.
+
+  Version 1.2 (27-December-1987)
+  ------------------------------
+
+  Added optional argument to SAVE directive, which is the maximum program
+  module size to save (since MDOS supports a 15.5k program module size,
+  vs. the TI-99/4A 8k module size).
+
+  Version 1.3 (02-January-1988)
+  -----------------------------
+
+  Made various changes for MSDOS compatibility, with Ron Lepine's help.
+
+  Version 1.4 (28-January-1988)
+  -----------------------------
+
+  Version 1.4 supports relative object code.   The SEGBOUND and PAGEBOUND
+  commands were added.
+
+  Version 2.9 (31-May-1989)
+  -------------------------
+
+  Changed version number to be consistent with a99 version number.  Added
+  compressed object code format.  Removed debug statements.  Changed the
+  object code format to strict 80 bytes per object line.
+
+  Version 2.10 (29-Jul-1990)
+  -------------------------
+  Added extended mode assembler.   Corrected some problems if object and
+  list files were NOT specified on command line.
+
+  Version 2.12 (29dec90)
+  ---------------------
+
+  Added special X mode ref chain.  Utilizes a new object opcode (X) if
+  this option is specified.  This was really needed for the TIC C compiler
+  due to overlay subroutine scheme and has little use elsewhere.
+
+----------------------------end of document----------------------------------

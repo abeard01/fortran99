@@ -1,0 +1,23 @@
+Lattice AMIGA 68000 C Compiler (Phase 1) V3.03
+Copyright (C) 1984 Lattice, Inc.
+a99pass1.c 88 Warning 89: constant converted to required type
+a99pass1.c 89 Warning 89: constant converted to required type
+a99pass1.c 90 Warning 89: constant converted to required type
+a99pass1.c 91 Warning 89: constant converted to required type
+a99pass1.c 92 Warning 89: constant converted to required type
+a99pass1.c 93 Warning 89: constant converted to required type
+a99pass1.c 94 Warning 89: constant converted to required type
+a99pass1.c 95 Warning 89: constant converted to required type
+a99pass1.c 96 Warning 89: constant converted to required type
+a99pass1.c 97 Warning 89: constant converted to required type
+a99pass1.c 98 Warning 89: constant converted to required type
+a99pass1.c 99 Warning 89: constant converted to required type
+a99pass1.c 100 Warning 89: constant converted to required type
+a99pass1.c 101 Warning 89: constant converted to required type
+a99pass1.c 102 Warning 89: constant converted to required type
+a99pass1.c 103 Warning 89: constant converted to required type
+a99pass1.c 133 Warning 89: constant converted to required type
+a99pass1.c 136 Warning 89: constant converted to required type
+a99pass1.c 242 Warning 89: constant converted to required type
+a99pass1.c 252 Warning 89: constant converted to required type
+a99pass1.c 264 Warning 89: constant converted to required type

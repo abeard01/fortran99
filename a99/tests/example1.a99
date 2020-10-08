@@ -1,0 +1,5 @@
+	REF	TEST
+	LI	R5,2
+	LI	R5,TEST
+	LI	R5,2
+	END

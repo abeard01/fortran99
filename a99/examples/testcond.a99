@@ -1,0 +1,106 @@
+LESS	EQU	-1
+ZERO	EQU	0
+MORE	EQU	1
+*
+*  TEST CONDITIONALS
+*
+	IFEQ	LESS		no code
+	DATA	1
+	ENDIF
+*
+	IFNE	LESS		code
+	DATA	1
+	ENDIF
+*
+	IFGT	LESS		no code
+	DATA	1
+	ENDIF
+*
+	IFGE	LESS		no code
+	DATA 	1
+	ENDIF
+*	
+	IFLE	LESS		code
+	DATA	1
+	ENDIF
+*
+	IFLT	LESS		code
+	DATA    1
+	ENDIF
+*
+	IF	LESS		code
+	DATA 	1
+	ENDIF
+*
+	IFEQ	ZERO		code
+	DATA	1
+	ENDIF
+*
+	IFNE	ZERO		no code
+	DATA	1
+	ENDIF
+*
+	IFGT	ZERO		no code
+	DATA	1
+	ENDIF
+*
+	IFGE	ZERO		code
+	DATA 	1
+	ENDIF
+*	
+	IFLE	ZERO		code
+	DATA	1
+	ENDIF
+*
+	IFLT	ZERO		no code
+	DATA    1
+	ENDIF
+*
+	IF	ZERO		no code
+	DATA 	1
+	ENDIF
+*
+	IFEQ	MORE		no code		
+	DATA	1
+	ENDIF
+*
+	IFNE	MORE		code
+	DATA	1
+	ENDIF
+*
+	IFGT	MORE		code
+	DATA	1
+	ENDIF
+*
+	IFGE	MORE		code
+	DATA 	1
+	ENDIF
+*	
+	IFLE	MORE		no code
+	DATA	1
+	ENDIF
+*
+	IFLT	MORE		no code
+	DATA    1
+	ENDIF
+*
+	IF	MORE		code
+	DATA 	1
+	ENDIF
+*
+	IFD	ZERO		code
+	DATA	1
+	ENDIF
+*
+	IFND	ZERO		no code
+	DATA	1
+	ENDIF
+*
+	IFD	ONE		no code
+	DATA	1
+	ENDIF
+*
+	IFND	ONE		code
+	DATA	1
+	ENDIF
+	END

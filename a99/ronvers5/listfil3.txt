@@ -1,0 +1,14 @@
+Lattice AMIGA 68000 C Compiler (Phase 1) V3.03
+Copyright (C) 1984 Lattice, Inc.
+a99psop.c 111 Warning 89: constant converted to required type
+a99psop.c 113 Warning 89: constant converted to required type
+a99psop.c 142 Warning 89: constant converted to required type
+a99psop.c 146 Warning 89: constant converted to required type
+a99psop.c 148 Warning 89: constant converted to required type
+a99psop.c 169 Warning 89: constant converted to required type
+a99psop.c 208 Warning 89: constant converted to required type
+a99psop.c 210 Warning 89: constant converted to required type
+a99psop.c 216 Warning 89: constant converted to required type
+a99psop.c 436 Warning 89: constant converted to required type
+a99psop.c 554 Warning 89: constant converted to required type
+a99psop.c 569 Warning 89: constant converted to required type

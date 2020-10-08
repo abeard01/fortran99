@@ -1,0 +1,25 @@
+	TITL	'TEST OF REF'
+*
+	REF	TEST
+*
+	AORG    >A000
+AB	BSS     9
+AC	BSS	4
+AD	BSS	3
+	EVEN
+	TEXT	'DO DO IT'
+	EVEN
+        TEXT    'DON''T DO IT'
+	EVEN
+	COPY	"test4.a99"
+	DATA    TEST
+	MOV	@TEST,R5
+	MOV	@TEST,@TEST
+        MOV     R5,@TEST
+        MOV     @TEST(R3),@TEST(R5)
+        MOV     @TEST(R3),R5
+        MOV     R5,@TEST(R3)
+	LI	R5,TEST
+	MOV	R5,@TEST
+	SLA	R5,TEST
+	END

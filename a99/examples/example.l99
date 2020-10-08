@@ -1,0 +1,62 @@
+***** TI 99/4A Assembler Version 2.7 (13-MAR-88) *****
+99/4 Assembler
+                                                    Page    1
+   1                 	TITL	'Example program to make a crash sound'
+   2                 	IDT	'CRASH'
+   3 0000   0001     GENEVE	EQU	1
+   4                 *
+   5                 *  Example program to make a crash sound
+   6                 *
+   7 0000   0000     	DEF	CRASH,CEND
+   7 0000   0058      
+   8                 *
+   9 0000   1000     BUFFER	EQU	>1000		VDP RAM BUFFER USED BY SOUND GENERATOR
+  10 0000   2020     VMBW	EQU	>2020
+  11                 *
+  12                 CRASH
+  13 0000   0200     	LI	R0,BUFFER	Load VDP ram buffer address
+  13 0002   1000      
+  14 0004   0201     	LI	R1,CDATA	Pointer to sound data
+  14 0006   0036'     
+  15 0008   0202     	LI	R2,32		32 bytes to move to the VDP ram buffer
+  15 000A   0020      
+  16 000C   0420     	BLWP	@VMBW		Move to VDP ram buffer
+  16 000E   2020      
+  17                 *
+  18                 LOOP
+  19 0010   0300     	LIMI	0		Disable VDP interrupt
+  19 0012   0000      
+  20 0014   020A     	LI	R10,BUFFER	Load sound table address
+  20 0016   1000      
+  21 0018   C80A     	MOV	R10,@>83CC	Load pointer to table
+  21 001A   83CC      
+  22 001C   F820     	SOCB	@H01,@>83FD	Set VDP ram flag
+  22 001E   0056'     
+  22 0020   83FD      
+  23 0022   D820     	MOVB	@H01,@>83CE	Start sound processing
+  23 0024   0056'     
+  23 0026   83CE      
+  24 0028   0300     	LIMI	2
+  24 002A   0002      
+  25                 *
+  26                 LOOP2
+  27 002C   D820     	MOVB	@>83CE,@>83CE	Check if time is up
+  27 002E   83CE      
+  27 0030   83CE      
+  28 0032   13EE     	JEQ	LOOP		Repeat the sound
+  29 0034   10FB     	JMP	LOOP2		Wait until finished
+  30                 *
+  31 0036   0003     CDATA	BYTE	>03,>9F,>E4,>F2,5
+  32 003B   0002     	BYTE	>02,>E4,>F0,12
+  33 003F   0002             BYTE    >02,>E4,>F2,10
+  34 0043   0002     	BYTE	>02,>E4,>F4,8
+  35 0047   0002     	BYTE	>02,>E4,>F6,6
+  36 004B   0002     	BYTE	>02,>E4,>F8,4
+  37 004F   0002     	BYTE	>02,>E4,>FA,2
+  38 0053   0001     	BYTE 	>01,>FF,0
+  39 0056   0001     H01	BYTE	>01
+  40                 	EVEN
+99/4 Assembler
+Example program to make a crash sound               Page    2
+  41 0000   0058     CEND	EQU	$
+  42                 	END

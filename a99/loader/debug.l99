@@ -1,0 +1,70 @@
+
+TI 99/4A Loader Version 1.6 (09-May-1988)
+Copyright 1987,1988 by Al Beard
+DONE arg parse, inp file debug.c99
+> OPTION N,>F680
+
+nextch, input string is END
+
+nextch, input string is OPTION
+
+nextch, input string is F
+
+nextch, input string is G
+
+nextch, input string is N
+ Parsing hex string, not at eol 1
+
+nextch, input string is ,
+Returned OPTION 0, pcptr A000
+> INCLUDE OBJD.X99
+
+nextch, input string is END
+
+nextch, input string is OPTION
+
+nextch, input string is SAVE
+
+nextch, input string is INCLUDE
+Processing module DEBUG   , start A000, size 8B6
+PROCTOK - processing token 5
+
+GETIDT - Return string is DEBUG 
+PROCTOK - Adding Relative Offset, A000
+FNDIDT - IDT is DEBUG , FNDSYM is FFFFFFFF
+Putting Symbol DEBUG  into ref/def, loc A000
+PROCTOK - processing token 5
+
+GETIDT - Return string is DEBUE 
+PROCTOK - Adding Relative Offset, A8B6
+FNDIDT - IDT is DEBUE , FNDSYM is FFFFFFFF
+Putting Symbol DEBUE  into ref/def, loc A8B6
+> SAVE FORT4CA,DEBUG,DEBUE,>2000
+
+nextch, input string is END
+
+nextch, input string is OPTION
+
+nextch, input string is SAVE
+Extracted file name FORT4CA
+
+GETIDT - Return string is DEBUG 
+FNDIDT - IDT is DEBUG , FNDSYM is 0
+PROCREC - Found START symbol DEBUG  & value A000
+
+GETIDT - Return string is DEBUE 
+FNDIDT - IDT is DEBUE , FNDSYM is 1
+Ending symbol DEBUE  & address A8B6
+Maximum Module Size is 2000
+SAVFIL - total size is 8B6, # modules is 1
+special debug, memory[0f00] is 0, 0, 0, 0
+Creating OUTPUT file FORT4CA
+Packed xrec, start = A000, xrec[4] = -96
+> END
+
+nextch, input string is END
+Symbol File (DEF entries)
+ Total Entries = 2
+    1  DEBUG   D  A000
+    2  DEBUE   D  A8B6
+ NO Unresolved references

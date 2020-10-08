@@ -1,0 +1,42 @@
+	TITL	'Example program to make a crash sound'
+	IDT	'CRASH'
+GENEVE	EQU	1
+*
+*  Example program to make a crash sound
+*
+	DEF	CRASH,CEND
+*
+BUFFER	EQU	>1000		VDP RAM BUFFER USED BY SOUND GENERATOR
+VMBW	EQU	>2020
+*
+CRASH
+	LI	R0,BUFFER	Load VDP ram buffer address
+	LI	R1,CDATA	Pointer to sound data
+	LI	R2,32		32 bytes to move to the VDP ram buffer
+	BLWP	@VMBW		Move to VDP ram buffer
+*
+LOOP
+	LIMI	0		Disable VDP interrupt
+	LI	R10,BUFFER	Load sound table address
+	MOV	R10,@>83CC	Load pointer to table
+	SOCB	@H01,@>83FD	Set VDP ram flag
+	MOVB	@H01,@>83CE	Start sound processing
+	LIMI	2
+*
+LOOP2
+	MOVB	@>83CE,@>83CE	Check if time is up
+	JEQ	LOOP		Repeat the sound
+	JMP	LOOP2		Wait until finished
+*
+CDATA	BYTE	>03,>9F,>E4,>F2,5
+	BYTE	>02,>E4,>F0,12
+        BYTE    >02,>E4,>F2,10
+	BYTE	>02,>E4,>F4,8
+	BYTE	>02,>E4,>F6,6
+	BYTE	>02,>E4,>F8,4
+	BYTE	>02,>E4,>FA,2
+	BYTE 	>01,>FF,0
+H01	BYTE	>01
+	EVEN
+CEND	EQU	$
+	END

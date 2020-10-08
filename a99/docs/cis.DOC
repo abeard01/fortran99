@@ -1,0 +1,37 @@
+#: 119362 S3/99 Programming
+    04-Jan-88  21:50:57
+Sb: #119285-#CROSS ASSEMBLERS
+Fm: TONY LEWIS 73357,1730
+To: Al Beard 71370,2723 (X)
+
+AL: thanks a million! PLEASE keep me posted on the development of the cross
+assembler for the 9900/9995, or if I can help in any way. There are some cheap
+cross assemblers for the Z80, and others on MSDOS...check the classifieds in
+the back of Computer Shopper under MSDOS software. Only $35 for 1st copy, $20
+for next, etc. Need both for some quick and dirty assembly at work for an
+EEPROM programmer. Also believe the 99 cross assembler has $$$ potential, if
+you can get anybody in the TI world to pay you for your sweat nowadays. I am
+serious about helping if needed. Don't program in 'C', but do a good job of
+technical writing. Keep in touch. Tony.
+
+*** There is a reply:	119382
+
+*** More ***
+
+Enter command, N for next
+message or <CR> for menu !n
+
+#: 119382 S3/99 Programming
+    05-Jan-88  22:52:33
+Sb: #119362-CROSS ASSEMBLERS
+Fm: Al Beard 71370,2723
+To: TONY LEWIS 73357,1730
+
+OK.  Program was taken (assembler part) from an assembler by a University
+professor.  I use it extensively, along with the crossloader, to create MDOS
+compatible transient commands (& GPL objects).  Ron Lepine's still sweating
+with the cross-loader, something about Lattice's PRINTF function works fine on
+an Amiga, but chokes on his TIPRO (chuckle).  Let you know when ready.
+  al b.
+
+
